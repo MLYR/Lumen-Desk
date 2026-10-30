@@ -1,0 +1,60 @@
+---
+// 博客外壳。构建后由 scripts/split-private.mjs 移到 dist-shell/blog.html（不进 dist/），
+// api 把 {{LD_TITLE}}、{{LD_DESCRIPTION}}、{{LD_CONTENT}} 替换成真实内容。契约见 docs/contracts/blog-api.md。
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import "../styles/blog.css";
+---
+<Layout title="{{LD_TITLE}}" description="{{LD_DESCRIPTION}}" analytics>
+  <Header current="blog" />
+  <main class="wrap blog-main">
+    <search class="blog-search">
+      <label class="blog-search-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="blog-search" type="search" placeholder="搜索文章（至少 2 个字）" autocomplete="off" maxlength="50" aria-label="搜索文章" aria-controls="blog-search-results">
+      </label>
+      <div id="blog-search-results" aria-live="polite"></div>
+    </search>
+    <Fragment set:html="{{LD_CONTENT}}" />
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  // 防抖搜索。q 限 2–50 字；结果全部转义，链接只指向 /blog/<slug>/。
+  type Hit = { slug: string; title: string; snippet?: string };
+  const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+  const input = document.getElementById("blog-search") as HTMLInputElement;
+  const out = document.getElementById("blog-search-results") as HTMLElement;
+  let timer = 0, ctrl: AbortController | null = null;
+
+  const msg = (t: string) => { out.innerHTML = `<p class="search-msg">${esc(t)}</p>`; };
+
+  async function run(q: string) {
+    ctrl?.abort();
+    ctrl = new AbortController();
+    try {
+      const res = await fetch("/api/search?q=" + encodeURIComponent(q), { signal: ctrl.signal });
+      if (res.status === 400) return msg("请输入 2 到 50 个字");
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      const items: Hit[] = (Array.isArray(data.items) ? data.items : []).filter((x: Hit) => x && typeof x.slug === "string" && /^[a-z0-9-]{1,80}$/.test(x.slug) && typeof x.title === "string");
+      if (!items.length) return msg("没有找到相关文章");
+      out.innerHTML = `<ul class="search-list">` + items.map((x) =>
+        `<li><a href="/blog/${esc(x.slug)}/"><div class="t">${esc(x.title)}</div>${x.snippet ? `<div class="s">${esc(x.snippet)}</div>` : ""}</a></li>`).join("") + `</ul>`;
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return;
+      msg("搜索暂时不可用，请稍后再试");
+    }
+  }
+
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (!q) { ctrl?.abort(); out.innerHTML = ""; return; }
+    if ([...q].length < 2) { ctrl?.abort(); msg("再多输入一个字"); return; }
+    timer = window.setTimeout(() => run(q), 300);
+  });
+  input.addEventListener("keydown", (e) => { if (e.key === "Escape") { input.value = ""; ctrl?.abort(); out.innerHTML = ""; } });
+</script>

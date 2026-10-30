@@ -2,6 +2,8 @@
 design-demos/bookmarks.data.js
 *.bookmarks.json
 .env
+# Umami 的数据库密码和签名密钥（deploy/umami.env），只放服务器
+umami.env
 node_modules/
 .DS_Store
 # 控制台截图里能看到私人书签，不进公开仓库

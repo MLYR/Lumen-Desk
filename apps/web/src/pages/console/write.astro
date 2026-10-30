@@ -1,0 +1,82 @@
+---
+// 私有编辑器 /console/write。构建后由 scripts/split-private.mjs 移到 dist-private/console/write/。
+// 不传 analytics：控制台永远不插统计脚本。
+import Layout from "../../layouts/Layout.astro";
+import ThemeSwitch from "../../components/ThemeSwitch.astro";
+import "../../styles/console.css";
+import "../../styles/blog.css";
+import "../../styles/write.css";
+---
+<Layout title="写文章 · 拾光台" noindex>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/console"><span class="brand-mark">z</span>zreo</a>
+    <span class="private" title="这个页面需要登录"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="lbl">仅自己可见</span></span>
+    <nav class="nav" aria-label="导航">
+      <a href="/console">控制台</a>
+      <a href="/console/write" aria-current="page">写文章</a>
+      <a href="/blog/">公开博客</a>
+    </nav>
+    <div class="top-right">
+      <a class="btn" href="/console" title="返回控制台"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg><span class="lbl">控制台</span></a>
+      <ThemeSwitch />
+    </div>
+  </div>
+</header>
+
+<main class="wrap ed" id="ed" data-tab="edit">
+  <aside class="ed-side" aria-label="文章列表">
+    <div class="ed-side-head">
+      <h1 class="ed-h">文章</h1>
+      <button class="btn primary" id="new-post" type="button">新文章</button>
+    </div>
+    <ul class="ed-list scroll" id="post-list"><li class="ed-note">加载中…</li></ul>
+    <div class="ed-tools">
+      <button class="btn" id="import-btn" type="button">导入 .md</button>
+      <a class="btn" id="export-link" href="/api/private/posts/export" download>导出全部</a>
+      <input id="import-file" type="file" accept=".md,.markdown,text/markdown" multiple hidden>
+    </div>
+    <div class="ed-result" id="import-result" role="status" hidden></div>
+    <p class="ed-hint">也可以把 .md 文件拖进页面导入，图片拖进或粘贴到文本框。</p>
+  </aside>
+
+  <div class="ed-tabs" role="tablist" aria-label="编辑与预览">
+    <button type="button" role="tab" id="tab-edit" data-t="edit" aria-selected="true" aria-controls="pane-edit">编辑</button>
+    <button type="button" role="tab" id="tab-preview" data-t="preview" aria-selected="false" aria-controls="pane-preview">预览</button>
+  </div>
+
+  <form class="ed-pane ed-form" id="pane-edit" role="tabpanel" aria-labelledby="tab-edit" autocomplete="off" novalidate>
+    <div class="ed-bar">
+      <span class="ed-state" id="ed-state">新文章</span>
+      <span class="ed-actions">
+        <button class="btn danger" id="delete-btn" type="button" hidden>删除</button>
+        <button class="btn primary" id="save-btn" type="submit">保存 <kbd>⌘S</kbd></button>
+      </span>
+    </div>
+    <div class="ed-msg" id="ed-msg" role="status" aria-live="polite"></div>
+
+    <label class="fld"><span>标题</span><input id="f-title" maxlength="200" placeholder="文章标题" required></label>
+    <div class="fld-row">
+      <label class="fld"><span>slug</span><input id="f-slug" maxlength="80" placeholder="留空自动生成" spellcheck="false" autocapitalize="off"></label>
+      <label class="fld"><span>状态</span>
+        <select id="f-status"><option value="draft">草稿</option><option value="published">发布</option></select>
+      </label>
+      <label class="fld"><span>发布时间</span><input id="f-published" type="datetime-local"></label>
+    </div>
+    <label class="fld"><span>标签（逗号分隔）</span><input id="f-tags" placeholder="部署, 前端"></label>
+    <label class="fld"><span>摘要（留空取正文开头）</span><textarea id="f-summary" rows="2" maxlength="500"></textarea></label>
+    <label class="fld grow"><span>正文（Markdown）</span><textarea id="f-md" spellcheck="false" placeholder="在这里写 Markdown。粘贴或拖入图片会自动上传。"></textarea></label>
+  </form>
+
+  <section class="ed-pane ed-preview" id="pane-preview" role="tabpanel" aria-labelledby="tab-preview">
+    <div class="ed-preview-head"><span>预览</span><span id="pv-state"></span></div>
+    <div class="prose" id="preview"><p class="ed-note">预览会显示在这里。</p></div>
+  </section>
+</main>
+
+<div class="drop" id="drop" hidden><div>松开以导入 .md 文件<small>图片请拖进文本框</small></div></div>
+
+<script>
+  import "../../scripts/console/write";
+</script>
+</Layout>

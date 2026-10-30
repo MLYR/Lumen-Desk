@@ -11,6 +11,12 @@
 		Referrer-Policy strict-origin-when-cross-origin
 		X-Frame-Options DENY
 		Strict-Transport-Security "max-age=31536000"
+		# P1.5-5：script-src 暂时放行 'unsafe-inline'（Astro 内联主题脚本）。
+		# 后续把内联脚本算成 sha256 hash，再把 'unsafe-inline' 去掉。
+		# Umami 的统计脚本和上报走本站 /u/*（同源），所以不需要放行外部域名。
+		# img-src 放行 https:，文章里可以引用外部图片，省服务器带宽。
+		# 前面的 ? 表示"没设置过才设"：/uploads/* 会自己设一个更严的 CSP，不能被这里覆盖。
+		?Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 		-Server
 	}
 
@@ -22,6 +28,20 @@
 			handle_response @unauth {
 				respond 401
 			}
+		}
+		# 和 api 自身的上限对齐：图片上传 12 MB，批量导入 .md（最多 20 个 × 1 MB）21 MB，
+		# 其他私有接口 3 MB（单篇正文 1 MB，JSON 转义后会变大）。
+		@upload path /api/private/uploads
+		request_body @upload {
+			max_size 12MiB
+		}
+		@import path /api/private/posts/import
+		request_body @import {
+			max_size 21MB
+		}
+		@otherprivate not path /api/private/uploads /api/private/posts/import
+		request_body @otherprivate {
+			max_size 3MB
 		}
 		reverse_proxy api:3000 {
 			header_up X-Forwarded-For {remote_host}
@@ -53,8 +73,62 @@
 		file_server
 	}
 
+	# 博客页面、RSS、站点地图由 api 渲染。覆盖客户端自带的 X-Forwarded-For。
+	@blog path /blog /blog/* /rss.xml /sitemap.xml
+	handle @blog {
+		reverse_proxy api:3000 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
+	# 上传的图片：文件名是内容哈希，可以长期缓存。
+	# CSP default-src 'none' 让浏览器直接打开图片 URL 时也不会执行任何内容。
+	handle /uploads/* {
+		root * /srv
+		header Cache-Control "public, max-age=31536000, immutable"
+		header X-Content-Type-Options nosniff
+		header Content-Security-Policy "default-src 'none'"
+		file_server
+	}
+
+	# Umami 统计脚本和上报接口，走主站同源，访客浏览器不用连 8081。
+	# 只放行两个路径：脚本（GET）和上报（POST）。Umami 的后台页面和其他接口一律 404，
+	# 想看后台要走 STATS_ADDRESS（有 basic_auth）。
+	# 脚本会用自己所在目录作为上报地址，所以 /u/script.js 会往 /u/api/send 发数据。
+	handle_path /u/* {
+		@script {
+			method GET HEAD
+			path /script.js
+		}
+		@send {
+			method POST
+			path /api/send
+		}
+		handle @script {
+			reverse_proxy umami:3000 {
+				header_up -Cookie
+				header_up X-Forwarded-For {remote_host}
+			}
+		}
+		handle @send {
+			request_body {
+				max_size 64KiB
+			}
+			reverse_proxy umami:3000 {
+				header_up -Cookie
+				header_up X-Forwarded-For {remote_host}
+			}
+		}
+		handle {
+			respond 404
+		}
+	}
+
 	# 公开接口（AIHOT 缓存等）。覆盖客户端自带的 X-Forwarded-For。
 	handle /api/* {
+		request_body {
+			max_size 1MiB
+		}
 		reverse_proxy api:3000 {
 			header_up X-Forwarded-For {remote_host}
 		}
@@ -76,5 +150,43 @@
 			rewrite * /404.html
 			file_server
 		}
+	}
+}
+
+# Umami 后台。备案前用 :8081（IP 访问），备案后改成 stats.域名。
+# 先过 basic_auth（账号和 bcrypt 哈希在 .env 的 ADMIN_USER、ADMIN_PASSWORD_HASH），再到 Umami 自己的登录页。
+# 不加 CSP：Umami 自己的后台页面需要内联脚本。
+# header_up -Cookie：不把主站的登录 Cookie（ld_session）转发给后台。
+{$STATS_ADDRESS::8081} {
+	encode zstd gzip
+	# Umami 网页登录后，调 /api/* 时浏览器脚本会自己带 Authorization: Bearer，盖掉缓存的 basic 凭据，
+	# 整站 basic_auth 会让后台页面登录后全部 401（已实测）。所以"/api/* 且带 Bearer"的请求交给 Umami 验证 token。
+	# 登录接口 /api/auth/login 不在放行范围内，必须先过 basic_auth，否则带一个假 Bearer 头就能绕过门去试默认账号。
+	# 页面和登录接口先过 basic_auth，才能拿到 token。
+	@gate {
+		not {
+			path /api/*
+			not path /api/auth/login*
+			header Authorization Bearer*
+		}
+	}
+	basic_auth @gate {
+		{$ADMIN_USER} {$ADMIN_PASSWORD_HASH}
+	}
+	reverse_proxy umami:3000 {
+		header_up -Cookie
+	}
+}
+
+# Uptime Kuma 后台。备案前用 :8082，备案后改成 status.域名。
+# 先过 basic_auth，再到 Kuma 自己的登录页（第一个访问的人会成为管理员，所以这道门必须在）。
+# reverse_proxy 自带 WebSocket 支持。不加 CSP。
+{$STATUS_ADDRESS::8082} {
+	encode zstd gzip
+	basic_auth {
+		{$ADMIN_USER} {$ADMIN_PASSWORD_HASH}
+	}
+	reverse_proxy uptime-kuma:3001 {
+		header_up -Cookie
 	}
 }

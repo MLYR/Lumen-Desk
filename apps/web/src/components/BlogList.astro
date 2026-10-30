@@ -1,24 +1,41 @@
+---
+import "../styles/blog.css";
+---
 <section class="grid" id="blog">
   <article class="card first last">
     <div class="card-head">
       <h2 class="card-title"><span class="dot"></span>博客</h2>
-      <span class="card-meta">RSS · 待上线</span>
+      <span class="card-meta"><a href="/blog/">全部文章</a> · <a href="/rss.xml">RSS</a></span>
     </div>
-    <ul class="post-list">
-      <li><a href="#"><span class="d">草稿</span><div><div class="t">用一台 3M 小水管服务器搭个人站</div><div class="s">带宽只有 375 KB/s 时，页面要怎么做。</div></div><span class="tags">部署</span></a></li>
-      <li><a href="#"><span class="d">草稿</span><div><div class="t">接入 AIHOT：ETag 与条件请求</div><div class="s">用 304 把轮询成本降到几乎为零。</div></div><span class="tags">后端</span></a></li>
-      <li><a href="#"><span class="d">草稿</span><div><div class="t">Astro 岛屿架构上手记录</div><div class="s">默认零 JS，交互组件按需加载。</div></div><span class="tags">前端</span></a></li>
+    <ul class="post-list" id="home-posts" aria-live="polite">
+      <li class="empty">加载中…</li>
     </ul>
   </article>
 </section>
 
-<style is:global>
-.post-list { list-style: none; }
-.post-list li a { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 16px 0; border-top: 1px solid var(--soft-line); }
-@media (min-width: 700px) { .post-list li a { grid-template-columns: 120px 1fr auto; gap: 20px; align-items: baseline; } }
-.post-list .d { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.post-list .t { font-size: 17px; font-weight: 600; }
-.post-list .s { font-size: 14px; color: var(--muted); margin-top: 2px; }
-.post-list .tags { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.post-list a:hover .t { color: var(--accent); }
-</style>
+<script>
+  // 运行时取最新 3 篇。失败时安静地显示空态；所有外部文本都转义，链接只指向 /blog/<slug>/。
+  type Item = { slug: string; title: string; summary?: string; tags?: string[]; publishedAt?: string | null };
+  const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+  const day = (iso?: string | null) => {
+    const d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d.getTime())) return "";
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  };
+  const box = document.getElementById("home-posts")!;
+  const empty = () => { box.innerHTML = `<li class="empty">还没有文章</li>`; };
+  (async () => {
+    try {
+      const res = await fetch("/api/posts?limit=3");
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      const items: Item[] = (Array.isArray(data.items) ? data.items : []).filter((x: Item) => x && typeof x.slug === "string" && /^[a-z0-9-]{1,80}$/.test(x.slug) && typeof x.title === "string").slice(0, 3);
+      if (!items.length) return empty();
+      box.innerHTML = items.map((x) =>
+        `<li><a href="/blog/${esc(x.slug)}/"><span class="d">${esc(day(x.publishedAt))}</span>` +
+        `<div><div class="t">${esc(x.title)}</div>${x.summary ? `<div class="s">${esc(x.summary)}</div>` : ""}</div>` +
+        `<span class="tags">${esc((Array.isArray(x.tags) ? x.tags : []).join(" · "))}</span></a></li>`).join("");
+    } catch { empty(); }
+  })();
+</script>

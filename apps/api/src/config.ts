@@ -9,6 +9,8 @@ export interface Config {
   cookieSecure: boolean;
   trustProxy: boolean;
   siteUrl: string;
+  /** Directory holding blog.html (built by apps/web as dist-shell). */
+  shellDir: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -24,6 +26,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     cookieSecure: env.COOKIE_SECURE?.toLowerCase() !== 'false',
     // Only trust X-Forwarded-For when explicitly enabled (behind Caddy).
     trustProxy: env.TRUST_PROXY?.toLowerCase() === 'true',
-    siteUrl: env.SITE_URL || 'https://example.com',
+    siteUrl: (env.SITE_URL || 'https://example.com').replace(/\/+$/, ''),
+    shellDir: path.resolve(env.SHELL_DIR || '../web/dist-shell'),
   };
 }

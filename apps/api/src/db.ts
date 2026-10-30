@@ -39,6 +39,34 @@ CREATE TABLE IF NOT EXISTS aihot_cache (
   checked_at        INTEGER,
   retry_after_until INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS posts (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug         TEXT NOT NULL UNIQUE,
+  title        TEXT NOT NULL,
+  summary      TEXT NOT NULL DEFAULT '',
+  tags         TEXT NOT NULL DEFAULT '[]',
+  markdown     TEXT NOT NULL,
+  html         TEXT NOT NULL,
+  body_text    TEXT NOT NULL DEFAULT '',
+  status       TEXT NOT NULL CHECK (status IN ('draft', 'published')),
+  published_at TEXT,
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS posts_published ON posts(status, published_at);
+CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(
+  title, body_text, content='posts', content_rowid='id', tokenize='trigram'
+);
+CREATE TRIGGER IF NOT EXISTS posts_fts_ai AFTER INSERT ON posts BEGIN
+  INSERT INTO posts_fts(rowid, title, body_text) VALUES (new.id, new.title, new.body_text);
+END;
+CREATE TRIGGER IF NOT EXISTS posts_fts_ad AFTER DELETE ON posts BEGIN
+  INSERT INTO posts_fts(posts_fts, rowid, title, body_text) VALUES ('delete', old.id, old.title, old.body_text);
+END;
+CREATE TRIGGER IF NOT EXISTS posts_fts_au AFTER UPDATE ON posts BEGIN
+  INSERT INTO posts_fts(posts_fts, rowid, title, body_text) VALUES ('delete', old.id, old.title, old.body_text);
+  INSERT INTO posts_fts(rowid, title, body_text) VALUES (new.id, new.title, new.body_text);
+END;
 `;
 
 /** Opens (and migrates) the SQLite database. Pass ':memory:' as dataDir for tests. */

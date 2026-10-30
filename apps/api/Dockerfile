@@ -1,5 +1,6 @@
 # Build from the repo root:  docker build -f apps/api/Dockerfile -t lumen-api .
-# No native modules: SQLite comes from node:sqlite (Node >= 22.13).
+# SQLite comes from node:sqlite (Node >= 22.13). sharp ships prebuilt binaries as optional deps
+# (@img/sharp-linuxmusl-*), which pnpm picks for this platform; it has no install script.
 
 FROM node:22-alpine AS base
 RUN npm i -g pnpm@10.18.0 && pnpm config set store-dir /pnpm/store
@@ -17,7 +18,7 @@ FROM base AS prod-deps
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prod --filter api
 
 FROM node:22-alpine AS runtime
-ENV NODE_ENV=production PORT=3000 DATA_DIR=/data
+ENV NODE_ENV=production PORT=3000 DATA_DIR=/data SHELL_DIR=/srv/shell
 WORKDIR /app
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=prod-deps /app/apps/api/node_modules ./apps/api/node_modules

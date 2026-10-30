@@ -1,23 +1,44 @@
 name: lumen-desk
 
+# 所有服务共用的日志轮转：每个服务最多保留 3 个 10 MB 的日志文件。
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
     depends_on:
       - api
+    # 同时连默认网络（api、uptime-kuma）和 stats 网络（umami）。
+    networks:
+      - default
+      - stats
     ports:
       - "80:80"
       - "443:443"
       - "443:443/udp"
+      # Umami 和 Uptime Kuma 后台备案前用 IP:端口访问，Caddy 用 basic_auth 挡在前面。
+      - "8081:8081"
+      - "8082:8082"
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      STATS_ADDRESS: ${STATS_ADDRESS:-:8081}
+      STATUS_ADDRESS: ${STATUS_ADDRESS:-:8082}
+      # 后台（8081、8082）的 basic_auth 账号。没填就报错，不允许不带保护启动。
+      ADMIN_USER: ${ADMIN_USER:?请在 .env 里设置 ADMIN_USER}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?请在 .env 里设置 ADMIN_PASSWORD_HASH（bcrypt 哈希，见 deploy/README.md）}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./web/public:/srv/public:ro
       - ./web/private:/srv/private:ro
+      - ./data/uploads:/srv/uploads:ro
       - caddy_data:/data
       - caddy_config:/config
+    logging: *default-logging
 
   api:
     image: ${API_IMAGE:-lumen-desk-api:latest}
@@ -26,12 +47,17 @@ services:
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     env_file: .env
+    environment:
+      # 博客页面外壳（apps/web 的 dist-shell）由 CI 同步到 ./web/shell。
+      SHELL_DIR: /srv/shell
     # 不发布端口，只允许 Caddy 通过内部网络访问。
     expose:
       - "3000"
     volumes:
       - ./data:/data
+      - ./web/shell:/srv/shell:ro
     mem_limit: 256m
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/healthz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 30s
@@ -39,6 +65,75 @@ services:
       retries: 3
       start_period: 10s
 
+  # 访问统计。镜像默认用 Docker Hub 上的 umamisoftware/umami（国内镜像加速能拉到），固定到具体版本。
+  # 拉不动时，在 .env 里设 UMAMI_IMAGE=ghcr.io/umami-software/umami:3.4.1 换成 ghcr 源。
+  # 密钥放在单独的 umami.env 里（只有 umami 和 umami-db 读得到，api 读不到）。
+  # 只连 stats 网络：api 和 uptime-kuma 访问不到它和它的数据库。
+  umami:
+    image: ${UMAMI_IMAGE:-umamisoftware/umami:3.4.1}
+    restart: unless-stopped
+    depends_on:
+      umami-db:
+        condition: service_healthy
+    networks:
+      - stats
+    expose:
+      - "3000"
+    env_file: umami.env
+    environment:
+      DISABLE_TELEMETRY: "1"
+    mem_limit: 384m
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/heartbeat"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  umami-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks:
+      - stats
+    env_file: umami.env
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+    volumes:
+      - umami_db:/var/lib/postgresql/data
+    mem_limit: 256m
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 网站监控。第一个打开页面的人会成为管理员：Caddy 的 basic_auth 挡在前面，部署后仍要尽快去建账号。
+  # 只连默认网络，访问不到 umami 和它的数据库。
+  uptime-kuma:
+    image: ${KUMA_IMAGE:-louislam/uptime-kuma:2.5.8}
+    restart: unless-stopped
+    expose:
+      - "3001"
+    volumes:
+      - kuma_data:/app/data
+    mem_limit: 256m
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "extra/healthcheck"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  # 只给 Umami 和它的数据库用。caddy 同时连默认网络和这个网络。
+  stats:
+
 volumes:
   caddy_data:
   caddy_config:
+  umami_db:
+  kuma_data:

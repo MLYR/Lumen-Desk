@@ -5,8 +5,14 @@ interface Props {
   title: string;
   description?: string;
   noindex?: boolean;
+  /** 仅公开页面（主页、博客外壳）传 true；登录页和控制台永远不传。 */
+  analytics?: boolean;
 }
-const { title, description, noindex = false } = Astro.props;
+const { title, description, noindex = false, analytics = false } = Astro.props;
+// Umami：两个变量都非空才插入；noindex 页面（登录、控制台）即使误传 analytics 也不插。
+const umamiSrc = (import.meta.env.PUBLIC_UMAMI_SRC ?? "").trim();
+const umamiId = (import.meta.env.PUBLIC_UMAMI_WEBSITE_ID ?? "").trim();
+const umami = analytics && !noindex && umamiSrc !== "" && umamiId !== "";
 ---
 <!doctype html>
 <html lang="zh-CN" data-theme="paper">
@@ -16,6 +22,7 @@ const { title, description, noindex = false } = Astro.props;
 {noindex && <meta name="robots" content="noindex, nofollow">}
 <title>{title}</title>
 {description && <meta name="description" content={description}>}
+{umami && <script is:inline defer src={umamiSrc} data-website-id={umamiId}></script>}
 <script is:inline>
   window.resolveTheme = function (mode) {
     if (mode === 'paper' || mode === 'blueprint') return mode;

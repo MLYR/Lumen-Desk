@@ -4,22 +4,30 @@
 
 ## 1. 当前状态
 
-- **阶段**：P1 代码完成，P1.5 未开始。
+- **阶段**：P1 完成；P2 博客代码完成（在线写、导入 .md、图片上传）；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
-- **本机部署**：`~/lumen-desk/`，<http://localhost> 已运行（Caddy + api 两个容器），已导入 296 条书签、绑定 Google Authenticator。
+- **本机部署**：`~/lumen-desk/`，5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、绑定 Google Authenticator。
 - **服务器**：未部署。
-- **备案**：未知（等用户反馈）。
+- **备案**：未提交。
 
 | 阶段 | 完成度 | 说明 |
 | --- | --- | --- |
 | P0 准备 | 1 / 5 | 服务器和域名已有；备案未提交；COS 已取消 |
 | P1 MVP | 9 / 9 | 全部完成 |
-| P1.5 上线加固 | 0 / 10 | |
-| P2 博客 | 0 / 11 | 方案改为文章存 SQLite，支持导入和在线写 |
+| P1.5 上线加固 | 3 / 10 | CSP、Actions 固定 SHA、日志轮转已完成；其余要等服务器和备案 |
+| P2 博客 | 10 / 11 | 只差第一篇文章（P2-11，用户写） |
 | P3 试验场 | 0 / 5 | 主页上有一个流场粒子预览 |
-| P4 增强 | 0 / 7 | 等确认 |
+| P4 增强 | 2 / 7 | Umami、Uptime Kuma 已部署到本机；其余待定 |
 
 ## 2. 已完成
+
+### P2 博客 + P4-1/P4-2 + P1.5 部分（2026-10-30，Orca 协同）
+
+- **后端**（Orca Worker `blog-api-v2`，claude-opus-5.5）：`apps/api/src/blog/`。文章存 SQLite，FTS5 trigram 搜索（2 个字时回退 LIKE）；markdown-it（禁原始 HTML）+ Shiki 双主题 + sanitize-html 白名单；导入 .md（frontmatter，默认草稿）；sharp 转 WebP（≤1600 px、≤150 KB、去 EXIF、按内容哈希命名）；导出 zip；`/blog`、文章页、标签页、RSS、sitemap 由 api 填进 web 构建的外壳返回。测试从 19 个增加到 40 个。
+- **前端**（Orca Worker `blog-web-v2`，claude-sonnet-5.5）：外壳 `dist-shell/blog.html`；博客样式（代码块、表格在自身内滚动）；主页显示最新 3 篇；在线编辑器 `/console/write`（实时预览、Ctrl/Cmd+S、导入、粘贴图片上传、导出）；Umami 脚本只加在公开页面。
+- **部署**（Orca Worker `deploy-v2`，claude-sonnet-5.5）：Caddy 加博客路由、`/uploads`（`default-src 'none'`）、主站 CSP、各接口请求体上限；compose 加 Umami 3.4.1 + Postgres 16、Uptime Kuma 2.5.8，所有服务日志轮转；Actions 全部固定 commit SHA，部署后做冒烟检查。
+- **安全审查**（Orca Worker `security-review`，claude-opus-5.5，只读）：报告 11 项，1 高 3 中 7 低。高：Umami/Kuma 部署后无保护地暴露在公网（Kuma 首个访问者成管理员、Umami 默认密码），可借 Kuma 访问内网。修复：两个后台加 basic_auth（`ADMIN_USER`、`ADMIN_PASSWORD_HASH` 必填）；统计脚本改走主站 `/u/script.js`、`/u/api/send`，CSP 去掉外部源；Umami 和数据库放进独立 `stats` 网络；后台请求去掉 Cookie；Umami 密钥拆到 `umami.env`。中：外壳占位符二次替换、导入标题正则回溯、部署 chmod 权限。低：超长代码块不高亮、列表不读全文、像素上限 2400 万、MiB 单位、img-src 允许 https。api 测试增加到 46 个。
+- **集成**（Lead）：Caddy 请求体上限按 api 对齐（导入 21 MB、其他私有 3 MB）；本机 Docker 5 个容器端到端验证：登录、上传图片、发布、文章页、搜索、RSS、删除后 404、Origin 不匹配 403、未登录 `/console/write` 302。
 
 ### P1 MVP（2026-10-30）
 
@@ -71,13 +79,14 @@
 | 6 | 对象存储 / CDN | 不用 | P0-5 取消；图片上传时压缩，存服务器（P2-7） |
 | 9 | 服务器状态 | 显示真实数据 | 内存已改用 MemAvailable；部署后核对（P1.5-10） |
 | 11 | 许可 | 代码 MIT，文章 CC BY-NC 4.0 | 已加 `LICENSE`，README 写明 |
+| 7 | 自动部署 | GitHub Actions | `deploy/README.md`「开启自动部署」 |
+| 10 | Umami、Uptime Kuma | 都要 | compose 已加，本机已运行 |
 | 12 | 主页内容 | 之后提供，先用占位 | P0-6 |
 
 ### 还要确认
 
-7. **自动部署**：流程已向用户解释，等用户决定用 GitHub Actions 自动部署，还是先用本地一键脚本。
 8. **数据备份**：暂定。博客上线后文章存在数据库里，到时必须做（P1.5-7）。
-10. **P4 增强项**：Umami 统计、Uptime Kuma 状态页已向用户解释，等用户决定要不要；AIHOT 今日日报、天气、GitHub 热力图、控制台编辑书签也待定。
+10. **P4 其余增强项**：AIHOT 今日日报、天气、GitHub 热力图、控制台编辑书签待定。
 
 ## 5. 下一步
 
@@ -93,4 +102,7 @@
 | 2026-10-30 | 方案和原型定稿；建仓库并推送 |
 | 2026-10-30 | P1 MVP 完成，本机 Docker 部署；安全审查修复 5 项 |
 | 2026-10-30 | 新增 ROADMAP.md、PROGRESS.md、README.md、AGENTS.md |
+| 2026-10-30 | 用户确认：自动部署用 GitHub Actions；要 Umami 和 Uptime Kuma |
+| 2026-10-30 | P2 博客、Umami、Uptime Kuma、自动部署完成（Orca 协同 3 个 Worker） |
+| 2026-10-30 | 安全审查 11 项修复；Umami、Kuma 加门口密码，统计脚本改走主站 `/u/` |
 | 2026-10-30 | 用户确认 9 项：定名拾光台、不用 COS、博客支持在线写、不要评论、加 MIT 许可；服务器内存改读 MemAvailable |

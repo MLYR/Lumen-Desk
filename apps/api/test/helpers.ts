@@ -8,9 +8,16 @@ import { openDb } from '../src/db.js';
 
 export const SECRET = new OTPAuth.Secret({ size: 20 }).base32;
 
-export function setup(start = Date.UTC(2026, 0, 1, 0, 0, 10)) {
+export const SHELL_FIXTURE = path.join(import.meta.dirname, 'fixtures', 'shell');
+
+export function setup(start = Date.UTC(2026, 0, 1, 0, 0, 10), env: NodeJS.ProcessEnv = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ld-api-'));
-  const config = loadConfig({ DATA_DIR: dataDir, TOTP_SECRET: SECRET, COOKIE_SECURE: 'true', TRUST_PROXY: 'true' });
+  const config = loadConfig({
+    DATA_DIR: dataDir, TOTP_SECRET: SECRET, COOKIE_SECURE: 'true', TRUST_PROXY: 'true',
+    SHELL_DIR: SHELL_FIXTURE,
+    SITE_URL: 'https://blog.test',
+    ...env,
+  });
   const db = openDb(':memory:');
   const clock = { t: start };
   const app = createApp({ config, db, now: () => clock.t });

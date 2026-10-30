@@ -20,13 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
           version: 10.18.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -38,10 +38,14 @@ jobs:
         run: pnpm -r test
 
       - name: Build web
+        env:
+          # 在仓库的 Settings -> Variables 里设置；没设置时页面不会插入统计脚本。
+          PUBLIC_UMAMI_SRC: ${{ vars.PUBLIC_UMAMI_SRC }}
+          PUBLIC_UMAMI_WEBSITE_ID: ${{ vars.PUBLIC_UMAMI_WEBSITE_ID }}
         run: pnpm --filter web build
 
       - name: Upload public site
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: web-public
           path: apps/web/dist/
@@ -49,10 +53,18 @@ jobs:
           retention-days: 7
 
       - name: Upload private console
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: web-private
           path: apps/web/dist-private/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload blog shell
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: web-shell
+          path: apps/web/dist-shell/
           if-no-files-found: error
           retention-days: 7
 
@@ -64,19 +76,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Download public site
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: web-public
           path: apps/web/dist/
 
       - name: Download private console
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: web-private
           path: apps/web/dist-private/
+
+      - name: Download blog shell
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: web-shell
+          path: apps/web/dist-shell/
 
       - name: Build API image
         run: |
@@ -101,9 +119,10 @@ jobs:
         run: |
           RSYNC_SSH="ssh -i $HOME/.ssh/id_deploy -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o StrictHostKeyChecking=yes"
           ssh -i "$HOME/.ssh/id_deploy" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "mkdir -p $DEPLOY_DIR/web/public $DEPLOY_DIR/web/private $DEPLOY_DIR/data"
+            "mkdir -p $DEPLOY_DIR/web/public $DEPLOY_DIR/web/private $DEPLOY_DIR/web/shell $DEPLOY_DIR/data"
           rsync -az --delete -e "$RSYNC_SSH" apps/web/dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DIR/web/public/"
           rsync -az --delete -e "$RSYNC_SSH" apps/web/dist-private/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DIR/web/private/"
+          rsync -az --delete -e "$RSYNC_SSH" apps/web/dist-shell/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DIR/web/shell/"
 
       - name: Ship config and image
         env:
@@ -126,8 +145,40 @@ jobs:
           cd "$DEPLOY_DIR"
           gunzip -c lumen-desk-api.tar.gz | docker load
           rm -f lumen-desk-api.tar.gz
+          # 上传目录：api 容器里的 node 用户（uid 1000）要能写，caddy 只读。
+          # 部署用户不一定是 uid 1000，所以借 api 镜像里的 root 来 chown 和 chmod，不需要 sudo。
+          mkdir -p data/uploads
+          docker run --rm --user root --entrypoint sh -v "$DEPLOY_DIR/data:/data" lumen-desk-api:latest -c 'chown 1000:1000 /data/uploads && chmod 755 /data/uploads'
+          # 第三方镜像先拉好；拉失败时如果本地已有就继续用旧的。
+          docker compose pull --ignore-pull-failures caddy umami umami-db uptime-kuma
           docker compose up -d --no-build --remove-orphans
+          # Caddyfile 是挂载进去的文件，只改它时 up -d 不会重建 caddy；又因为 admin off 不能 reload，所以重启一次（中断约 1 秒）。
+          docker compose restart caddy
           docker compose ps
+          EOF
+
+      - name: Smoke test
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          # 容器刚启动需要几秒，最多重试 12 次（约 1 分钟）。
+          ssh -i "$HOME/.ssh/id_deploy" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "DEPLOY_DIR='$DEPLOY_DIR' bash -s" <<'EOF'
+          set -u
+          cd "$DEPLOY_DIR"
+          for i in $(seq 1 12); do
+            if curl -fsS http://127.0.0.1/api/healthz \
+              && [ "$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q api)")" = healthy ]; then
+              echo
+              echo "冒烟检查通过"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "冒烟检查失败：healthz 或 api 容器健康状态不正常" >&2
+          docker compose ps >&2
+          exit 1
           EOF
 
       - name: Clean up key

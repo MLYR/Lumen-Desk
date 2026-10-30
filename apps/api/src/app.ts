@@ -9,6 +9,7 @@ import type { Config } from './config.js';
 import type { DB } from './db.js';
 import { readBookmarks } from './bookmarks.js';
 import { getHot } from './sources/aihot.js';
+import { registerBlog } from './blog/routes.js';
 import { lockedFor, recordFailure, recordSuccess } from './auth/ratelimit.js';
 import { consumeRecoveryCode, RECOVERY_RE, normalizeRecovery } from './auth/recovery.js';
 import { createSession, deleteSession, SESSION_COOKIE, SESSION_TTL_S, validateSession } from './auth/sessions.js';
@@ -137,6 +138,8 @@ export function createApp({ config, db, now = Date.now }: AppDeps): Hono {
       hostUptime: os.uptime(),
     });
   });
+
+  registerBlog(app, { config, db, now });
 
   app.notFound((c) => c.json({ error: 'not_found' }, 404));
   app.onError((err, c) => {

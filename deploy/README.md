@@ -15,6 +15,15 @@
 └── data/                # SQLite、书签数据（api 的 /data）
 ```
 
+## 本机 Docker 部署
+
+和服务器部署步骤相同，区别是：
+
+- 目录用 `~/lumen-desk/`（放在仓库外面，避免误提交 `.env` 和数据）。
+- `docker-compose.yml` 里的 `build.context` 改成仓库的绝对路径，删掉 443 端口映射。
+- `.env` 里 `SITE_ADDRESS=:80`、`SITE_URL=http://localhost`、`COOKIE_SECURE=false`。
+- 打开 <http://localhost>。
+
 ## 首次部署
 
 1. 装 Docker 和 Compose 插件，然后配置镜像加速（见下面"Docker 镜像加速"）。

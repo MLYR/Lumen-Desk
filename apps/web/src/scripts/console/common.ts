@@ -14,14 +14,15 @@ export const ERRORS: Record<string, string> = {
   rate_limited: "请求太频繁，请稍后再试",
   invalid_code: "验证码不正确，或已经用过，请等下一个验证码",
   locked: "尝试次数过多，已被暂时锁定",
+  invalid_move: "不能把文件夹移到它自己下面",
 };
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, public detail?: string, public retryAfter?: number) { super(code); }
 }
 
-/** 所有接口都走这里。401 跳 /login（invalid_code 例外：那是验证码错，不是登录失效）；其余错误抛 ApiError。 */
-export async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
+/** 所有接口都走这里。401 跳 /login（invalid_code 例外：那是验证码错，不是登录失效）；其余错误抛 ApiError。返回原始 Response（要读响应头时用）。 */
+export async function apiRaw(url: string, init: RequestInit = {}): Promise<Response> {
   let res: Response;
   try {
     res = await fetch(url, { credentials: "same-origin", ...init });
@@ -42,8 +43,13 @@ export async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
     }
     throw new ApiError(res.status, code, detail, retry);
   }
+  return res;
+}
+export async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const res = await apiRaw(url, init);
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  const t = await res.text(); // 201 可能没有响应体
+  return (t ? JSON.parse(t) : undefined) as T;
 }
 
 /** overrides 用于某个页面对个别错误码用更具体的说法（例如 not_found -> 文章不存在）。 */
@@ -59,3 +65,20 @@ export const jsonInit = (method: string, body?: unknown): RequestInit =>
 /** 头像只接受站内上传目录。 */
 export const safeAvatar = (u: unknown): string | null => (typeof u === "string" && /^\/uploads\/[A-Za-z0-9._-]+$/.test(u) ? u : null);
 export const initialOf = (name: string) => ([...(name || "").trim()][0] || "z").toUpperCase();
+
+/* 收藏夹和命令面板共用的小工具（从 main.ts 挪来，逻辑不变） */
+export const initials = (n: string) => { const s = n.replace(/^[\s\[\(【]+/, ""); return /^[\u4e00-\u9fa5]/.test(s) ? s[0] : (s.replace(/[^A-Za-z0-9]/g, "").slice(0, 2) || s[0] || "?"); };
+export const hostOf = (u: string) => { try { const x = new URL(u); return x.protocol.startsWith("http") ? x.hostname.replace(/^www\./, "") : x.protocol.replace(":", ""); } catch { return ""; } };
+export const isLan = (h: string) => /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h);
+/** 白名单：浏览器解析协议前会去掉制表符、换行等，所以不能用黑名单。非 http(s) 返回 "#"。 */
+export const safeUrl = (u: string) => {
+  try {
+    return ["http:", "https:"].includes(new URL(u).protocol) ? u : "#";
+  } catch {
+    return "#";
+  }
+};
+/** 能点开的链接只有 http(s)。 */
+export const isWeb = (u: string) => safeUrl(u) !== "#";
+/** javascript: 小书签（用 URL 解析，所以 java\tscript: 这类写法也能识别）。 */
+export const isBookmarklet = (u: string) => { try { return new URL(u).protocol === "javascript:"; } catch { return /^[\s\u0000-\u0020]*j[\s\u0000-\u0020]*a[\s\u0000-\u0020]*v[\s\u0000-\u0020]*a[\s\u0000-\u0020]*s[\s\u0000-\u0020]*c[\s\u0000-\u0020]*r[\s\u0000-\u0020]*i[\s\u0000-\u0020]*p[\s\u0000-\u0020]*t[\s\u0000-\u0020]*:/i.test(u); } };

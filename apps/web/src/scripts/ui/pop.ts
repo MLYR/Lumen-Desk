@@ -18,20 +18,35 @@ export function leave(el: HTMLElement, done: () => void) {
   setTimeout(f, 250);
 }
 
-/** 浮层贴着触发按钮：默认在下方，下方放不下且上方更宽裕时向上弹；宽度不超出屏幕。 */
-export function place(anchor: HTMLElement, pop: HTMLElement, o: { min?: number; width?: number } = {}) {
+/** position: fixed 的包含块原点。弹框带 transform / filter / backdrop-filter 时（蓝图主题），fixed 是相对弹框定位的，要把偏移减掉。 */
+function origin(pop: HTMLElement): [number, number] {
+  for (let e = pop.parentElement; e && e !== document.body && e !== document.documentElement; e = e.parentElement) {
+    const c = getComputedStyle(e);
+    if (c.transform !== "none" || c.filter !== "none" || c.backdropFilter !== "none" || c.perspective !== "none" || /transform|filter/.test(c.willChange)) {
+      const r = e.getBoundingClientRect();
+      return [r.left + e.clientLeft, r.top + e.clientTop];
+    }
+  }
+  return [0, 0];
+}
+
+/** 浮层贴着触发按钮：默认在下方，下方放不下且上方更宽裕时向上弹；宽度不超出屏幕。align:"end" 时右边对齐按钮。 */
+export function place(anchor: HTMLElement, pop: HTMLElement, o: { min?: number; width?: number; align?: "start" | "end" } = {}) {
   const de = document.documentElement, vw = de.clientWidth, vh = de.clientHeight, M = 16, G = 4;
   const r = anchor.getBoundingClientRect();
   const w = Math.min(o.width ?? Math.max(r.width, o.min ?? 0), vw - 2 * M);
   pop.style.width = w + "px";
-  pop.style.left = Math.max(M, Math.min(r.left, vw - w - M)) + "px";
   pop.style.maxHeight = ""; pop.style.overflowY = "";
   const h = pop.offsetHeight, below = vh - r.bottom - M - G, above = r.top - M - G;
   const up = h > below && above > below, space = up ? above : below;
-  if (h > space) { pop.style.maxHeight = Math.max(space, 120) + "px"; if (pop.scrollHeight > pop.clientHeight + 1) pop.style.overflowY = "auto"; }
+  let hh = h;
+  if (h > space) { hh = Math.max(space, 120); pop.style.maxHeight = hh + "px"; if (pop.scrollHeight > pop.clientHeight + 1) pop.style.overflowY = "auto"; }
+  const [ox, oy] = origin(pop);
+  const left = Math.max(M, Math.min(o.align === "end" ? r.right - w : r.left, vw - w - M));
+  pop.style.left = left - ox + "px";
+  pop.style.bottom = "auto";
+  pop.style.top = (up ? r.top - G - hh : r.bottom + G) - oy + "px";
   pop.classList.toggle("up", up);
-  if (up) { pop.style.top = "auto"; pop.style.bottom = vh - r.top + G + "px"; }
-  else { pop.style.bottom = "auto"; pop.style.top = r.bottom + G + "px"; }
 }
 
 /** 点浮层外部关闭；窗口缩放、页面滚动时重新定位。返回解除函数。 */

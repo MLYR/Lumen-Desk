@@ -4,7 +4,7 @@ import { bind, leave, mk, place, restoreFocus, uid } from "./pop";
 
 type Item = { o: HTMLOptionElement; t: string; s: string; a: boolean };
 
-export function enhanceSelect(sel: HTMLSelectElement, opts: { searchable?: boolean; placeholder?: string } = {}) {
+export function enhanceSelect(sel: HTMLSelectElement, opts: { searchable?: boolean; placeholder?: string; searchAt?: number; host?: () => HTMLElement } = {}) {
   const wrap = mk("div", "ui-select" + (sel.dataset.size ? " " + sel.dataset.size : ""));
   const btn = mk("button", "ui-select-btn"), val = mk("span", "ui-val"), listId = uid("ui-lb");
   btn.type = "button";
@@ -75,7 +75,7 @@ export function enhanceSelect(sel: HTMLSelectElement, opts: { searchable?: boole
   function open() {
     if (pop || sel.disabled) return;
     const p = (pop = mk("div", "ui-pop ui-lp"));
-    if (opts.searchable && sel.options.length > 8) {
+    if (opts.searchable && sel.options.length > (opts.searchAt ?? 8)) {
       search = mk("input");
       search.type = "text"; search.placeholder = "搜索…"; search.autocomplete = "off"; search.spellcheck = false;
       search.setAttribute("aria-label", "搜索选项"); search.setAttribute("aria-controls", listId);
@@ -86,7 +86,8 @@ export function enhanceSelect(sel: HTMLSelectElement, opts: { searchable?: boole
     ul = mk("ul", "ui-list"); ul.id = listId; ul.setAttribute("role", "listbox");
     empty = mk("div", "ui-empty", "没有匹配项");
     p.append(ul, empty);
-    document.body.append(p);
+    // 在模态 <dialog> 里使用时，浮层要挂进弹框，否则会被顶层的弹框盖住
+    (opts.host?.() ?? (btn.closest("dialog") as HTMLElement | null) ?? document.body).append(p);
     btn.setAttribute("aria-expanded", "true");
     act = -1;
     renderList();

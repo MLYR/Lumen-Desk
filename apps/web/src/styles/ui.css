@@ -155,3 +155,21 @@
   .ui-pop, .ui-dialog, .ui-dialog::backdrop, .ui-toast, .ui-bar { animation: none !important; }
   .ui-select-btn::after, .ui-btn { transition: none !important; }
 }
+
+/* 小菜单（「⋯」「管理」） */
+.ui-menu { padding: 4px; }
+.ui-mi { display: block; width: 100%; padding: 9px 12px; border: 0; background: none; color: var(--fg); font-size: 14px; text-align: left; cursor: pointer; border-radius: 0; }
+[data-theme="blueprint"] .ui-mi { font-family: var(--mono); font-size: 13px; }
+a.ui-mi { text-decoration: none; }
+.ui-mi:hover, .ui-mi:focus-visible { outline: 0; background: var(--card-hover); }
+[data-theme="blueprint"] .ui-mi:focus-visible { box-shadow: inset 2px 0 0 var(--accent); }
+.ui-mi.danger { color: var(--accent); }
+.ui-mi[aria-disabled="true"] { opacity: .4; cursor: default; }
+.ui-msep { height: 1px; margin: 4px 0; background: var(--soft-line); }
+.ui-input.mono { font-family: var(--mono); font-size: 14px; }
+.ui-form .ui-select { margin-top: 6px; }
+.ui-form .ui-label + .ui-input { margin-top: 6px; }
+.ui-form .ui-dialog-body { padding-bottom: 4px; }
+/* 弹框里的下拉浮层要高于弹框内容 */
+.ui-dialog .ui-pop { z-index: 5; }
+.ui-btn.primary.danger { background: var(--accent); }

@@ -140,15 +140,22 @@ ADMIN_PASSWORD_HASH='$2a$14$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ## 导入书签
 
-书签是私人数据，导出文件不进 Git。
+书签是私人数据，导出文件不进 Git。书签存在 SQLite（`data/lumen.db`）里，平时直接在控制台收藏夹卡片的「管理」菜单里导入、导出就行。下面的命令行方式在没法登录控制台时用。
 
 ```bash
 scp ~/Downloads/bookmarks.html 服务器:/tmp/bookmarks.html
 ssh 服务器
 cd /opt/lumen-desk
+# 默认「替换全部」：原来的书签整体换成文件里的。
 docker compose run --rm -v /tmp/bookmarks.html:/tmp/b.html:ro api node dist/cli/import-bookmarks.js /tmp/b.html
+# 或者「合并」：加到一个新文件夹「导入 YYYY-MM-DD」里，原来的不动。
+docker compose run --rm -v /tmp/bookmarks.html:/tmp/b.html:ro api node dist/cli/import-bookmarks.js /tmp/b.html --merge
 rm /tmp/bookmarks.html
 ```
+
+- 两种方式都会先把原来的书签存一份快照（最多保留 10 份），导错了可以在控制台「管理 → 快照列表」里恢复。
+- 命令只打印文件夹数和链接数，不打印书签内容。文件超过 32 层嵌套或 20000 条时会拒绝导入，数据库不变。
+- 从旧版本升级：第一次启动时，如果数据库里还没有书签，api 会把 `data/bookmarks.json` 导入数据库，然后改名为 `data/bookmarks.json.migrated`（不删除，确认无误后可以手动删）。导入失败时会回滚，原文件不动，下次启动再试。
 
 ## 作废所有登录会话
 

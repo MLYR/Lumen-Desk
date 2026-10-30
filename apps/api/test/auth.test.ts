@@ -163,19 +163,22 @@ describe('private routes', () => {
   });
 
   it('serve bookmarks and server stats with a session', async () => {
-    const { app, login, codeAt, dataDir } = setup();
+    const { app, db, login, codeAt, dataDir } = setup();
     const cookie = sessionCookie(await login(codeAt()));
 
     const missing = await app.request('/api/private/bookmarks', { headers: { cookie } });
     expect(missing.status).toBe(404);
     expect(await missing.json()).toEqual({ error: 'no_bookmarks' });
 
-    const tree = [{ name: 'A', links: [['x', 'https://x.test/']] }];
-    fs.writeFileSync(path.join(dataDir, 'bookmarks.json'), JSON.stringify(tree));
+    // P2.8: bookmarks live in SQLite (bookmarks.json is only read by the one-time migration).
+    fs.writeFileSync(path.join(dataDir, 'bookmarks.json'), JSON.stringify([{ name: 'A', links: [['x', 'https://x.test/']] }]));
+    expect((await app.request('/api/private/bookmarks', { headers: { cookie } })).status).toBe(404);
+    db.exec(`INSERT INTO bookmark_folders (id, name, created_at, updated_at) VALUES (1, 'A', 0, 0);
+             INSERT INTO bookmarks (id, folder_id, title, url, created_at, updated_at) VALUES (2, 1, 'x', 'https://x.test/', 0, 0);`);
     const bm = await app.request('/api/private/bookmarks', { headers: { cookie } });
     expect(bm.status).toBe(200);
     expect(bm.headers.get('cache-control')).toBe('no-store');
-    expect(await bm.json()).toEqual(tree);
+    expect(await bm.json()).toEqual([{ id: 1, name: 'A', links: [['x', 'https://x.test/']], items: [{ id: 2, title: 'x', url: 'https://x.test/' }] }]);
 
     const srv = await app.request('/api/private/server', { headers: { cookie } });
     expect(srv.status).toBe(200);

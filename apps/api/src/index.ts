@@ -4,11 +4,14 @@ import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { openDb } from './db.js';
 import { rerenderPosts } from './blog/posts.js';
+import { migrateLegacyFile } from './bookmarks/store.js';
 import { purgeExpiredSessions } from './auth/sessions.js';
 import { purgeStaleAihot, refreshAihot } from './sources/aihot.js';
 
 const config = loadConfig();
 const db = openDb(config.dataDir);
+// One-time move of DATA_DIR/bookmarks.json into SQLite (logs counts only).
+migrateLegacyFile(db, config.dataDir, Date.now());
 // Renderer upgrades (e.g. heading ids + toc) re-render stored posts once, in the background:
 // old html keeps serving until then, and a failure never stops the server (the version mark is
 // only written on success, so the next start retries).

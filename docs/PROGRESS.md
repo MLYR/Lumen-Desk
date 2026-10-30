@@ -19,11 +19,18 @@
 | P2.5 分类、标签、设置 | 8 / 8 | 完成，见 `docs/contracts/taxonomy-profile.md` |
 | P2.6 基础 UI 组件 | 完成 | 见 `docs/contracts/ui-components.md` |
 | P2.7 博客阅读体验 | 完成 | 见 `docs/contracts/blog-reader.md` |
-| P2.8 收藏夹管理 | 进行中 | 见 `docs/contracts/bookmarks.md`；不做浏览器扩展 |
+| P2.8 收藏夹管理 | 完成 | 见 `docs/contracts/bookmarks.md`；不做浏览器扩展 |
 | P3 试验场 | 0 / 5 | 主页上有一个流场粒子预览 |
 | P4 增强 | 2 / 7 | Umami、Uptime Kuma 已部署到本机；其余待定 |
 
 ## 2. 已完成
+
+### P2.8 收藏夹管理（2026-10-31，Orca 协同）
+
+- **后端**（Orca Worker `blog-api-v2`，claude-opus-5.5）：书签从 `bookmarks.json` 迁到 SQLite（`bookmark_folders`、`bookmarks`、`bookmark_snapshots`），首次启动自动迁移，原文件改名为 `.migrated`；增删改、移动（防环）、排序；导入 Netscape HTML（替换或合并，线性解析，最多 32 层、20000 条）；导出与 Chrome 格式一致；快照最多 10 份，恢复前自动存一份。`import-bookmarks` CLI 改为写数据库。测试 107 个，只用合成 fixture。
+- **前端**（Orca Worker `blog-web-v2`，claude-sonnet-5.5）：收藏夹卡片加「编辑」开关（关闭时和原来一样）、「⋯」菜单（修改、移动到…、上移/下移、删除）、链接拖拽排序和 Alt+↑/↓、「管理」菜单（导入、导出、快照）；新增 `formDialog`、`choiceDialog`、`menu.ts`。非 http(s) 链接只显示文字，`javascript:` 标「小书签」。
+- **安全审查**（Orca Worker `security-review`，第四轮）：中 1 项，单个字段里 100 万个实体会让 api 内存超限，已改为先截断再解码；低 3 项，「移动文件夹到…」打不开（前端少了 return）、快照无大小上限（改为 8 MB）、迁移后改名失败可能重复导入（加 `bookmarks_migrated` 标记）。
+- **集成**（Lead）：先在真实数据副本上验证迁移，13 个文件夹、296 条链接逐条一致；再在本机 Docker 上真实迁移，用浏览器测了增删改、防环、快照、导出后再导入，前后两次导出逐字节相同。升级前备份：`~/lumen-desk/data/pre-p28.db`、`bookmarks.json.pre-p28`。
 
 ### P2.7 博客阅读体验（2026-10-30，Orca 协同）
 
@@ -129,6 +136,7 @@
 | 2026-10-30 | 新增 ROADMAP.md、PROGRESS.md、README.md、AGENTS.md |
 | 2026-10-30 | 用户确认：自动部署用 GitHub Actions；要 Umami 和 Uptime Kuma |
 | 2026-10-30 | P2 博客、Umami、Uptime Kuma、自动部署完成（Orca 协同 3 个 Worker） |
+| 2026-10-31 | P2.8 完成：收藏夹在控制台里增删改、排序，导入导出浏览器格式，快照；第四轮安全审查 4 项修复 |
 | 2026-10-30 | P2.7 完成：博客左侧分类导航、右侧目录、上下篇、回到顶部/底部；第三轮安全审查 2 项修复 |
 | 2026-10-30 | 用户确认 P2.8 范围：收藏夹增删改 + 导出浏览器格式，不做浏览器扩展 |
 | 2026-10-30 | P2.6 完成：控制台原生下拉框、confirm、日期选择换成自制组件，新增 Toast |

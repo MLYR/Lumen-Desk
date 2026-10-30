@@ -1,0 +1,53 @@
+/* 收藏夹管理：编辑开关、管理菜单、编辑模式。浏览模式不使用这里除 .link.inert 外的任何样式。 */
+#bmCard .card-head { flex-wrap: wrap; }
+.bm-tools { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+#bmCard .card-head .card-meta { margin-left: 0; }
+.bm-switch, .bm-manage { height: 28px; padding: 0 10px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font: 12px var(--mono); cursor: pointer; border-radius: 0; white-space: nowrap; transition: color .12s, border-color .12s; }
+.bm-switch:hover, .bm-manage:hover, .bm-manage[aria-expanded="true"] { color: var(--fg); border-color: var(--accent); }
+.bm-switch { display: inline-flex; align-items: center; gap: 8px; }
+.bm-switch::before { content: ""; width: 22px; height: 12px; border: 1px solid var(--line); background: var(--panel); background-image: linear-gradient(var(--muted), var(--muted)); background-size: 8px 8px; background-repeat: no-repeat; background-position: 1px center; transition: background-position .14s; }
+[data-theme="paper"] .bm-switch::before, [data-theme="paper"] .bm-switch { border-radius: 0; }
+.bm-switch[aria-pressed="true"] { color: var(--fg); border-color: var(--accent); }
+.bm-switch[aria-pressed="true"]::before { background-image: linear-gradient(var(--accent), var(--accent)); background-position: 11px center; border-color: var(--accent); }
+.bm-switch:focus-visible, .bm-manage:focus-visible, .bm-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* 不能点的书签（chrome://、file://、javascript: 小书签…） */
+.link.inert { cursor: default; opacity: .75; }
+.link.inert:hover { background: none; }
+.link.inert:hover .ico { border-color: var(--soft-line); color: var(--muted); }
+
+/* 编辑模式 */
+.bm-editbar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--soft-line); }
+[data-theme="blueprint"] .bm-editbar { background: #0d2247; }
+.bm-editbar .btn.sm { height: 30px; padding: 0 10px; font-size: 12px; }
+.bm-hint { font: 11px var(--mono); color: var(--muted); }
+.bm-fold { margin-top: 6px; }
+.bm-fold .bm-fold { margin-left: 14px; padding-left: 10px; border-left: 1px solid var(--soft-line); }
+.bm-fhead { display: flex; align-items: center; gap: 8px; padding: 12px 0 8px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.bm-fhead h3 { font: inherit; font-weight: 500; overflow-wrap: anywhere; }
+.bm-fhead .c { opacity: .7; }
+.bm-fhead .bm-more { margin-left: auto; }
+.links.edit { grid-template-columns: repeat(1, 1fr); }
+@media (min-width: 700px) { .links.edit { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .links.edit { grid-template-columns: repeat(3, 1fr); } }
+.bm-row { display: flex; align-items: center; gap: 2px; min-width: 0; border: 1px solid transparent; }
+.bm-row:hover { background: var(--card-hover); }
+.bm-row.dragging { opacity: .6; border-color: var(--accent); background: var(--card-hover); }
+.bm-row .bm-cell { flex: 1; min-width: 0; }
+.bm-row .link { padding: 5px 4px; }
+.bm-handle { flex: none; width: 20px; height: 32px; display: grid; place-items: center; color: var(--muted); font: 12px/1 var(--mono); letter-spacing: -2px; cursor: grab; touch-action: none; user-select: none; }
+.bm-handle:hover { color: var(--accent); }
+.bm-row.dragging .bm-handle { cursor: grabbing; }
+.bm-more { flex: none; width: 32px; height: 32px; border: 0; background: none; color: var(--muted); font: 16px var(--mono); line-height: 1; cursor: pointer; border-radius: 0; }
+.bm-more:hover, .bm-more[aria-expanded="true"] { color: var(--accent); background: var(--card-hover); }
+.bm-empty.sm { padding: 6px 4px; font-size: 13px; }
+
+/* 快照列表弹框 */
+.snap-list { list-style: none; margin-top: 12px; max-height: 50vh; overflow: auto; border-top: 1px solid var(--soft-line); }
+.snap-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--soft-line); }
+.snap-t { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.snap-t strong { font: 600 13px var(--mono); }
+.snap-m { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.ui-snaps { width: min(520px, calc(100vw - 32px)); }
+@media (max-width: 599px) { .bm-hint { display: none; } }
+@media (prefers-reduced-motion: reduce) { .bm-switch::before { transition: none; } }

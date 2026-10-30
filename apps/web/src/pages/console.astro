@@ -2,6 +2,8 @@
 import Layout from "../layouts/Layout.astro";
 import ConsoleTop from "../components/ConsoleTop.astro";
 import "../styles/console.css";
+import "../styles/ui.css";
+import "../styles/bookmarks.css";
 ---
 <Layout title="控制台 · 拾光台" noindex>
 <ConsoleTop current="home">
@@ -66,10 +68,15 @@ import "../styles/console.css";
   </section>
 
   <section class="grid">
-    <article class="card first last">
+    <article class="card first last" id="bmCard">
       <div class="card-head">
         <h2 class="card-title"><span class="dot"></span>收藏夹</h2>
         <span class="card-meta" id="bmCount"></span>
+        <span class="bm-tools">
+          <button class="bm-switch" id="bmEditSwitch" type="button" role="switch" aria-pressed="false" aria-label="编辑模式"><span class="bm-switch-t">编辑</span></button>
+          <button class="bm-manage" id="bmManage" type="button" aria-label="管理收藏夹">管理 ▾</button>
+          <input id="bmImportFile" type="file" accept=".html,.htm,text/html" hidden>
+        </span>
       </div>
       <div class="bm">
         <div class="bm-side">

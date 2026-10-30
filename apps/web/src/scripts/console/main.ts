@@ -1,28 +1,15 @@
 // 控制台脚本。书签、热点、服务器状态全部在运行时从 API 取，构建产物里不含任何这类数据。
 import { startFlowField } from "../flowfield";
 import { getProfile } from "./topbar";
-import { initialOf, safeAvatar } from "./common";
+import { esc, initialOf, initials, safeAvatar, safeUrl } from "./common";
+import { bookmarkCmds, loadBookmarks } from "./bookmarks";
 
-type BmNode = { name: string; children?: BmNode[]; links?: [string, string][] };
-type Flat = { name: string; url: string; top: string; sub: string; host: string; lan: boolean };
 type Hot = { rank: number; title: string; sourceCount: number; url: string };
 type Cmd = { name: string; group: string; keys?: string; run: () => void };
 
 const ENGINES: [string, string][] = [["Bing", "https://www.bing.com/search?q="], ["Google", "https://www.google.com/search?q="], ["百度", "https://www.baidu.com/s?wd="], ["GitHub", "https://github.com/search?q="], ["MDN", "https://developer.mozilla.org/zh-CN/search?q="]];
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
-const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
-const initials = (n: string) => { const s = n.replace(/^[\s\[\(【]+/, ""); return /^[\u4e00-\u9fa5]/.test(s) ? s[0] : (s.replace(/[^A-Za-z0-9]/g, "").slice(0, 2) || s[0] || "?"); };
-const hostOf = (u: string) => { try { const x = new URL(u); return x.protocol.startsWith("http") ? x.hostname.replace(/^www\./, "") : x.protocol.replace(":", ""); } catch { return ""; } };
-const isLan = (h: string) => /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h);
-// Allowlist: browsers strip tabs/newlines/control chars before parsing the scheme, so a blocklist is bypassable.
-const safeUrl = (u: string) => {
-  try {
-    return ["http:", "https:"].includes(new URL(u).protocol) ? u : "#";
-  } catch {
-    return "#";
-  }
-};
 const goLogin = () => { location.href = "/login"; };
 const getJSON = (url: string) => fetch(url, { credentials: "same-origin" });
 
@@ -65,72 +52,8 @@ async function loadHot() {
 }
 loadHot();
 
-/* 收藏夹：文件夹 key 用 "一级" 或 "一级/二级" */
-let BOOKMARKS: BmNode[] = [];
-let flat: Flat[] = [];
-let folderList: { key: string; name: string; depth: number }[] = [];
-let folder = localStorage.getItem("bmFolder") || "全部";
-const inFolder = (b: Flat, key: string) => key === "全部" || b.top === key || b.top + "/" + b.sub === key;
-
-function setBookmarks(tree: BmNode[]) {
-  BOOKMARKS = tree; flat = []; folderList = [];
-  tree.forEach((f) => {
-    folderList.push({ key: f.name, name: f.name, depth: 0 });
-    (f.links || []).forEach(([n, u]) => flat.push({ name: n, url: u, top: f.name, sub: "", host: "", lan: false }));
-    (f.children || []).forEach((c) => {
-      folderList.push({ key: f.name + "/" + c.name, name: c.name, depth: 1 });
-      (c.links || []).forEach(([n, u]) => flat.push({ name: n, url: u, top: f.name, sub: c.name, host: "", lan: false }));
-    });
-  });
-  flat.forEach((b) => { b.host = hostOf(b.url); b.lan = isLan(b.host); });
-  if (folder !== "全部" && !folderList.some((f) => f.key === folder)) folder = "全部";
-  buildCmds();
-}
-
-const hl = (s: string, q: string) => { const t = esc(s); if (!q) return t; const i = s.toLowerCase().indexOf(q); return i < 0 ? t : esc(s.slice(0, i)) + "<mark>" + esc(s.slice(i, i + q.length)) + "</mark>" + esc(s.slice(i + q.length)); };
-function linkHTML(b: Flat, q: string) {
-  return `<a class="link" href="${esc(safeUrl(b.url))}" target="_blank" rel="noopener noreferrer" title="${esc(b.name)}\n${esc(b.url)}">` +
-    `<span class="ico">${esc(initials(b.name))}</span>` +
-    `<span class="txt"><span class="name">${hl(b.name, q)}</span><span class="host">${hl(b.host, q)}${b.lan ? '<span class="lan">内网</span>' : ""}</span></span></a>`;
-}
-function renderFolders(q: string) {
-  const count = (key: string) => flat.filter((b) => inFolder(b, key)).length;
-  $("#folders").innerHTML = [{ key: "全部", name: "全部", depth: 0 }, ...folderList].map((f) =>
-    `<li><button type="button" class="${f.depth ? "sub" : ""}" data-f="${esc(f.key)}" aria-pressed="${!q && f.key === folder}"><span>${esc(f.name)}</span><span class="n">${count(f.key)}</span></button></li>`).join("");
-}
-function renderBookmarks() {
-  const input = $<HTMLInputElement>("#bmq");
-  const q = input.value.trim().toLowerCase();
-  renderFolders(q);
-  $("#bmCount").textContent = q ? `筛选「${input.value.trim()}」` : `${flat.length} 个书签 · ${BOOKMARKS.length} 个文件夹`;
-  const list = flat.filter((b) => q ? (b.name + " " + b.url).toLowerCase().includes(q) : inFolder(b, folder));
-  if (!list.length) { $("#bmMain").innerHTML = `<div class="bm-empty">没有匹配的书签</div>`; return; }
-  const groups = new Map<string, Flat[]>();
-  list.forEach((b) => { const k = b.top + (b.sub ? " / " + b.sub : ""); (groups.get(k) || groups.set(k, []).get(k)!).push(b); });
-  $("#bmMain").innerHTML = [...groups].map(([k, arr]) =>
-    `<div class="bm-group"><h3>${esc(k)} <span class="c">${arr.length}</span></h3><div class="links">${arr.map((b) => linkHTML(b, q)).join("")}</div></div>`).join("");
-  $("#bmMain").scrollTop = 0;
-}
-$("#folders").addEventListener("click", (e) => {
-  const b = (e.target as HTMLElement).closest("button"); if (!b) return;
-  folder = b.dataset.f!; localStorage.setItem("bmFolder", folder); $<HTMLInputElement>("#bmq").value = ""; renderBookmarks();
-});
-$("#bmq").addEventListener("input", renderBookmarks);
-
-function bmMessage(html: string) { $("#bmMain").innerHTML = `<div class="bm-empty">${html}</div>`; $("#bmCount").textContent = ""; $("#folders").innerHTML = ""; }
-async function loadBookmarks() {
-  try {
-    const res = await getJSON("/api/private/bookmarks");
-    if (res.status === 401) return goLogin();
-    if (res.status === 404) return bmMessage("还没有导入书签（运行 import-bookmarks）");
-    if (!res.ok) throw new Error(String(res.status));
-    const data = await res.json();
-    if (!Array.isArray(data) || !data.length) return bmMessage("还没有导入书签（运行 import-bookmarks）");
-    setBookmarks(data);
-    renderBookmarks();
-  } catch { bmMessage("书签加载失败，请刷新重试"); }
-}
-loadBookmarks();
+/* 收藏夹（逻辑在 bookmarks.ts；增删改之后会回调这里刷新命令面板的数据） */
+loadBookmarks(() => buildCmds());
 
 /* 服务器状态 */
 const GB = 1024 ** 3;
@@ -178,7 +101,7 @@ const setMode = (k: string) => (window as any).setThemeMode(k);
 let CMDS: Cmd[] = [];
 function buildCmds() {
   CMDS = [
-    ...flat.map((b) => ({ name: b.name, group: b.sub || b.top, keys: b.url, run: () => window.open(safeUrl(b.url), "_blank", "noopener") })),
+    ...bookmarkCmds().filter((b) => safeUrl(b.url) !== "#").map((b) => ({ name: b.name, group: b.group, keys: b.url, run: () => window.open(safeUrl(b.url), "_blank", "noopener") })),
     ...Object.entries(MODE_NAMES).map(([k, v]) => ({ name: `主题：${v}`, group: "命令", keys: "theme zhuti " + k, run: () => setMode(k) })),
     { name: "公开主页", group: "页面", run: () => { location.href = "/"; } },
   ];

@@ -7,11 +7,11 @@ import { getConnInfo } from '@hono/node-server/conninfo';
 import type * as OTPAuth from 'otpauth';
 import type { Config } from './config.js';
 import type { DB } from './db.js';
-import { readBookmarks } from './bookmarks.js';
 import { getHot } from './sources/aihot.js';
 import { registerBlog } from './blog/routes.js';
 import { lockedResponse } from './http.js';
 import { registerSettings } from './routes/settings.js';
+import { registerBookmarks } from './routes/bookmarks.js';
 import { lockedFor, recordFailure, recordSuccess } from './auth/ratelimit.js';
 import { consumeRecoveryCode, RECOVERY_RE, normalizeRecovery } from './auth/recovery.js';
 import { createSession, deleteSession, SESSION_COOKIE, SESSION_TTL_S, validateSession } from './auth/sessions.js';
@@ -119,11 +119,7 @@ export function createApp({ config, db, now = Date.now }: AppDeps): Hono {
     await next();
   });
 
-  app.get('/api/private/bookmarks', async (c) => {
-    const data = await readBookmarks(config.dataDir);
-    if (!data) return c.json({ error: 'no_bookmarks' }, 404);
-    return c.json(data);
-  });
+  registerBookmarks(app, { config, db, now });
 
   app.get('/api/private/server', async (c) => {
     const [load1, load5, load15] = os.loadavg();

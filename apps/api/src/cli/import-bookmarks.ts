@@ -1,26 +1,31 @@
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import { loadConfig } from '../config.js';
-import { BOOKMARKS_FILE, parseNetscapeBookmarks, type BookmarkNode } from '../bookmarks.js';
+import { openDb } from '../db.js';
+import { BookmarkParseError, parseBookmarksHtml } from '../bookmarks/netscape.js';
+import { importTree } from '../bookmarks/store.js';
 
-const [input, outArg] = process.argv.slice(2).filter((a) => a !== '--');
-if (!input) {
-  console.error('Usage: import-bookmarks <chrome-export.html> [out.json]');
+// Usage: import-bookmarks <browser-export.html> [--merge]
+// Default replaces every bookmark (a snapshot of the old tree is kept). --merge adds them under「导入 YYYY-MM-DD」.
+const args = process.argv.slice(2).filter((a) => a !== '--');
+const merge = args.includes('--merge');
+const input = args.find((a) => !a.startsWith('--'));
+if (!input || args.some((a) => a.startsWith('--') && a !== '--merge')) {
+  console.error('Usage: import-bookmarks <browser-export.html> [--merge]');
   process.exit(1);
 }
 
-const tree = parseNetscapeBookmarks(await fs.readFile(input, 'utf8'));
-const out = outArg ? path.resolve(outArg) : path.join(loadConfig().dataDir, BOOKMARKS_FILE);
-await fs.mkdir(path.dirname(out), { recursive: true, mode: 0o700 });
-await fs.writeFile(out, JSON.stringify(tree, null, 2) + '\n', { mode: 0o600 });
-
-const count = (nodes: BookmarkNode[]): [number, number] =>
-  nodes.reduce<[number, number]>(
-    ([f, l], n) => {
-      const [cf, cl] = count(n.children ?? []);
-      return [f + 1 + cf, l + (n.links?.length ?? 0) + cl];
-    },
-    [0, 0],
-  );
-const [folders, links] = count(tree);
-console.log(`Wrote ${folders} folders, ${links} links to ${out}`);
+const config = loadConfig();
+let tree;
+try {
+  tree = parseBookmarksHtml(await fs.readFile(input, 'utf8'));
+} catch (err) {
+  console.error(err instanceof BookmarkParseError ? `Refused: ${err.message}` : `Could not read ${input}`);
+  process.exit(1);
+}
+const db = openDb(config.dataDir);
+const now = Date.now();
+const day = new Date(now + 8 * 3600_000).toISOString().slice(0, 10);
+const { folders, links } = importTree(db, tree, merge ? 'merge' : 'replace', now, `导入 ${day}`);
+db.close();
+// Counts only: bookmark titles and URLs are private and never logged.
+console.log(`${merge ? 'Merged' : 'Imported'} ${folders} folders, ${links} links into the database (previous tree saved as a snapshot).`);

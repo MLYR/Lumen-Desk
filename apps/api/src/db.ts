@@ -74,6 +74,36 @@ CREATE TABLE IF NOT EXISTS categories (
   description TEXT NOT NULL DEFAULT '',
   sort        INTEGER NOT NULL DEFAULT 0
 );
+-- Bookmarks (P2.8). Times: *_at in ms; add_date/last_modified in Unix seconds, as in browser exports.
+CREATE TABLE IF NOT EXISTS bookmark_folders (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  parent_id     INTEGER REFERENCES bookmark_folders(id) ON DELETE CASCADE,
+  name          TEXT NOT NULL,
+  sort          INTEGER NOT NULL DEFAULT 0,
+  add_date      INTEGER,
+  last_modified INTEGER,
+  created_at    INTEGER NOT NULL,
+  updated_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS bookmark_folders_parent ON bookmark_folders(parent_id, sort);
+CREATE TABLE IF NOT EXISTS bookmarks (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  folder_id  INTEGER NOT NULL REFERENCES bookmark_folders(id) ON DELETE CASCADE,
+  title      TEXT NOT NULL,
+  url        TEXT NOT NULL,
+  sort       INTEGER NOT NULL DEFAULT 0,
+  add_date   INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS bookmarks_folder ON bookmarks(folder_id, sort);
+CREATE TABLE IF NOT EXISTS bookmark_snapshots (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  reason     TEXT NOT NULL CHECK (reason IN ('import', 'bulk-delete', 'manual', 'restore')),
+  tree       TEXT NOT NULL,
+  count      INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
 -- Tag vocabulary. key = name.toLowerCase() (JS), so uniqueness is case-insensitive beyond ASCII too.
 CREATE TABLE IF NOT EXISTS tags (
   key  TEXT PRIMARY KEY,

@@ -9,7 +9,7 @@ import "../../styles/write.css";
 ---
 <Layout title="写文章 · 拾光台" noindex>
 <header class="top">
-  <div class="wrap">
+  <div class="wrap wide">
     <a class="brand" href="/console"><span class="brand-mark">z</span>zreo</a>
     <span class="private" title="这个页面需要登录"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="lbl">仅自己可见</span></span>
     <nav class="nav" aria-label="导航">
@@ -24,21 +24,22 @@ import "../../styles/write.css";
   </div>
 </header>
 
-<main class="wrap ed" id="ed" data-tab="edit">
-  <aside class="ed-side" aria-label="文章列表">
-    <div class="ed-side-head">
-      <h1 class="ed-h">文章</h1>
-      <button class="btn primary" id="new-post" type="button">新文章</button>
-    </div>
-    <ul class="ed-list scroll" id="post-list"><li class="ed-note">加载中…</li></ul>
-    <div class="ed-tools">
-      <button class="btn" id="import-btn" type="button">导入 .md</button>
+<main class="wrap wide ed" id="ed" data-tab="edit">
+  <div class="ed-toolbar" role="toolbar" aria-label="文章操作">
+    <div class="ed-tb-left">
+      <button class="btn" id="import-btn" type="button" title="选择一个 .md 文件填进编辑器，也可以把文件拖进页面">导入 .md</button>
+      <select class="ed-open" id="open-select" aria-label="打开已有文章"><option value="">打开已有文章…</option></select>
+      <button class="btn" id="new-post" type="button">新文章</button>
       <a class="btn" id="export-link" href="/api/private/posts/export" download>导出全部</a>
       <input id="import-file" type="file" accept=".md,.markdown,text/markdown" multiple hidden>
     </div>
-    <div class="ed-result" id="import-result" role="status" hidden></div>
-    <p class="ed-hint">也可以把 .md 文件拖进页面导入，图片拖进或粘贴到文本框。</p>
-  </aside>
+    <div class="ed-tb-right">
+      <span class="ed-state" id="ed-state">新文章</span>
+      <button class="btn danger" id="delete-btn" type="button" hidden>删除</button>
+      <button class="btn primary" id="save-btn" type="button"><span id="save-label">发布</span> <kbd>⌘S</kbd></button>
+    </div>
+  </div>
+  <div class="ed-msg" id="ed-msg" role="status" aria-live="polite"></div>
 
   <div class="ed-tabs" role="tablist" aria-label="编辑与预览">
     <button type="button" role="tab" id="tab-edit" data-t="edit" aria-selected="true" aria-controls="pane-edit">编辑</button>
@@ -46,20 +47,11 @@ import "../../styles/write.css";
   </div>
 
   <form class="ed-pane ed-form" id="pane-edit" role="tabpanel" aria-labelledby="tab-edit" autocomplete="off" novalidate>
-    <div class="ed-bar">
-      <span class="ed-state" id="ed-state">新文章</span>
-      <span class="ed-actions">
-        <button class="btn danger" id="delete-btn" type="button" hidden>删除</button>
-        <button class="btn primary" id="save-btn" type="submit">保存 <kbd>⌘S</kbd></button>
-      </span>
-    </div>
-    <div class="ed-msg" id="ed-msg" role="status" aria-live="polite"></div>
-
     <label class="fld"><span>标题</span><input id="f-title" maxlength="200" placeholder="文章标题" required></label>
     <div class="fld-row">
       <label class="fld"><span>slug</span><input id="f-slug" maxlength="80" placeholder="留空自动生成" spellcheck="false" autocapitalize="off"></label>
       <label class="fld"><span>状态</span>
-        <select id="f-status"><option value="draft">草稿</option><option value="published">发布</option></select>
+        <select id="f-status"><option value="published">发布</option><option value="draft">草稿</option></select>
       </label>
       <label class="fld"><span>发布时间</span><input id="f-published" type="datetime-local"></label>
     </div>
@@ -74,7 +66,7 @@ import "../../styles/write.css";
   </section>
 </main>
 
-<div class="drop" id="drop" hidden><div>松开以导入 .md 文件<small>图片请拖进文本框</small></div></div>
+<div class="drop" id="drop" hidden><div>松开以打开 .md 文件<small>图片请拖进正文文本框</small></div></div>
 
 <script>
   import "../../scripts/console/write";

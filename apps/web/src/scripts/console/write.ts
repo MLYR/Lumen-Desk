@@ -1,9 +1,10 @@
 // 控制台编辑器 /console/write。原生 TS，不引入框架。
 // 接口约定见 docs/contracts/blog-api.md 第 3 节。
+import { MAX_MD_BYTES, parseMdFile } from "./mdfile";
+
 type Status = "draft" | "published";
 type ListItem = { id: number; slug: string; title: string; status: Status; tags: string[]; publishedAt: string | null; updatedAt: string };
 type Post = { id: number; slug: string; title: string; summary: string; tags: string[]; markdown: string; status: Status; publishedAt: string | null };
-type ImportResult = { imported?: { id: number; slug: string; title: string; status: Status }[]; errors?: { file: string; error: string }[] };
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
@@ -48,11 +49,11 @@ const explain = (e: unknown) => (e instanceof ApiError ? (e.code === "network" ?
 const jsonInit = (method: string, body: unknown): RequestInit => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 /* ---------- 元素与状态 ---------- */
-const ed = $("ed"), listEl = $("post-list"), msgEl = $("ed-msg"), stateEl = $("ed-state"), pvState = $("pv-state"), previewEl = $("preview");
+const ed = $("ed"), msgEl = $("ed-msg"), stateEl = $("ed-state"), pvState = $("pv-state"), previewEl = $("preview"), saveLabel = $("save-label");
 const fTitle = $<HTMLInputElement>("f-title"), fSlug = $<HTMLInputElement>("f-slug"), fStatus = $<HTMLSelectElement>("f-status"),
   fPub = $<HTMLInputElement>("f-published"), fTags = $<HTMLInputElement>("f-tags"), fSummary = $<HTMLTextAreaElement>("f-summary"), fMd = $<HTMLTextAreaElement>("f-md");
 const form = $<HTMLFormElement>("pane-edit"), saveBtn = $<HTMLButtonElement>("save-btn"), delBtn = $<HTMLButtonElement>("delete-btn");
-const importBtn = $<HTMLButtonElement>("import-btn"), importFile = $<HTMLInputElement>("import-file"), importResult = $("import-result"), dropEl = $("drop");
+const importBtn = $<HTMLButtonElement>("import-btn"), importFile = $<HTMLInputElement>("import-file"), dropEl = $("drop"), openSel = $<HTMLSelectElement>("open-select");
 
 let currentId: number | null = null;
 let dirty = false;
@@ -66,16 +67,18 @@ function setDirty(v: boolean) {
 function setState() {
   stateEl.textContent = currentId === null ? "新文章" : `文章 #${currentId}`;
   delBtn.hidden = currentId === null;
+  openSel.value = currentId === null ? "" : String(currentId);
 }
+function updateSaveLabel() { saveLabel.textContent = fStatus.value === "published" ? "发布" : "保存草稿"; }
+fStatus.addEventListener("change", updateSaveLabel);
 
 /* ---------- 时间转换 ---------- */
 const pad = (n: number) => String(n).padStart(2, "0");
-function isoToLocal(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
+function dateToLocal(d: Date): string {
   if (isNaN(d.getTime())) return "";
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+function isoToLocal(iso: string | null): string { return iso ? dateToLocal(new Date(iso)) : ""; }
 function localToIso(v: string): string | undefined {
   if (!v) return undefined;
   const d = new Date(v);
@@ -84,17 +87,19 @@ function localToIso(v: string): string | undefined {
 const dayOf = (iso: string | null) => (iso ? isoToLocal(iso).slice(0, 10) : "");
 
 /* ---------- 表单 <-> 数据 ---------- */
+/** 新文章默认：发布，发布时间为当前分钟。已有文章保持自己的状态和时间。 */
 function fill(p: Post | null) {
   currentId = p ? p.id : null;
   fTitle.value = p?.title ?? "";
   fSlug.value = p?.slug ?? "";
-  fStatus.value = p?.status ?? "draft";
-  fPub.value = isoToLocal(p?.publishedAt ?? null);
+  fStatus.value = p?.status ?? "published";
+  fPub.value = p ? isoToLocal(p.publishedAt) : dateToLocal(new Date());
   fTags.value = (p?.tags ?? []).join(", ");
   fSummary.value = p?.summary ?? "";
   fMd.value = p?.markdown ?? "";
   setDirty(false);
   setState();
+  updateSaveLabel();
   setMsg("");
   schedulePreview(true);
 }
@@ -118,37 +123,46 @@ function validate(b: Record<string, unknown>): string | null {
   return null;
 }
 
-/* ---------- 列表 ---------- */
+/* ---------- 打开已有文章（下拉框） ---------- */
+// 标题来自数据库，只用 textContent 写入，不拼 HTML。
 async function loadList() {
   try {
     const data = await api<{ items: ListItem[] }>("/api/private/posts");
     const items = Array.isArray(data.items) ? data.items : [];
-    if (!items.length) { listEl.innerHTML = `<li class="ed-note">还没有文章，点「新文章」开始写。</li>`; return; }
-    listEl.innerHTML = items.map((x) =>
-      `<li><button type="button" data-id="${esc(x.id)}" ${x.id === currentId ? 'aria-current="true"' : ""}>` +
-      `<span class="ttl">${esc(x.title || "（无标题）")}</span>` +
-      `<span class="sub"><span class="${x.status === "published" ? "st-pub" : ""}">${x.status === "published" ? "已发布" : "草稿"}</span><span>${esc(dayOf(x.updatedAt))}</span></span></button></li>`).join("");
+    openSel.replaceChildren();
+    const first = document.createElement("option");
+    first.value = ""; first.textContent = "打开已有文章…";
+    openSel.append(first);
+    for (const x of items) {
+      const o = document.createElement("option");
+      o.value = String(x.id);
+      o.textContent = `${x.title || "（无标题）"}（${x.status === "published" ? "已发布" : "草稿"}）`;
+      openSel.append(o);
+    }
+    openSel.value = currentId === null ? "" : String(currentId);
   } catch (e) {
-    listEl.innerHTML = `<li class="ed-note">${esc("列表加载失败：" + explain(e))}</li>`;
+    openSel.options[0].textContent = "打开已有文章…（列表加载失败）";
+    setMsg("文章列表加载失败：" + explain(e), "err");
   }
 }
 const confirmDiscard = () => !dirty || confirm("有未保存的修改，确定放弃吗？");
 
-listEl.addEventListener("click", async (e) => {
-  const b = (e.target as HTMLElement).closest("button[data-id]") as HTMLButtonElement | null;
-  if (!b) return;
-  const id = Number(b.dataset.id);
-  if (id === currentId || !confirmDiscard()) return;
+openSel.addEventListener("change", async () => {
+  const id = Number(openSel.value);
+  if (!openSel.value || !Number.isInteger(id)) { openSel.value = currentId === null ? "" : String(currentId); return; }
+  if (id === currentId) return;
+  if (!confirmDiscard()) { openSel.value = currentId === null ? "" : String(currentId); return; }
   setMsg("加载中…", "ok");
   try {
     fill(await api<Post>(`/api/private/posts/${id}`));
-    await loadList();
-  } catch (err) { setMsg("打开失败：" + explain(err), "err"); }
+  } catch (err) {
+    setMsg("打开失败：" + explain(err), "err");
+    openSel.value = currentId === null ? "" : String(currentId);
+  }
 });
 $("new-post").addEventListener("click", () => {
   if (!confirmDiscard()) return;
   fill(null);
-  void loadList();
   fTitle.focus();
 });
 
@@ -166,11 +180,12 @@ async function save() {
     // 以服务器返回为准（slug、发布时间可能被补全）；返回里没有 markdown 时保留编辑器里的文本。
     const keepMd = fMd.value;
     fill({ ...p, markdown: typeof p.markdown === "string" ? p.markdown : keepMd });
-    setMsg(p.status === "published" ? "已保存并发布" : "已保存为草稿", "ok");
+    setMsg(p.status === "published" ? "已发布" : "已保存为草稿", "ok");
     await loadList();
   } catch (e) { setMsg("保存失败：" + explain(e), "err"); }
   finally { busy = false; saveBtn.disabled = false; }
 }
+saveBtn.addEventListener("click", () => { void save(); });
 form.addEventListener("submit", (e) => { e.preventDefault(); void save(); });
 delBtn.addEventListener("click", async () => {
   if (currentId === null || busy) return;
@@ -259,38 +274,40 @@ fMd.addEventListener("drop", (e) => {
   void uploadImages(imgs);
 });
 
-/* ---------- 导入 .md ---------- */
-async function importFiles(files: File[]) {
-  const md = files.filter((f) => /\.(md|markdown)$/i.test(f.name));
-  const skipped = files.length - md.length;
-  if (!md.length) { showImport([], [{ file: files[0]?.name ?? "", error: "unsupported_media_type" }]); return; }
-  if (md.length > 20) { showImport([], [{ file: `共 ${md.length} 个文件`, error: "invalid_request" }]); return; }
-  importBtn.disabled = true;
-  importResult.hidden = false; importResult.textContent = "导入中…";
-  try {
-    const fd = new FormData();
-    md.forEach((f) => fd.append("files", f, f.name));
-    const r = await api<ImportResult>("/api/private/posts/import", { method: "POST", body: fd });
-    const errors = [...(r.errors ?? [])];
-    if (skipped) errors.push({ file: `${skipped} 个文件`, error: "unsupported_media_type" });
-    showImport(r.imported ?? [], errors);
-    await loadList();
-  } catch (e) {
-    importResult.hidden = false;
-    importResult.innerHTML = `<span class="bad">${esc("导入失败：" + explain(e))}</span>`;
-  } finally { importBtn.disabled = false; }
-}
-function showImport(ok: NonNullable<ImportResult["imported"]>, errors: NonNullable<ImportResult["errors"]>) {
-  importResult.hidden = false;
-  importResult.innerHTML =
-    (ok.length ? `已导入 ${ok.length} 篇` : "没有导入任何文章") +
-    (ok.length ? `<ul>${ok.map((x) => `<li>${esc(x.title)}（${x.status === "published" ? "已发布" : "草稿"}）</li>`).join("")}</ul>` : "") +
-    (errors.length ? `<ul>${errors.map((x) => `<li class="bad">${esc(x.file)}：${esc(errText(x.error))}</li>`).join("")}</ul>` : "");
+/* ---------- 打开 .md：在浏览器里读取，填进编辑器，不入库 ---------- */
+const isMd = (f: File) => /\.(md|markdown)$/i.test(f.name);
+async function openMdFiles(files: File[]) {
+  const md = files.filter(isMd);
+  if (!md.length) { setMsg("只能打开 .md 文件", "err"); return; }
+  const file = md[0];
+  if (file.size > MAX_MD_BYTES) { setMsg(`${file.name} 超过 1 MB，没有打开`, "err"); return; }
+  if (!confirmDiscard()) return;
+  let text: string;
+  try { text = await file.text(); } catch { setMsg(`读取 ${file.name} 失败`, "err"); return; }
+  const r = parseMdFile(text, file.name, new Date());
+  fill(null);
+  fTitle.value = r.title;
+  fSlug.value = r.slug;
+  fStatus.value = r.status;
+  fPub.value = dateToLocal(r.publishedAt);
+  fTags.value = r.tags.join(", ");
+  fSummary.value = r.summary;
+  fMd.value = r.markdown;
+  updateSaveLabel();
+  setDirty(true);
+  schedulePreview(true);
+  const parts: string[] = [];
+  if (md.length > 1 || files.length > md.length) parts.push(`一次只能导入一篇，已打开 ${file.name}`);
+  else parts.push(`已导入 ${file.name}`);
+  parts.push(r.status === "published" ? "检查后点发布" : "检查后点保存草稿");
+  const warn = r.warnings.length ? "。" + r.warnings.join("；") : "";
+  setMsg(parts.join("，") + warn, r.warnings.length ? "err" : "ok");
+  fTitle.focus();
 }
 importBtn.addEventListener("click", () => importFile.click());
-importFile.addEventListener("change", () => { const fs = [...(importFile.files ?? [])]; importFile.value = ""; if (fs.length) void importFiles(fs); });
+importFile.addEventListener("change", () => { const fs = [...(importFile.files ?? [])]; importFile.value = ""; if (fs.length) void openMdFiles(fs); });
 
-/* 页面级拖放：文件拖进页面显示遮罩，松开后导入 .md；图片拖在文本框上由上面的处理接管 */
+/* 页面级拖放：文件拖进页面显示遮罩，松开后打开 .md；图片拖在文本框上由上面的处理接管 */
 let dropDepth = 0;
 const hasFiles = (e: DragEvent) => [...(e.dataTransfer?.types ?? [])].includes("Files");
 const hasImage = (e: DragEvent) => [...(e.dataTransfer?.items ?? [])].some((i) => i.kind === "file" && IMG_RE.test(i.type));
@@ -305,9 +322,9 @@ window.addEventListener("drop", (e) => {
   if (!files.length) return;
   const imgs = files.filter((f) => IMG_RE.test(f.type));
   if (imgs.length === files.length) { setMsg("请把图片拖进正文文本框", "err"); return; }
-  void importFiles(files.filter((f) => !IMG_RE.test(f.type)));
+  void openMdFiles(files.filter((f) => !IMG_RE.test(f.type)));
 });
 
 /* ---------- 启动 ---------- */
-setState();
+fill(null);
 void loadList();

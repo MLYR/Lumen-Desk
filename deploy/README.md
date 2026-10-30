@@ -23,6 +23,7 @@
 - `docker-compose.yml` 里的 `build.context` 改成仓库的绝对路径，删掉 443 端口映射。
 - `.env` 里 `SITE_ADDRESS=:80`、`SITE_URL=http://localhost`、`COOKIE_SECURE=false`。
 - 打开 <http://localhost>。
+- 更新网页时，用 `rsync -a --delete` 覆盖 `web/public`、`web/private` 的内容，不要删掉目录再重建。删掉重建后 Caddy 容器还挂着旧目录，会返回 404，只能 `docker compose restart caddy`。
 
 ## 首次部署
 

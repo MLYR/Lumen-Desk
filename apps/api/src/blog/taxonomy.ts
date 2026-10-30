@@ -53,6 +53,13 @@ export function listCategoriesPublic(db: DB): Array<{ slug: string; name: string
     .map(({ slug, name, description, count }) => ({ slug, name, description, count }));
 }
 
+/** Public categories with ids, in sort order (for the blog nav; ids never leave the server). */
+export function listNavCategories(db: DB): Array<{ id: number; slug: string; name: string }> {
+  return countedRows(db)
+    .filter(isPublic)
+    .map(({ id, slug, name }) => ({ id, slug, name }));
+}
+
 export function getPublicCategoryBySlug(db: DB, slug: string): CategoryCountRow | undefined {
   const r = countedRows(db, 'WHERE c.slug = ?', slug)[0];
   return r && isPublic(r) ? r : undefined;

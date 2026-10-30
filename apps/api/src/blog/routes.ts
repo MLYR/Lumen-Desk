@@ -5,13 +5,16 @@ import type { Config } from '../config.js';
 import type { DB } from '../db.js';
 import { ConflictError, errorResponse, InputError, limit, readJson, requireType, sameOrigin as sameOriginFor } from '../http.js';
 import { importToInput, toMarkdownFile } from './frontmatter.js';
-import { catBar, fillShell, indexPage, loadShell, notFoundPage, postPage, rss, SITE_NAME, sitemap, tagsPage } from './pages.js';
+import { blogNav, fillShell, indexPage, listLayout, loadShell, notFoundPage, postPage, rss, SITE_NAME, sitemap, tagsPage } from './pages.js';
 import {
   effectiveSummary,
   getPublishedBySlug,
   categoryRef,
   getRow,
+  listNavPosts,
   listPublished,
+  pagerFor,
+  parseToc,
   MAX_MARKDOWN_BYTES,
   parsePostInput,
   rowToPost,
@@ -31,6 +34,7 @@ import {
   getPublicCategoryBySlug,
   listCategoriesPrivate,
   listCategoriesPublic,
+  listNavCategories,
   listTagsPrivate,
   listTagsPublic,
   renameTag,
@@ -102,14 +106,11 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
 
   // ---------- public HTML ----------
 
-  // Only categories with published posts get a filter link; empty ones would lead to empty pages.
-  const bar = (current: string | null, total: number) =>
-    catBar(total, listCategoriesPublic(db).filter((x) => x.count > 0 || x.slug === current), current);
+  // Left nav for every blog page except 404. Only public categories (draft-only ones stay hidden).
+  const nav = (current: { slug?: string; categorySlug?: string } = {}) => blogNav(listNavCategories(db), listNavPosts(db), current);
 
-  const blogIndex = (c: Context) => {
-    const posts = listPublished(db);
-    return html(c, `博客 · ${SITE_NAME}`, `${SITE_NAME} 的全部文章`, indexPage('博客', posts, { bar: bar(null, posts.length) }));
-  };
+  const blogIndex = (c: Context) =>
+    html(c, `博客 · ${SITE_NAME}`, `${SITE_NAME} 的全部文章`, listLayout(nav(), indexPage('博客', listPublished(db))));
   app.get('/blog', blogIndex);
   app.get('/blog/', blogIndex);
 
@@ -118,18 +119,17 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
     const cat = getPublicCategoryBySlug(db, slug);
     if (!cat) return notFound(c);
     const posts = listPublished(db, { categoryId: cat.id });
-    const total = Number((db.prepare("SELECT COUNT(*) AS n FROM posts WHERE status = 'published'").get() as { n: number }).n);
     return html(
       c,
       `${cat.name} · ${SITE_NAME}`,
       cat.description || `${SITE_NAME} 中分类为「${cat.name}」的文章`,
-      indexPage(`分类 · ${cat.name}`, posts, { bar: bar(cat.slug, total), empty: '这个分类还没有文章。' }),
+      listLayout(nav({ categorySlug: cat.slug }), indexPage(`分类 · ${cat.name}`, posts, { empty: '这个分类还没有文章。' })),
     );
   };
   app.get('/blog/category/:slug', categoryIndex);
   app.get('/blog/category/:slug/', categoryIndex);
 
-  const allTags = (c: Context) => html(c, `标签 · ${SITE_NAME}`, `${SITE_NAME} 的全部标签`, tagsPage(listTagsPublic(db)));
+  const allTags = (c: Context) => html(c, `标签 · ${SITE_NAME}`, `${SITE_NAME} 的全部标签`, listLayout(nav(), tagsPage(listTagsPublic(db))));
   app.get('/blog/tags', allTags);
   app.get('/blog/tags/', allTags);
 
@@ -137,7 +137,7 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
     const tag = c.req.param('tag') ?? '';
     const posts = listPublished(db, { tag });
     if (!posts.length) return notFound(c);
-    return html(c, `标签 · ${tag} · ${SITE_NAME}`, `${SITE_NAME} 中标签为「${tag}」的文章`, indexPage(`标签 · ${tag}`, posts));
+    return html(c, `标签 · ${tag} · ${SITE_NAME}`, `${SITE_NAME} 中标签为「${tag}」的文章`, listLayout(nav(), indexPage(`标签 · ${tag}`, posts)));
   };
   app.get('/blog/tags/:tag', tagIndex);
   app.get('/blog/tags/:tag/', tagIndex);
@@ -146,7 +146,17 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
     const slug = c.req.param('slug') ?? '';
     const row = SLUG_RE.test(slug) ? getPublishedBySlug(db, slug) : undefined;
     if (!row) return notFound(c);
-    return html(c, `${row.title} · ${SITE_NAME}`, effectiveSummary(row), postPage(row, categoryRef(db, row.category_id)));
+    return html(
+      c,
+      `${row.title} · ${SITE_NAME}`,
+      effectiveSummary(row),
+      postPage(row, {
+        category: categoryRef(db, row.category_id),
+        toc: parseToc(row.toc),
+        pager: pagerFor(db, row),
+        nav: nav({ slug: row.slug }),
+      }),
+    );
   };
   app.get('/blog/:slug', article);
   app.get('/blog/:slug/', article);

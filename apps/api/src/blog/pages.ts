@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { effectiveSummary, localDate, type CategoryRef, type ListRow, type PostRow } from './posts.js';
+import { effectiveSummary, localDate, type CategoryRef, type ListRow, type NavPost, type PagerLinks, type PostRow } from './posts.js';
+import type { TocItem } from './render.js';
 import { escapeHtml } from './render.js';
 
 const FALLBACK_SHELL = `<!doctype html>
@@ -45,50 +46,153 @@ export function fillShell(shell: string, title: string, description: string, con
 }
 
 const tagHref = (t: string) => `/blog/tags/${encodeURIComponent(t)}/`;
-const postHref = (slug: string) => `/blog/${slug}/`;
-// Category slugs are [a-z0-9-], safe in URLs as-is; escaped anyway where they reach HTML.
-const catHref = (slug: string) => `/blog/category/${slug}/`;
+// Every href is URL-encoded first, then HTML-escaped where it's written out.
+const postHref = (slug: string) => `/blog/${encodeURIComponent(slug)}/`;
+const catHref = (slug: string) => `/blog/category/${encodeURIComponent(slug)}/`;
+const attr = (s: string) => escapeHtml(s);
 
-export function postPage(r: PostRow, category: CategoryRef | null): string {
+export interface ArticleParts {
+  category: CategoryRef | null;
+  toc: TocItem[];
+  pager: PagerLinks;
+  nav: string;
+}
+
+function tocList(toc: TocItem[]): string {
+  // h3s nest under the preceding h2; an h3 before any h2 is listed at the top level.
+  const out: string[] = [];
+  let openL2 = false;
+  let openL3 = false;
+  const link = (t: TocItem) => `<a href="#${attr(encodeURIComponent(t.id))}">${escapeHtml(t.text)}</a>`;
+  for (const t of toc) {
+    if (t.level === 2) {
+      if (openL3) out.push('</ol>');
+      if (openL2) out.push('</li>');
+      out.push(`<li class="l2">${link(t)}`);
+      openL2 = true;
+      openL3 = false;
+    } else if (openL2) {
+      if (!openL3) out.push('<ol>');
+      out.push(`<li class="l3">${link(t)}</li>`);
+      openL3 = true;
+    } else {
+      out.push(`<li class="l3">${link(t)}</li>`);
+    }
+  }
+  if (openL3) out.push('</ol>');
+  if (openL2) out.push('</li>');
+  return `<ol>${out.join('')}</ol>`;
+}
+
+function pager(p: PagerLinks): string {
+  const a = (cls: 'prev' | 'next', label: string, x: { slug: string; title: string }) =>
+    `<a class="${cls}" href="${attr(postHref(x.slug))}" rel="${cls}"><span>${label}</span><strong>${escapeHtml(x.title)}</strong></a>`;
+  const links = [p.prev ? a('prev', '上一篇', p.prev) : '', p.next ? a('next', '下一篇', p.next) : ''].filter(Boolean);
+  if (!links.length) return '';
+  return `\n    <nav class="post-pager" aria-label="上一篇和下一篇">\n      ${links.join('\n      ')}\n    </nav>`;
+}
+
+export function postPage(r: PostRow, { category, toc, pager: links, nav }: ArticleParts): string {
   const tags = JSON.parse(r.tags) as string[];
   const date = r.published_at ? localDate(r.published_at) : '';
   const meta = [
     date ? `<time datetime="${date}">${date}</time>` : '',
-    category ? `<a class="cat" href="${escapeHtml(catHref(category.slug))}">${escapeHtml(category.name)}</a>` : '',
-    ...tags.map((t) => `<a class="tag" href="${escapeHtml(tagHref(t))}">${escapeHtml(t)}</a>`),
+    category ? `<a class="cat" href="${attr(catHref(category.slug))}">${escapeHtml(category.name)}</a>` : '',
+    ...tags.map((t) => `<a class="tag" href="${attr(tagHref(t))}">${escapeHtml(t)}</a>`),
   ].join('');
-  return `<article class="post">
-  <header class="post-head">
-    <a class="back" href="/blog/">← 全部文章</a>
-    <h1 class="post-title">${escapeHtml(r.title)}</h1>
-    <div class="post-meta">${meta}</div>
-  </header>
-  <div class="prose">${r.html}</div>
-</article>`;
+  const list = toc.length ? tocList(toc) : '';
+  const inline = list ? `\n    <details class="toc-inline"><summary>本文目录</summary>${list}</details>` : '';
+  const aside = list
+    ? `\n  <aside class="post-toc" aria-label="本文目录">
+    <p class="toc-title">本文目录</p>
+    ${list}
+    <div class="toc-progress" aria-hidden="true"><span></span></div>
+  </aside>`
+    : '';
+  return `<div class="post-layout">
+${nav}
+  <article class="post">
+    <header class="post-head">
+      <a class="back" href="/blog/">← 全部文章</a>
+      <h1 class="post-title">${escapeHtml(r.title)}</h1>
+      <div class="post-meta">${meta}</div>
+    </header>${inline}
+    <div class="prose">${r.html}</div>${pager(links)}
+  </article>${aside}
+</div>`;
 }
 
-export interface CatBarItem {
+export interface NavCategory {
+  id: number;
   slug: string;
   name: string;
-  count: number;
 }
 
-/** Category filter bar. current = category slug, or null for 「全部」. */
-export function catBar(total: number, cats: CatBarItem[], current: string | null): string {
-  const cur = (on: boolean) => (on ? ' aria-current="page"' : '');
-  const links = [
-    `  <a href="/blog/"${cur(current === null)}>全部 <span class="n">${total}</span></a>`,
-    ...cats.map(
-      (c) => `  <a href="${escapeHtml(catHref(c.slug))}"${cur(current === c.slug)}>${escapeHtml(c.name)} <span class="n">${c.count}</span></a>`,
-    ),
-  ];
-  return `<nav class="cat-bar" aria-label="分类">
-${links.join('\n')}
-</nav>`;
+/** Above this many published posts only the current group starts open. */
+export const NAV_EXPAND_ALL_MAX = 50;
+
+/**
+ * Left-hand navigation. categories: public ones in sort order; posts: published, newest first.
+ * Empty groups are left out; uncategorized posts (or posts whose category isn't listed) go last.
+ */
+export function blogNav(
+  categories: NavCategory[],
+  posts: NavPost[],
+  current: { slug?: string; categorySlug?: string } = {},
+): string {
+  const byCat = new Map<number | null, NavPost[]>();
+  const known = new Set(categories.map((c) => c.id));
+  for (const p of posts) {
+    const k = p.category_id !== null && known.has(p.category_id) ? p.category_id : null;
+    const list = byCat.get(k) ?? [];
+    list.push(p);
+    byCat.set(k, list);
+  }
+  const currentCat = current.slug ? (posts.find((p) => p.slug === current.slug)?.category_id ?? null) : undefined;
+  const expandAll = posts.length <= NAV_EXPAND_ALL_MAX;
+
+  const group = (head: string, list: NavPost[], isCurrent: boolean) => {
+    const items = list
+      .map((p) => `        <li><a href="${attr(postHref(p.slug))}"${p.slug === current.slug ? ' aria-current="page"' : ''}>${escapeHtml(p.title)}</a></li>`)
+      .join('\n');
+    return `    <details class="nav-group"${expandAll || isCurrent ? ' open' : ''}>
+      <summary>${head}<span class="n">${list.length}</span></summary>
+      <ul>
+${items}
+      </ul>
+    </details>`;
+  };
+
+  const groups: string[] = [];
+  for (const c of categories) {
+    const list = byCat.get(c.id);
+    if (!list?.length) continue;
+    const onCatPage = current.categorySlug === c.slug;
+    const head = `<a href="${attr(catHref(c.slug))}"${onCatPage ? ' aria-current="page"' : ''}>${escapeHtml(c.name)}</a>`;
+    groups.push(group(head, list, onCatPage || (currentCat !== undefined && currentCat === c.id)));
+  }
+  const none = byCat.get(null);
+  if (none?.length) groups.push(group('<span>未分类</span>', none, currentCat !== undefined && (currentCat === null || !known.has(currentCat))));
+
+  return `  <aside class="blog-nav" id="blog-nav" aria-label="文章导航">
+    <div class="blog-nav-search"></div>
+    <nav>
+${groups.join('\n')}
+    </nav>
+    <p class="nav-foot"><a href="/blog/">全部文章</a> · <a href="/blog/tags/">标签</a> · <a href="/rss.xml">RSS</a></p>
+  </aside>`;
 }
 
-/** List page; posts must already be sorted by published_at descending. `bar` is trusted HTML from catBar. */
-export function indexPage(heading: string, posts: ListRow[], opts: { bar?: string; empty?: string } = {}): string {
+/** List/category/tag pages: nav + the section, in the shared layout. */
+export function listLayout(nav: string, section: string): string {
+  return `<div class="post-layout list">
+${nav}
+${section}
+</div>`;
+}
+
+/** List page section; posts must already be sorted by published_at descending. */
+export function indexPage(heading: string, posts: ListRow[], opts: { empty?: string } = {}): string {
   const groups: string[] = [];
   let year = '';
   let items: string[] = [];
@@ -111,13 +215,13 @@ ${items.join('\n')}
     }
     const tags = (JSON.parse(r.tags) as string[]).map(escapeHtml).join(' · ');
     items.push(
-      `      <li><a href="${postHref(r.slug)}"><span class="d">${d.slice(5)}</span><div><div class="t">${escapeHtml(r.title)}</div><div class="s">${escapeHtml(effectiveSummary(r))}</div></div><span class="tags">${tags}</span></a></li>`,
+      `      <li><a href="${attr(postHref(r.slug))}"><span class="d">${d.slice(5)}</span><div><div class="t">${escapeHtml(r.title)}</div><div class="s">${escapeHtml(effectiveSummary(r))}</div></div><span class="tags">${tags}</span></a></li>`,
     );
   }
   flush();
   return `<section class="post-index">
   <h1 class="page-title">${escapeHtml(heading)}</h1>
-${opts.bar ? `${opts.bar}\n` : ''}${groups.join('\n')}${posts.length ? '' : `\n  <p class="empty">${escapeHtml(opts.empty ?? '还没有文章。')}</p>`}
+${groups.join('\n')}${posts.length ? '' : `\n  <p class="empty">${escapeHtml(opts.empty ?? '还没有文章。')}</p>`}
 </section>`;
 }
 

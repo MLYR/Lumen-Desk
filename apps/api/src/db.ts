@@ -93,6 +93,10 @@ export const BUILTIN_TAGS: readonly string[] = ['Astro', 'TypeScript', 'Node.js'
 
 export const tagKey = (name: string): string => name.toLowerCase();
 
+/** Bump when renderer output changes (2: heading ids + toc). */
+export const RENDER_VERSION = '2';
+export const RENDER_VERSION_KEY = 'render_version';
+
 function hasColumn(db: DB, table: string, column: string): boolean {
   return (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).some((c) => c.name === column);
 }
@@ -106,6 +110,13 @@ function migrate(db: DB): void {
       db.exec('ALTER TABLE posts ADD COLUMN category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL');
     }
     db.exec('CREATE INDEX IF NOT EXISTS posts_category ON posts(category_id)');
+    if (!hasColumn(db, 'posts', 'toc')) db.exec("ALTER TABLE posts ADD COLUMN toc TEXT NOT NULL DEFAULT '[]'");
+    // Pager lookups: same category (NULL = uncategorized), ordered by publish time.
+    db.exec('CREATE INDEX IF NOT EXISTS posts_pager ON posts(status, category_id, published_at, id)');
+    // Nothing to re-render in an empty database; rerenderPosts() handles existing posts (it's async: Shiki).
+    if (kvGet(db, RENDER_VERSION_KEY) !== RENDER_VERSION && !db.prepare('SELECT 1 FROM posts LIMIT 1').get()) {
+      kvSet(db, RENDER_VERSION_KEY, RENDER_VERSION);
+    }
 
     // Built-ins are written once; anything the user deletes later stays deleted.
     if (kvGet(db, 'taxonomy_seeded') === undefined) {
@@ -154,7 +165,11 @@ export function openDb(dataDir: string): DB {
   }
   const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;');
+  const hadFts = db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'posts_fts'").get() !== undefined;
   db.exec(SCHEMA);
+  // An external-content FTS table created over existing rows starts empty; index them now, or the
+  // update trigger's 'delete' for an unindexed row corrupts the index.
+  if (!hadFts) db.exec("INSERT INTO posts_fts(posts_fts) VALUES ('rebuild')");
   migrate(db);
   return db;
 }

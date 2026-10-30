@@ -1,4 +1,4 @@
-import MarkdownIt, { type MarkdownIt as Md } from 'markdown-it';
+import MarkdownIt, { type MarkdownIt as Md, type Token } from 'markdown-it';
 import sanitizeHtml from 'sanitize-html';
 import { createHighlighter, type Highlighter } from 'shiki';
 
@@ -86,6 +86,8 @@ const SANITIZE: sanitizeHtml.IOptions = {
     a: ['href', 'title', 'rel', 'target'],
     img: ['src', 'alt', 'title', 'loading', 'decoding'],
     pre: ['class', 'style', 'tabindex'],
+    h2: ['id'],
+    h3: ['id'],
     span: ['class', 'style'],
     ol: ['start'],
     th: ['style'],
@@ -98,12 +100,109 @@ const SANITIZE: sanitizeHtml.IOptions = {
   allowedSchemesAppliedToAttributes: ['href', 'src'],
   allowProtocolRelative: false,
   disallowedTagsMode: 'discard',
+  // Second guard behind the renderer: an h2/h3 id survives only in the generated format.
+  transformTags: { h2: checkHeadingId, h3: checkHeadingId },
 };
 
-/** Markdown → sanitized HTML. Raw HTML in the source is shown as text, never rendered. */
-export async function renderMarkdown(markdown: string): Promise<string> {
+export interface TocItem {
+  level: 2 | 3;
+  id: string;
+  text: string;
+}
+
+export interface Rendered {
+  html: string;
+  toc: TocItem[];
+}
+
+/** Markdown → sanitized HTML plus the h2/h3 table of contents (ids match the html). Raw HTML is shown as text. */
+export async function renderPost(markdown: string): Promise<Rendered> {
   md ??= build(await getHighlighter());
-  return sanitizeHtml(md.render(markdown), SANITIZE);
+  const env = {};
+  const tokens = md.parse(markdown, env);
+  const toc = addHeadingIds(tokens);
+  return { html: sanitizeHtml(md.renderer.render(tokens, md.options, env), SANITIZE), toc };
+}
+
+/** The final whitelist pass on its own (exported for tests). */
+export function sanitizePostHtml(html: string): string {
+  return sanitizeHtml(html, SANITIZE);
+}
+
+export async function renderMarkdown(markdown: string): Promise<string> {
+  return (await renderPost(markdown)).html;
+}
+
+// ---------- heading anchors ----------
+
+export const HEADING_ID_RE = /^h-[\p{L}\p{N}_-]{1,64}$/u;
+const MAX_SLUG = 60;
+
+function checkHeadingId(tagName: string, attribs: sanitizeHtml.Attributes): sanitizeHtml.Tag {
+  const { id, ...rest } = attribs;
+  return { tagName, attribs: id !== undefined && HEADING_ID_RE.test(id) ? { ...rest, id } : rest };
+}
+
+/** Removes leading/trailing '-' without a regex (`-+$` backtracks quadratically on long dash runs). */
+function trimDashes(s: string): string {
+  let a = 0;
+  let b = s.length;
+  while (a < b && s[a] === '-') a++;
+  while (b > a && s[b - 1] === '-') b--;
+  return s.slice(a, b);
+}
+
+/**
+ * Heading text → slug: lowercase, whitespace → '-', keep only letters, digits, '-', '_',
+ * trim '-', at most 60 characters. Each step is a single linear pass.
+ */
+export function slugifyHeading(text: string): string {
+  const s = trimDashes(text.toLowerCase().replace(/\s/gu, '-').replace(/[^\p{L}\p{N}_-]/gu, ''));
+  const chars = [...s];
+  return chars.length > MAX_SLUG ? trimDashes(chars.slice(0, MAX_SLUG).join('')) : s;
+}
+
+function inlineText(t: Token | undefined): string {
+  let out = '';
+  for (const c of t?.children ?? []) {
+    if (c.type === 'text' || c.type === 'code_inline' || c.type === 'image') out += c.content;
+    else if (c.type === 'softbreak' || c.type === 'hardbreak') out += ' ';
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}
+
+/** Only the first MAX_TOC_HEADINGS h2/h3 get ids and toc entries; more is never useful and bounds the work. */
+const MAX_TOC_HEADINGS = 200;
+
+/** Sets `id` on h2/h3 open tokens (unique per document, `h-` prefixed) and returns the toc. */
+function addHeadingIds(tokens: Token[]): TocItem[] {
+  const toc: TocItem[] = [];
+  const used = new Set<string>();
+  // Next suffix to try per base, so k duplicates cost O(k) rather than O(k²).
+  const nextSuffix = new Map<string, number>();
+  let empty = 0;
+  for (let i = 0; i < tokens.length && toc.length < MAX_TOC_HEADINGS; i++) {
+    const t = tokens[i]!;
+    if (t.type !== 'heading_open' || (t.tag !== 'h2' && t.tag !== 'h3')) continue;
+    const text = inlineText(tokens[i + 1]);
+    const base = slugifyHeading(text) || `section-${++empty}`;
+    let id = base;
+    if (used.has(id)) {
+      const chars = [...base];
+      let n = nextSuffix.get(base) ?? 2;
+      do {
+        const suffix = `-${n++}`;
+        // Keep the whole id within the 64-character whitelist limit.
+        id = `${chars.slice(0, MAX_SLUG + 2 - suffix.length).join('')}${suffix}`;
+      } while (used.has(id));
+      nextSuffix.set(base, n);
+    }
+    used.add(id);
+    const full = `h-${id}`;
+    t.attrSet('id', full);
+    toc.push({ level: t.tag === 'h2' ? 2 : 3, id: full, text });
+  }
+  return toc;
 }
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };

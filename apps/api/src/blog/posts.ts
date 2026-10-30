@@ -1,6 +1,6 @@
-import { tx, type DB } from '../db.js';
+import { kvGet, kvSet, RENDER_VERSION, RENDER_VERSION_KEY, tx, type DB } from '../db.js';
 import { ConflictError, InputError, NotFoundError } from '../http.js';
-import { htmlToText, renderMarkdown } from './render.js';
+import { htmlToText, renderPost, type TocItem } from './render.js';
 import { dedupeTags, ensureCategoryByName, ensureTags, getCategory } from './taxonomy.js';
 
 export { InputError, NotFoundError };
@@ -36,6 +36,7 @@ export interface PostRow {
   markdown: string;
   html: string;
   body_text: string;
+  toc: string;
   status: PostStatus;
   published_at: string | null;
   category_id: number | null;
@@ -207,7 +208,7 @@ function isUniqueViolation(err: unknown): boolean {
  * so the existence and slug checks can't race with other requests.
  */
 export async function savePost(db: DB, input: PostInput, nowMs: number, id?: number): Promise<Post> {
-  const html = await renderMarkdown(input.markdown);
+  const { html, toc } = await renderPost(input.markdown);
   const bodyText = htmlToText(html);
   const existing = id === undefined ? undefined : getRow(db, id);
   if (id !== undefined && !existing) throw new NotFoundError();
@@ -237,18 +238,18 @@ export async function savePost(db: DB, input: PostInput, nowMs: number, id?: num
       } else categoryId = ensureCategoryByName(db, input.category);
       const tags = ensureTags(db, input.tags);
 
-      const values = [slug, input.title, input.summary, JSON.stringify(tags), input.markdown, html, bodyText, input.status, publishedAt, categoryId];
+      const values = [slug, input.title, input.summary, JSON.stringify(tags), input.markdown, html, bodyText, JSON.stringify(toc), input.status, publishedAt, categoryId];
       if (existing) {
         db.prepare(
-          `UPDATE posts SET slug=?, title=?, summary=?, tags=?, markdown=?, html=?, body_text=?, status=?, published_at=?, category_id=?, updated_at=?
+          `UPDATE posts SET slug=?, title=?, summary=?, tags=?, markdown=?, html=?, body_text=?, toc=?, status=?, published_at=?, category_id=?, updated_at=?
            WHERE id=?`,
         ).run(...values, now, existing.id);
         return rowToPost(db, getRow(db, existing.id)!);
       }
       const r = db
         .prepare(
-          `INSERT INTO posts (slug, title, summary, tags, markdown, html, body_text, status, published_at, category_id, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO posts (slug, title, summary, tags, markdown, html, body_text, toc, status, published_at, category_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(...values, now, now);
       return rowToPost(db, getRow(db, Number(r.lastInsertRowid))!);
@@ -354,4 +355,88 @@ export function searchPosts(db: DB, q: string): SearchItem[] {
       .all(like, like) as typeof rows;
   }
   return rows.map((r) => ({ slug: r.slug, title: r.title, snippet: makeSnippet(r.body_text, q) }));
+}
+
+// ---------- re-render on renderer upgrades ----------
+
+/**
+ * Re-renders every post with the current renderer once per RENDER_VERSION (html, body_text, toc).
+ * Rendering is async, so it happens first; the writes and the version flag go in one transaction.
+ * A post edited meanwhile (markdown changed) is skipped: its save already used the new renderer.
+ * markdown, title, dates and updated_at are never touched. Returns how many posts were rewritten.
+ */
+export async function rerenderPosts(db: DB): Promise<number> {
+  if (kvGet(db, RENDER_VERSION_KEY) === RENDER_VERSION) return 0;
+  const rows = db.prepare('SELECT id, markdown FROM posts').all() as Array<{ id: number; markdown: string }>;
+  const out: Array<{ id: number; markdown: string; html: string; text: string; toc: string }> = [];
+  for (const r of rows) {
+    const { html, toc } = await renderPost(r.markdown);
+    out.push({ id: r.id, markdown: r.markdown, html, text: htmlToText(html), toc: JSON.stringify(toc) });
+  }
+  return tx(db, () => {
+    if (kvGet(db, RENDER_VERSION_KEY) === RENDER_VERSION) return 0;
+    const upd = db.prepare('UPDATE posts SET html = ?, body_text = ?, toc = ? WHERE id = ? AND markdown = ?');
+    let n = 0;
+    for (const o of out) n += Number(upd.run(o.html, o.text, o.toc, o.id, o.markdown).changes);
+    kvSet(db, RENDER_VERSION_KEY, RENDER_VERSION);
+    return n;
+  });
+}
+
+export function parseToc(raw: string): TocItem[] {
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return Array.isArray(v) ? (v as TocItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+// ---------- reader navigation ----------
+
+export interface NavPost {
+  slug: string;
+  title: string;
+  category_id: number | null;
+  published_at: string;
+}
+
+/** Published posts for the side nav: four short columns, no bodies. */
+export function listNavPosts(db: DB): NavPost[] {
+  return db
+    .prepare("SELECT slug, title, category_id, published_at FROM posts WHERE status = 'published' ORDER BY published_at DESC, id DESC")
+    .all() as unknown as NavPost[];
+}
+
+export interface PagerLinks {
+  prev?: { slug: string; title: string };
+  next?: { slug: string; title: string };
+}
+
+/**
+ * Neighbours in the same category (NULL = uncategorized) by publish time, ties broken by id.
+ * prev = older, next = newer. One query; both halves use the posts_pager index.
+ */
+export function pagerFor(db: DB, post: Pick<PostRow, 'id' | 'category_id' | 'published_at'>): PagerLinks {
+  if (!post.published_at) return {};
+  const rows = db
+    .prepare(
+      `SELECT 'prev' AS dir, slug, title FROM (
+         SELECT slug, title FROM posts
+         WHERE status = 'published' AND category_id IS ? AND (published_at < ? OR (published_at = ? AND id < ?))
+         ORDER BY published_at DESC, id DESC LIMIT 1)
+       UNION ALL
+       SELECT 'next' AS dir, slug, title FROM (
+         SELECT slug, title FROM posts
+         WHERE status = 'published' AND category_id IS ? AND (published_at > ? OR (published_at = ? AND id > ?))
+         ORDER BY published_at ASC, id ASC LIMIT 1)`,
+    )
+    .all(post.category_id, post.published_at, post.published_at, post.id, post.category_id, post.published_at, post.published_at, post.id) as Array<{
+    dir: 'prev' | 'next';
+    slug: string;
+    title: string;
+  }>;
+  const out: PagerLinks = {};
+  for (const r of rows) out[r.dir] = { slug: r.slug, title: r.title };
+  return out;
 }

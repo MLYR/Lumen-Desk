@@ -38,7 +38,7 @@ button, input { font: inherit; color: inherit; }
 
 /* 顶栏 */
 .top { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  background: color-mix(in srgb, var(--bg) 85%, transparent); border-bottom: 1px solid var(--line); }
+  background: var(--bg); border-bottom: 1px solid var(--line); }
 .top .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
 .brand { font-family: var(--mono); font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; }
 .brand-mark { width: 22px; height: 22px; display: grid; place-items: center; background: var(--accent); color: var(--accent-fg); font-size: 13px; font-weight: 700; }

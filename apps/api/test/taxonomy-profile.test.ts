@@ -222,9 +222,10 @@ describe('taxonomy: public views never leak drafts', () => {
   it('HTML pages, RSS and sitemap', async () => {
     const { app } = await seed();
     const index = await (await app.request('/blog/')).text();
-    expect(index).toContain('<nav class="cat-bar" aria-label="分类">');
-    expect(index).toContain('<a href="/blog/" aria-current="page">全部 <span class="n">2</span></a>');
-    expect(index).toContain('<a href="/blog/category/frontend/">前端 <span class="n">2</span></a>');
+    // P2.7: the cat-bar is replaced by the left nav.
+    expect(index).not.toContain('cat-bar');
+    expect(index).toContain('<div class="post-layout list">');
+    expect(index).toContain('<summary><a href="/blog/category/frontend/">前端</a><span class="n">2</span></summary>');
     expect(index).not.toContain('/blog/category/backend/');
 
     for (const url of ['/blog/category/frontend', '/blog/category/frontend/']) {

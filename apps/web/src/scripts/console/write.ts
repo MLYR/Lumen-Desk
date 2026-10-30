@@ -1,57 +1,24 @@
 // 控制台编辑器 /console/write。原生 TS，不引入框架。
 // 接口约定见 docs/contracts/blog-api.md 第 3 节。
 import { MAX_MD_BYTES, parseMdFile } from "./mdfile";
+import { $, api, ApiError, esc, explain as explainBase, jsonInit } from "./common";
+import "./topbar";
 
 type Status = "draft" | "published";
 type ListItem = { id: number; slug: string; title: string; status: Status; tags: string[]; publishedAt: string | null; updatedAt: string };
-type Post = { id: number; slug: string; title: string; summary: string; tags: string[]; markdown: string; status: Status; publishedAt: string | null };
+type Post = { id: number; slug: string; title: string; summary: string; tags: string[]; markdown: string; status: Status; publishedAt: string | null; categoryId?: number | null; category?: { slug: string; name: string } | null };
+type Cat = { id: number; slug: string; name: string };
 
-const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
-
-const ERRORS: Record<string, string> = {
-  invalid_request: "内容不符合要求，请检查标题、slug 和标签",
-  slug_taken: "这个 slug 已被占用",
+const ERR_OVERRIDES: Record<string, string> = {
+  invalid_request: "内容不符合要求，请检查标题、slug、分类和标签",
   not_found: "文章不存在，可能已被删除",
-  payload_too_large: "内容太大，超过了上限",
-  unsupported_media_type: "不支持这种文件格式",
-  bad_origin: "请求来源不被允许，请从站点本身打开此页面",
-  unauthorized: "登录已失效，请重新登录",
-  rate_limited: "请求太频繁，请稍后再试",
 };
-const errText = (code: string, message?: string) => ERRORS[code] || (message ? message : `出错了（${code}）`);
-
-class ApiError extends Error {
-  constructor(public status: number, public code: string, public detail?: string) { super(code); }
-}
-
-/** 所有接口都走这里：401 直接跳登录；其余错误抛 ApiError。 */
-async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(url, { credentials: "same-origin", ...init });
-  } catch {
-    throw new ApiError(0, "network");
-  }
-  if (res.status === 401) {
-    location.href = "/login";
-    throw new ApiError(401, "unauthorized");
-  }
-  if (!res.ok) {
-    let code = "http_" + res.status, detail: string | undefined;
-    try { const j = await res.json(); if (j && typeof j.error === "string") code = j.error; if (j && typeof j.message === "string") detail = j.message; } catch {}
-    throw new ApiError(res.status, code, detail);
-  }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
-}
-const explain = (e: unknown) => (e instanceof ApiError ? (e.code === "network" ? "网络错误，请重试" : errText(e.code, e.detail)) : "出错了，请重试");
-const jsonInit = (method: string, body: unknown): RequestInit => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const explain = (e: unknown) => explainBase(e, ERR_OVERRIDES);
 
 /* ---------- 元素与状态 ---------- */
 const ed = $("ed"), msgEl = $("ed-msg"), stateEl = $("ed-state"), pvState = $("pv-state"), previewEl = $("preview"), saveLabel = $("save-label");
 const fTitle = $<HTMLInputElement>("f-title"), fSlug = $<HTMLInputElement>("f-slug"), fStatus = $<HTMLSelectElement>("f-status"),
-  fPub = $<HTMLInputElement>("f-published"), fTags = $<HTMLInputElement>("f-tags"), fSummary = $<HTMLTextAreaElement>("f-summary"), fMd = $<HTMLTextAreaElement>("f-md");
+  fPub = $<HTMLInputElement>("f-published"), fTags = $<HTMLInputElement>("f-tags"), fCat = $<HTMLSelectElement>("f-category"), fNewCat = $<HTMLInputElement>("f-newcat"), newCatRow = $("newcat-row"), fSummary = $<HTMLTextAreaElement>("f-summary"), fMd = $<HTMLTextAreaElement>("f-md");
 const form = $<HTMLFormElement>("pane-edit"), saveBtn = $<HTMLButtonElement>("save-btn"), delBtn = $<HTMLButtonElement>("delete-btn");
 const importBtn = $<HTMLButtonElement>("import-btn"), importFile = $<HTMLInputElement>("import-file"), dropEl = $("drop"), openSel = $<HTMLSelectElement>("open-select");
 
@@ -94,7 +61,9 @@ function fill(p: Post | null) {
   fSlug.value = p?.slug ?? "";
   fStatus.value = p?.status ?? "published";
   fPub.value = p ? isoToLocal(p.publishedAt) : dateToLocal(new Date());
-  fTags.value = (p?.tags ?? []).join(", ");
+  setTags(p?.tags ?? []);
+  fTags.value = "";
+  setCategory(p ? (p.categoryId ?? p.category?.name ?? null) : null);
   fSummary.value = p?.summary ?? "";
   fMd.value = p?.markdown ?? "";
   setDirty(false);
@@ -104,14 +73,16 @@ function fill(p: Post | null) {
   schedulePreview(true);
 }
 function collect() {
-  const tags = fTags.value.split(/[,，]/).map((t) => t.trim()).filter(Boolean);
+  commitTagInput();
   const body: Record<string, unknown> = {
-    title: fTitle.value.trim(), summary: fSummary.value.trim(), tags, markdown: fMd.value, status: fStatus.value,
+    title: fTitle.value.trim(), summary: fSummary.value.trim(), tags: [...tags], markdown: fMd.value, status: fStatus.value,
   };
   const slug = fSlug.value.trim();
   if (slug) body.slug = slug;
   const pub = localToIso(fPub.value);
   if (pub) body.publishedAt = pub;
+  if (fCat.value === NEW_CAT) { const n = fNewCat.value.trim(); if (n) body.category = n; else body.categoryId = null; }
+  else body.categoryId = fCat.value ? Number(fCat.value) : null;
   return body;
 }
 function validate(b: Record<string, unknown>): string | null {
@@ -120,8 +91,121 @@ function validate(b: Record<string, unknown>): string | null {
   const tags = b.tags as string[];
   if (tags.length > 10) return "标签最多 10 个";
   if (tags.some((t) => [...t].length > 30)) return "每个标签最多 30 个字";
+  if (fCat.value === NEW_CAT && !fNewCat.value.trim()) return "请填写新分类的名称，或改选其他分类";
+  if (fCat.value === NEW_CAT && [...fNewCat.value.trim()].length > 20) return "分类名称最多 20 个字";
   return null;
 }
+
+/* ---------- 分类 ---------- */
+const NEW_CAT = "__new";
+let cats: Cat[] = [];
+async function loadCategories() {
+  try {
+    const d = await api<{ items: Cat[] }>("/api/private/categories");
+    cats = Array.isArray(d.items) ? d.items : [];
+  } catch { cats = []; }
+  renderCategoryOptions();
+}
+function renderCategoryOptions(selected?: string) {
+  const keep = selected ?? fCat.value;
+  fCat.replaceChildren();
+  const add = (v: string, t: string) => { const o = document.createElement("option"); o.value = v; o.textContent = t; fCat.append(o); };
+  add("", "未分类");
+  for (const c of cats) add(String(c.id), c.name); // 名称只用 textContent
+  add(NEW_CAT, "+ 新分类…");
+  fCat.value = [...fCat.options].some((o) => o.value === keep) ? keep : "";
+  syncNewCat();
+}
+function syncNewCat() {
+  const on = fCat.value === NEW_CAT;
+  newCatRow.hidden = !on;
+}
+/** v: 分类 id、分类名（导入或保存后返回）或 null。名字对不上时返回 false。 */
+function setCategory(v: number | string | null): boolean {
+  fNewCat.value = "";
+  if (v === null || v === "") { renderCategoryOptions(""); return true; }
+  const c = typeof v === "number" ? cats.find((x) => x.id === v) : cats.find((x) => x.name === v);
+  if (c) { renderCategoryOptions(String(c.id)); return true; }
+  renderCategoryOptions("");
+  return false;
+}
+fCat.addEventListener("change", () => {
+  syncNewCat();
+  if (fCat.value === NEW_CAT) fNewCat.focus();
+  setDirty(true);
+});
+$("newcat-cancel").addEventListener("click", () => { fNewCat.value = ""; renderCategoryOptions(""); fCat.focus(); });
+fNewCat.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); } });
+
+/* ---------- 标签：小块 + 自动补全 ---------- */
+let tags: string[] = [];
+let vocab: string[] = [];
+const chipsEl = $("tag-chips"), suggestEl = $("tag-suggest"), tagBox = $("tagbox");
+async function loadVocab() {
+  try {
+    const d = await api<{ items: { name: string }[] }>("/api/private/tags");
+    vocab = (Array.isArray(d.items) ? d.items : []).map((x) => String(x.name));
+  } catch { vocab = []; }
+}
+function renderChips() {
+  chipsEl.replaceChildren();
+  tags.forEach((t, i) => {
+    const c = document.createElement("span"); c.className = "tag-chip";
+    const label = document.createElement("span"); label.textContent = t; // 用 textContent，不拼 HTML
+    const x = document.createElement("button"); x.type = "button"; x.className = "tag-x"; x.textContent = "×"; x.setAttribute("aria-label", `删除标签 ${t}`);
+    x.addEventListener("click", () => { tags.splice(i, 1); renderChips(); setDirty(true); fTags.focus(); });
+    c.append(label, x); chipsEl.append(c);
+  });
+}
+function setTags(list: string[]) { tags = []; for (const t of list) addTag(t, false); renderChips(); }
+function addTag(raw: string, render = true): boolean {
+  const t = raw.trim();
+  if (!t) return false;
+  if (tags.some((x) => x.toLowerCase() === t.toLowerCase())) return false;
+  tags.push(t);
+  if (render) { renderChips(); setDirty(true); }
+  return true;
+}
+/** 把输入框里还没变成小块的文字也算进去（保存前调用）。 */
+function commitTagInput() {
+  for (const part of fTags.value.split(/[,，]/)) addTag(part);
+  fTags.value = ""; closeSuggest();
+}
+let sugg: string[] = [], suggIdx = -1;
+function closeSuggest() { suggestEl.hidden = true; suggestEl.replaceChildren(); sugg = []; suggIdx = -1; fTags.setAttribute("aria-expanded", "false"); fTags.removeAttribute("aria-activedescendant"); }
+function renderSuggest() {
+  const q = fTags.value.trim().toLowerCase();
+  sugg = vocab.filter((n) => !tags.some((t) => t.toLowerCase() === n.toLowerCase()) && (!q || n.toLowerCase().includes(q))).slice(0, 8);
+  suggestEl.replaceChildren();
+  if (!sugg.length) { closeSuggest(); return; }
+  sugg.forEach((n, i) => {
+    const li = document.createElement("li"); li.id = "tag-opt-" + i; li.setAttribute("role", "option"); li.textContent = n;
+    li.setAttribute("aria-selected", String(i === suggIdx));
+    li.addEventListener("pointerdown", (e) => { e.preventDefault(); addTag(n); fTags.value = ""; closeSuggest(); fTags.focus(); });
+    suggestEl.append(li);
+  });
+  suggestEl.hidden = false; fTags.setAttribute("aria-expanded", "true");
+  if (suggIdx >= 0) fTags.setAttribute("aria-activedescendant", "tag-opt-" + suggIdx); else fTags.removeAttribute("aria-activedescendant");
+}
+fTags.addEventListener("input", () => {
+  const v = fTags.value;
+  if (/[,，]/.test(v)) { const parts = v.split(/[,，]/); const rest = parts.pop() ?? ""; parts.forEach((p) => addTag(p)); fTags.value = rest; }
+  suggIdx = -1; renderSuggest();
+});
+fTags.addEventListener("focus", () => { renderSuggest(); });
+fTags.addEventListener("blur", () => { setTimeout(closeSuggest, 120); const v = fTags.value.trim(); if (v) { addTag(v); fTags.value = ""; } });
+fTags.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown") { e.preventDefault(); if (suggestEl.hidden) renderSuggest(); if (sugg.length) { suggIdx = (suggIdx + 1) % sugg.length; renderSuggest(); } }
+  else if (e.key === "ArrowUp") { e.preventDefault(); if (sugg.length) { suggIdx = (suggIdx - 1 + sugg.length) % sugg.length; renderSuggest(); } }
+  else if (e.key === "Enter") {
+    e.preventDefault();
+    if (suggIdx >= 0 && sugg[suggIdx]) addTag(sugg[suggIdx]); else addTag(fTags.value);
+    fTags.value = ""; closeSuggest();
+  }
+  else if (e.key === "Escape") { if (!suggestEl.hidden) { e.preventDefault(); e.stopPropagation(); closeSuggest(); } }
+  else if (e.key === "Backspace" && !fTags.value && tags.length) { tags.pop(); renderChips(); setDirty(true); }
+});
+tagBox.addEventListener("click", (e) => { if (e.target === tagBox || e.target === chipsEl) fTags.focus(); });
 
 /* ---------- 打开已有文章（下拉框） ---------- */
 // 标题来自数据库，只用 textContent 写入，不拼 HTML。
@@ -181,7 +265,8 @@ async function save() {
     const keepMd = fMd.value;
     fill({ ...p, markdown: typeof p.markdown === "string" ? p.markdown : keepMd });
     setMsg(p.status === "published" ? "已发布" : "已保存为草稿", "ok");
-    await loadList();
+    await Promise.all([loadList(), loadCategories(), loadVocab()]);
+    setCategory(p.categoryId ?? p.category?.name ?? null);
   } catch (e) { setMsg("保存失败：" + explain(e), "err"); }
   finally { busy = false; saveBtn.disabled = false; }
 }
@@ -290,7 +375,8 @@ async function openMdFiles(files: File[]) {
   fSlug.value = r.slug;
   fStatus.value = r.status;
   fPub.value = dateToLocal(r.publishedAt);
-  fTags.value = r.tags.join(", ");
+  setTags(r.tags);
+  fTags.value = "";
   fSummary.value = r.summary;
   fMd.value = r.markdown;
   updateSaveLabel();
@@ -300,6 +386,12 @@ async function openMdFiles(files: File[]) {
   if (md.length > 1 || files.length > md.length) parts.push(`一次只能导入一篇，已打开 ${file.name}`);
   else parts.push(`已导入 ${file.name}`);
   parts.push(r.status === "published" ? "检查后点发布" : "检查后点保存草稿");
+  if (r.category) {
+    if (!setCategory(r.category)) {
+      renderCategoryOptions(NEW_CAT); fNewCat.value = r.category;
+      r.warnings.push(`保存时会新建分类 ${r.category}`);
+    }
+  }
   const warn = r.warnings.length ? "。" + r.warnings.join("；") : "";
   setMsg(parts.join("，") + warn, r.warnings.length ? "err" : "ok");
   fTitle.focus();
@@ -328,3 +420,5 @@ window.addEventListener("drop", (e) => {
 /* ---------- 启动 ---------- */
 fill(null);
 void loadList();
+void loadCategories().then(() => { if (currentId === null && !dirty) setCategory(null); });
+void loadVocab();

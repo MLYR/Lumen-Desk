@@ -44,3 +44,24 @@ export function sessionCookie(res: Response): string {
   if (!m) throw new Error('no session cookie');
   return `ld_session=${m[1]}`;
 }
+
+export const ORIGIN = 'https://blog.test';
+
+/** setup() plus a logged-in cookie and request helpers. */
+export async function authed(start?: number) {
+  const s = setup(start);
+  const cookie = sessionCookie(await s.login(s.codeAt()));
+  const req = (url: string, init: RequestInit = {}) =>
+    s.app.request(url, { ...init, headers: { cookie, ...(init.headers as Record<string, string>) } });
+  const send = (method: string, url: string, body: unknown, headers: Record<string, string> = {}) =>
+    req(url, { method, headers: { 'content-type': 'application/json', origin: ORIGIN, ...headers }, body: JSON.stringify(body) });
+  const create = async (body: Record<string, unknown>) => {
+    const res = await send('POST', '/api/private/posts', { markdown: '正文', status: 'published', ...body });
+    if (res.status !== 201) throw new Error(`create failed: ${res.status} ${await res.text()}`);
+    return (await res.json()) as Record<string, unknown> & { id: number; slug: string };
+  };
+  const upload = (url: string, form: FormData, headers: Record<string, string> = {}) =>
+    req(url, { method: 'POST', body: form, headers: { origin: ORIGIN, ...headers } });
+  return { ...s, cookie, req, send, create, upload };
+}
+

@@ -1,17 +1,16 @@
 import path from 'node:path';
 import { zipSync, strToU8 } from 'fflate';
-import type { Context, Hono, MiddlewareHandler } from 'hono';
-import { bodyLimit } from 'hono/body-limit';
+import type { Context, Hono } from 'hono';
 import type { Config } from '../config.js';
 import type { DB } from '../db.js';
+import { ConflictError, errorResponse, InputError, limit, readJson, requireType, sameOrigin as sameOriginFor } from '../http.js';
 import { importToInput, toMarkdownFile } from './frontmatter.js';
-import { fillShell, indexPage, loadShell, notFoundPage, postPage, rss, SITE_NAME, sitemap } from './pages.js';
+import { catBar, fillShell, indexPage, loadShell, notFoundPage, postPage, rss, SITE_NAME, sitemap, tagsPage } from './pages.js';
 import {
   effectiveSummary,
   getPublishedBySlug,
+  categoryRef,
   getRow,
-  InputError,
-  NotFoundError,
   listPublished,
   MAX_MARKDOWN_BYTES,
   parsePostInput,
@@ -19,13 +18,27 @@ import {
   savePost,
   searchPosts,
   SLUG_RE,
-  SlugTakenError,
   toPublicItem,
   type Post,
   type PostRow,
 } from './posts.js';
 import { renderMarkdown } from './render.js';
-import { ImageTooLargeError, MAX_UPLOAD_BYTES, storeImage, UnsupportedImageError } from './uploads.js';
+import {
+  createCategory,
+  createTag,
+  deleteCategory,
+  deleteTag,
+  getPublicCategoryBySlug,
+  listCategoriesPrivate,
+  listCategoriesPublic,
+  listTagsPrivate,
+  listTagsPublic,
+  renameTag,
+  reorderCategories,
+  updateCategory,
+  validTagName,
+} from './taxonomy.js';
+import { imageErrorResponse, readImageField, storeImage } from './uploads.js';
 
 export interface BlogDeps {
   config: Config;
@@ -35,8 +48,6 @@ export interface BlogDeps {
 
 const PUBLIC_CACHE = 'public, max-age=60';
 const MAX_IMPORT_FILES = 20;
-const tooLarge = (c: Context) => c.json({ error: 'payload_too_large' }, 413);
-const limit = (maxSize: number) => bodyLimit({ maxSize, onError: tooLarge });
 
 /**
  * Blog routes. Must be registered after the /api/private/* session middleware.
@@ -44,7 +55,7 @@ const limit = (maxSize: number) => bodyLimit({ maxSize, onError: tooLarge });
  */
 export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
   const shell = loadShell(config.shellDir);
-  const siteOrigin = safeOrigin(config.siteUrl);
+  const sameOrigin = sameOriginFor(config.siteUrl);
   const uploadsDir = path.join(config.dataDir, 'uploads');
 
   const html = (c: Context, title: string, description: string, content: string, status: 200 | 404 = 200) => {
@@ -60,8 +71,25 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
     const n = Number(raw);
     if (!/^\d+$/.test(raw) || n < 1 || n > 50) return c.json({ error: 'invalid_request', message: 'limit 取 1–50' }, 400);
     const tag = c.req.query('tag');
+    const catSlug = c.req.query('category');
+    let categoryId: number | undefined;
+    if (catSlug) {
+      const cat = getPublicCategoryBySlug(db, catSlug);
+      if (!cat) return c.json({ items: [] });
+      categoryId = cat.id;
+    }
     c.header('Cache-Control', PUBLIC_CACHE);
-    return c.json({ items: listPublished(db, { limit: n, tag: tag || undefined }).map(toPublicItem) });
+    return c.json({ items: listPublished(db, { limit: n, tag: tag || undefined, categoryId }).map(toPublicItem) });
+  });
+
+  app.get('/api/categories', (c) => {
+    c.header('Cache-Control', PUBLIC_CACHE);
+    return c.json({ items: listCategoriesPublic(db) });
+  });
+
+  app.get('/api/tags', (c) => {
+    c.header('Cache-Control', PUBLIC_CACHE);
+    return c.json({ items: listTagsPublic(db) });
   });
 
   app.get('/api/search', (c) => {
@@ -74,10 +102,36 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
 
   // ---------- public HTML ----------
 
-  const blogIndex = (c: Context) =>
-    html(c, `博客 · ${SITE_NAME}`, `${SITE_NAME} 的全部文章`, indexPage('博客', listPublished(db)));
+  // Only categories with published posts get a filter link; empty ones would lead to empty pages.
+  const bar = (current: string | null, total: number) =>
+    catBar(total, listCategoriesPublic(db).filter((x) => x.count > 0 || x.slug === current), current);
+
+  const blogIndex = (c: Context) => {
+    const posts = listPublished(db);
+    return html(c, `博客 · ${SITE_NAME}`, `${SITE_NAME} 的全部文章`, indexPage('博客', posts, { bar: bar(null, posts.length) }));
+  };
   app.get('/blog', blogIndex);
   app.get('/blog/', blogIndex);
+
+  const categoryIndex = (c: Context) => {
+    const slug = c.req.param('slug') ?? '';
+    const cat = getPublicCategoryBySlug(db, slug);
+    if (!cat) return notFound(c);
+    const posts = listPublished(db, { categoryId: cat.id });
+    const total = Number((db.prepare("SELECT COUNT(*) AS n FROM posts WHERE status = 'published'").get() as { n: number }).n);
+    return html(
+      c,
+      `${cat.name} · ${SITE_NAME}`,
+      cat.description || `${SITE_NAME} 中分类为「${cat.name}」的文章`,
+      indexPage(`分类 · ${cat.name}`, posts, { bar: bar(cat.slug, total), empty: '这个分类还没有文章。' }),
+    );
+  };
+  app.get('/blog/category/:slug', categoryIndex);
+  app.get('/blog/category/:slug/', categoryIndex);
+
+  const allTags = (c: Context) => html(c, `标签 · ${SITE_NAME}`, `${SITE_NAME} 的全部标签`, tagsPage(listTagsPublic(db)));
+  app.get('/blog/tags', allTags);
+  app.get('/blog/tags/', allTags);
 
   const tagIndex = (c: Context) => {
     const tag = c.req.param('tag') ?? '';
@@ -92,7 +146,7 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
     const slug = c.req.param('slug') ?? '';
     const row = SLUG_RE.test(slug) ? getPublishedBySlug(db, slug) : undefined;
     if (!row) return notFound(c);
-    return html(c, `${row.title} · ${SITE_NAME}`, effectiveSummary(row), postPage(row));
+    return html(c, `${row.title} · ${SITE_NAME}`, effectiveSummary(row), postPage(row, categoryRef(db, row.category_id)));
   };
   app.get('/blog/:slug', article);
   app.get('/blog/:slug/', article);
@@ -107,47 +161,19 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
   app.get('/sitemap.xml', (c) => {
     c.header('Cache-Control', PUBLIC_CACHE);
     c.header('Content-Type', 'application/xml; charset=utf-8');
-    return c.body(sitemap(config.siteUrl, listPublished(db)));
+    const cats = listCategoriesPublic(db).filter((x) => x.count > 0).map((x) => x.slug);
+    return c.body(sitemap(config.siteUrl, listPublished(db), cats));
   });
 
   // ---------- private ----------
 
-  const sameOrigin: MiddlewareHandler = async (c, next) => {
-    const origin = c.req.header('origin');
-    if (origin !== undefined) {
-      const o = safeOrigin(origin);
-      const host = c.req.header('host');
-      const ok = o !== null && (o === siteOrigin || (host !== undefined && new URL(o).host === host.toLowerCase()));
-      if (!ok) return c.json({ error: 'bad_origin' }, 403);
-    }
-    await next();
-  };
-  const requireType =
-    (type: 'application/json' | 'multipart/form-data'): MiddlewareHandler =>
-    async (c, next) => {
-      const ct = c.req.header('content-type')?.toLowerCase() ?? '';
-      if (!ct.startsWith(type)) return c.json({ error: 'unsupported_media_type' }, 415);
-      await next();
-    };
   const json = [sameOrigin, requireType('application/json'), limit(3 * MAX_MARKDOWN_BYTES)] as const;
 
-  const readJson = async (c: Context): Promise<unknown> => {
-    try {
-      return await c.req.json();
-    } catch {
-      throw new InputError('请求体不是有效的 JSON');
-    }
-  };
-  const writeError = (c: Context, err: unknown) => {
-    if (err instanceof InputError) return c.json({ error: 'invalid_request', message: err.message }, 400);
-    if (err instanceof SlugTakenError) return c.json({ error: 'slug_taken', message: 'slug 已被占用' }, 409);
-    if (err instanceof NotFoundError) return c.json({ error: 'not_found' }, 404);
-    throw err;
-  };
+  const writeError = errorResponse;
 
   app.get('/api/private/posts', (c) => {
     const rows = db
-      .prepare('SELECT id, slug, title, status, tags, published_at, updated_at FROM posts ORDER BY updated_at DESC, id DESC')
+      .prepare('SELECT id, slug, title, status, tags, published_at, category_id, updated_at FROM posts ORDER BY updated_at DESC, id DESC')
       .all() as unknown as PostRow[];
     return c.json({
       items: rows.map((r) => ({
@@ -157,6 +183,8 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
         status: r.status,
         tags: JSON.parse(r.tags) as string[],
         publishedAt: r.published_at,
+        categoryId: r.category_id,
+        category: categoryRef(db, r.category_id),
         updatedAt: r.updated_at,
       })),
     });
@@ -165,7 +193,7 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
   app.get('/api/private/posts/export', (c) => {
     const rows = db.prepare('SELECT * FROM posts ORDER BY id').all() as unknown as PostRow[];
     const files: Record<string, Uint8Array> = {};
-    for (const r of rows) files[`${r.slug}.md`] = strToU8(toMarkdownFile(rowToPost(r)));
+    for (const r of rows) files[`${r.slug}.md`] = strToU8(toMarkdownFile(rowToPost(db, r)));
     const zip = zipSync(files, { level: 6 });
     const day = new Date(now()).toISOString().slice(0, 10).replaceAll('-', '');
     c.header('Content-Type', 'application/zip');
@@ -176,7 +204,7 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
   app.get('/api/private/posts/:id{[0-9]+}', (c) => {
     const row = getRow(db, Number(c.req.param('id')));
     if (!row) return c.json({ error: 'not_found' }, 404);
-    return c.json(rowToPost(row));
+    return c.json(rowToPost(db, row));
   });
 
   app.post('/api/private/posts', ...json, async (c) => {
@@ -240,7 +268,7 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
           imported.push({ id: post.id, slug: post.slug, title: post.title, status: post.status });
         } catch (err) {
           if (err instanceof InputError) errors.push({ file: name, error: 'invalid_request', message: err.message });
-          else if (err instanceof SlugTakenError) errors.push({ file: name, error: 'slug_taken', message: 'slug 已被占用' });
+          else if (err instanceof ConflictError) errors.push({ file: name, error: err.code, message: err.message });
           else throw err;
         }
       }
@@ -265,34 +293,86 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
     requireType('multipart/form-data'),
     limit(12 * 1024 * 1024),
     async (c) => {
-      let file: unknown;
+      const img = await readImageField(c);
+      if (img instanceof Response) return img;
       try {
-        file = (await c.req.parseBody()).file;
-      } catch {
-        return c.json({ error: 'invalid_request', message: '无法解析表单' }, 400);
-      }
-      if (!(file instanceof File)) return c.json({ error: 'invalid_request', message: '没有 file 字段' }, 400);
-      if (file.size > MAX_UPLOAD_BYTES) return tooLarge(c);
-      try {
-        return c.json(await storeImage(uploadsDir, Buffer.from(await file.arrayBuffer())));
+        return c.json(await storeImage(uploadsDir, img));
       } catch (err) {
-        if (err instanceof UnsupportedImageError) {
-          return c.json({ error: 'unsupported_media_type', message: '只支持 jpg、png、webp、gif、avif' }, 415);
-        }
-        if (err instanceof ImageTooLargeError) {
-          return c.json({ error: 'payload_too_large', message: '图片像素太多（上限 2400 万像素）' }, 413);
-        }
-        throw err;
+        return imageErrorResponse(c, err);
       }
     },
   );
-}
 
-function safeOrigin(url: string): string | null {
-  try {
-    const u = new URL(url);
-    return u.protocol === 'http:' || u.protocol === 'https:' ? u.origin : null;
-  } catch {
-    return null;
-  }
+  // ---------- categories & tags (private) ----------
+
+  const run = <T>(c: Context, fn: () => T, ok: (v: T) => Response) => {
+    try {
+      return ok(fn());
+    } catch (err) {
+      return writeError(c, err);
+    }
+  };
+  const jsonWrite = [sameOrigin, requireType('application/json'), limit(64 * 1024)] as const;
+
+  app.get('/api/private/categories', (c) => c.json({ items: listCategoriesPrivate(db) }));
+
+  app.post('/api/private/categories', ...jsonWrite, async (c) => {
+    try {
+      const body = await readJson(c);
+      return c.json(createCategory(db, body), 201);
+    } catch (err) {
+      return writeError(c, err);
+    }
+  });
+
+  // Must precede /:id so "order" is never read as an id (the id route is numeric-only as a second guard).
+  app.put('/api/private/categories/order', ...jsonWrite, async (c) => {
+    try {
+      reorderCategories(db, await readJson(c));
+      return c.body(null, 204);
+    } catch (err) {
+      return writeError(c, err);
+    }
+  });
+
+  app.put('/api/private/categories/:id{[0-9]+}', ...jsonWrite, async (c) => {
+    try {
+      const body = await readJson(c);
+      return c.json(updateCategory(db, Number(c.req.param('id')), body));
+    } catch (err) {
+      return writeError(c, err);
+    }
+  });
+
+  app.delete('/api/private/categories/:id{[0-9]+}', sameOrigin, (c) =>
+    deleteCategory(db, Number(c.req.param('id'))) ? c.body(null, 204) : c.json({ error: 'not_found' }, 404),
+  );
+
+  app.get('/api/private/tags', (c) => c.json({ items: listTagsPrivate(db) }));
+
+  app.post('/api/private/tags', ...jsonWrite, async (c) => {
+    try {
+      const body = await readJson(c);
+      return c.json(createTag(db, body), 201);
+    } catch (err) {
+      return writeError(c, err);
+    }
+  });
+
+  app.put('/api/private/tags/rename', ...jsonWrite, async (c) => {
+    try {
+      const body = await readJson(c);
+      return c.json(renameTag(db, body));
+    } catch (err) {
+      return writeError(c, err);
+    }
+  });
+
+  app.delete('/api/private/tags/:name', sameOrigin, (c) =>
+    run(
+      c,
+      () => deleteTag(db, validTagName(c.req.param('name'))),
+      () => c.body(null, 204),
+    ),
+  );
 }

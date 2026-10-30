@@ -78,3 +78,25 @@ a.tag:hover { color: var(--accent); border-color: var(--accent); }
 .search-list .t { font-weight: 600; overflow-wrap: anywhere; }
 .search-list .s { font-size: 14px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
 .search-list a:hover .t { color: var(--accent); }
+
+/* 分类筛选栏：窄屏横向滚动、不换行，不撑宽页面 */
+.cat-bar { display: flex; gap: 6px; margin: 0 0 20px; padding-bottom: 2px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: var(--soft-line) transparent; -webkit-overflow-scrolling: touch; max-width: 100%; }
+.cat-bar::-webkit-scrollbar { height: 6px; }
+.cat-bar::-webkit-scrollbar-thumb { background: var(--soft-line); }
+.cat-bar a { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--soft-line); color: var(--muted); font-size: 14px; white-space: nowrap; }
+.cat-bar a:hover { color: var(--fg); border-color: var(--line); }
+.cat-bar a[aria-current="page"] { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
+.cat-bar .n { font-family: var(--mono); font-size: 12px; opacity: .75; }
+
+/* 文章 meta 里的分类：实心底，和虚线边框的 .tag 区分开 */
+.cat { font-size: 12px; font-family: var(--mono); padding: 0 6px; white-space: nowrap; color: var(--accent); border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+a.cat:hover { background: var(--accent); color: var(--accent-fg); }
+.post-list .cat { margin-right: 6px; }
+.post-list .tags .cat { font-size: 11px; }
+
+/* 标签总览页 /blog/tags/ */
+.tag-cloud { list-style: none; display: flex; flex-wrap: wrap; gap: 10px 8px; margin-top: 8px; }
+.tag-cloud li { min-width: 0; max-width: 100%; }
+.tag-cloud a.tag { display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%; padding: 4px 10px; font-size: 14px; overflow-wrap: anywhere; white-space: normal; }
+.tag-cloud .n { font-size: 12px; opacity: .7; }
+.tag-cloud a.tag:hover { color: var(--accent); border-color: var(--accent); border-style: solid; }

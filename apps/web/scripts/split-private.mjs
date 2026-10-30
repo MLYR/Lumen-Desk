@@ -1,6 +1,6 @@
 // 构建后把 dist/ 拆成三类输出：
 //   dist/          公开静态文件（主页、登录页、_astro/*）
-//   dist-private/  控制台（console/index.html、console/write/index.html），在 Caddy forward_auth 之后
+//   dist-private/  控制台（console/index.html、console/write/index.html、console/settings/index.html），在 Caddy forward_auth 之后
 //   dist-shell/    博客外壳 blog.html，api 读取后替换占位符，不对外直接提供
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -14,7 +14,9 @@ const consoleSrc = resolve(root, "dist/console");
 const privateDir = resolve(root, "dist-private");
 const consoleDest = resolve(privateDir, "console");
 if (!existsSync(resolve(consoleSrc, "index.html"))) fail("dist/console/index.html 不存在，astro build 是否成功？");
-if (!existsSync(resolve(consoleSrc, "write/index.html"))) fail("dist/console/write/index.html 不存在，astro build 是否成功？");
+for (const sub of ["write", "settings"]) {
+  if (!existsSync(resolve(consoleSrc, sub, "index.html"))) fail(`dist/console/${sub}/index.html 不存在，astro build 是否成功？`);
+}
 
 rmSync(privateDir, { recursive: true, force: true });
 mkdirSync(privateDir, { recursive: true });
@@ -38,8 +40,8 @@ if (existsSync(consoleSrc)) fail("dist/console 仍然存在");
 if (existsSync(blogSrcDir)) fail("dist/blog 仍然存在");
 if (existsSync(resolve(root, "dist/blog.html"))) fail("dist/blog.html 不应存在");
 if (!existsSync(resolve(root, "dist/index.html"))) fail("dist/index.html 不存在");
-// 2. dist-private/ 有控制台和编辑器
-for (const f of ["console/index.html", "console/write/index.html"]) {
+// 2. dist-private/ 有控制台、编辑器和设置页
+for (const f of ["console/index.html", "console/write/index.html", "console/settings/index.html"]) {
   if (!existsSync(resolve(privateDir, f))) fail(`dist-private/${f} 不存在`);
 }
 // 3. dist-shell/blog.html 含三个占位符，各出现位置正确
@@ -54,6 +56,11 @@ for (const [name, re] of checks) {
   if (!re.test(shell)) fail(`dist-shell/blog.html 里 ${name} 位置不对`);
 }
 if (!shell.includes('id="blog-search"') || !shell.includes('id="blog-search-results"')) fail("dist-shell/blog.html 缺少搜索框或结果容器");
+
+// 4. 登录页和控制台永远不含统计脚本
+for (const f of [resolve(privateDir, "console/index.html"), resolve(privateDir, "console/write/index.html"), resolve(privateDir, "console/settings/index.html"), resolve(root, "dist/login/index.html")]) {
+  if (readFileSync(f, "utf8").includes("data-website-id")) fail(`${f} 不应含 Umami 脚本`);
+}
 
 console.log("split-private: dist/console -> dist-private/console OK");
 console.log("split-private: dist/blog/index.html -> dist-shell/blog.html OK");

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { effectiveSummary, localDate, type ListRow, type PostRow } from './posts.js';
+import { effectiveSummary, localDate, type CategoryRef, type ListRow, type PostRow } from './posts.js';
 import { escapeHtml } from './render.js';
 
 const FALLBACK_SHELL = `<!doctype html>
@@ -46,12 +46,15 @@ export function fillShell(shell: string, title: string, description: string, con
 
 const tagHref = (t: string) => `/blog/tags/${encodeURIComponent(t)}/`;
 const postHref = (slug: string) => `/blog/${slug}/`;
+// Category slugs are [a-z0-9-], safe in URLs as-is; escaped anyway where they reach HTML.
+const catHref = (slug: string) => `/blog/category/${slug}/`;
 
-export function postPage(r: PostRow): string {
+export function postPage(r: PostRow, category: CategoryRef | null): string {
   const tags = JSON.parse(r.tags) as string[];
   const date = r.published_at ? localDate(r.published_at) : '';
   const meta = [
     date ? `<time datetime="${date}">${date}</time>` : '',
+    category ? `<a class="cat" href="${escapeHtml(catHref(category.slug))}">${escapeHtml(category.name)}</a>` : '',
     ...tags.map((t) => `<a class="tag" href="${escapeHtml(tagHref(t))}">${escapeHtml(t)}</a>`),
   ].join('');
   return `<article class="post">
@@ -64,8 +67,28 @@ export function postPage(r: PostRow): string {
 </article>`;
 }
 
-/** List page; posts must already be sorted by published_at descending. */
-export function indexPage(heading: string, posts: ListRow[]): string {
+export interface CatBarItem {
+  slug: string;
+  name: string;
+  count: number;
+}
+
+/** Category filter bar. current = category slug, or null for 「全部」. */
+export function catBar(total: number, cats: CatBarItem[], current: string | null): string {
+  const cur = (on: boolean) => (on ? ' aria-current="page"' : '');
+  const links = [
+    `  <a href="/blog/"${cur(current === null)}>全部 <span class="n">${total}</span></a>`,
+    ...cats.map(
+      (c) => `  <a href="${escapeHtml(catHref(c.slug))}"${cur(current === c.slug)}>${escapeHtml(c.name)} <span class="n">${c.count}</span></a>`,
+    ),
+  ];
+  return `<nav class="cat-bar" aria-label="分类">
+${links.join('\n')}
+</nav>`;
+}
+
+/** List page; posts must already be sorted by published_at descending. `bar` is trusted HTML from catBar. */
+export function indexPage(heading: string, posts: ListRow[], opts: { bar?: string; empty?: string } = {}): string {
   const groups: string[] = [];
   let year = '';
   let items: string[] = [];
@@ -94,7 +117,18 @@ ${items.join('\n')}
   flush();
   return `<section class="post-index">
   <h1 class="page-title">${escapeHtml(heading)}</h1>
-${groups.join('\n')}${posts.length ? '' : '\n  <p class="empty">还没有文章。</p>'}
+${opts.bar ? `${opts.bar}\n` : ''}${groups.join('\n')}${posts.length ? '' : `\n  <p class="empty">${escapeHtml(opts.empty ?? '还没有文章。')}</p>`}
+</section>`;
+}
+
+/** /blog/tags/: every tag of published posts, most used first. */
+export function tagsPage(tags: Array<{ name: string; count: number }>): string {
+  const items = tags.map(
+    (t) => `    <li><a class="tag" href="${escapeHtml(tagHref(t.name))}">${escapeHtml(t.name)} <span class="n">${t.count}</span></a></li>`,
+  );
+  return `<section class="post-index">
+  <h1 class="page-title">标签</h1>
+${items.length ? `  <ul class="tag-cloud">\n${items.join('\n')}\n  </ul>` : '  <p class="empty">还没有标签。</p>'}
 </section>`;
 }
 
@@ -114,7 +148,9 @@ export function rss(siteUrl: string, posts: ListRow[]): string {
   const items = posts
     .map((r) => {
       const link = `${siteUrl}${postHref(r.slug)}`;
-      const cats = (JSON.parse(r.tags) as string[]).map((t) => `      <category>${escapeXml(t)}</category>`).join('\n');
+      // Category first, then tags.
+      const names = [...(r.cat_name !== null ? [r.cat_name] : []), ...(JSON.parse(r.tags) as string[])];
+      const cats = names.map((t) => `      <category>${escapeXml(t)}</category>`).join('\n');
       return `    <item>
       <title>${escapeXml(r.title)}</title>
       <link>${escapeXml(link)}</link>
@@ -140,10 +176,11 @@ ${items}
 `;
 }
 
-export function sitemap(siteUrl: string, posts: ListRow[]): string {
+export function sitemap(siteUrl: string, posts: ListRow[], categorySlugs: string[]): string {
   const urls = [
     `  <url><loc>${escapeXml(`${siteUrl}/`)}</loc></url>`,
     `  <url><loc>${escapeXml(`${siteUrl}/blog/`)}</loc></url>`,
+    ...categorySlugs.map((s) => `  <url><loc>${escapeXml(`${siteUrl}${catHref(s)}`)}</loc></url>`),
     ...posts.map((r) => `  <url><loc>${escapeXml(`${siteUrl}${postHref(r.slug)}`)}</loc><lastmod>${r.updated_at.slice(0, 10)}</lastmod></url>`),
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>

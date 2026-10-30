@@ -1,0 +1,17 @@
+/* 公开主页简介区。Intro.astro 和设置页的主页预览共用。 */
+.intro { padding: 72px 0 48px; display: grid; gap: 32px; }
+@media (min-width: 900px) { .intro { grid-template-columns: 7fr 5fr; align-items: end; gap: 48px; } }
+.intro h1 { font-family: var(--display); font-weight: var(--display-weight); font-size: clamp(38px, 5.4vw, 72px); line-height: 1.05; letter-spacing: -.03em; }
+[data-theme="paper"] .intro h1 { letter-spacing: -.045em; }
+.intro h1 em { font-style: normal; color: var(--accent); white-space: nowrap; }
+.intro p { font-size: 17px; line-height: 1.75; color: var(--muted); max-width: 34em; margin-top: 20px; }
+.intro-side { display: grid; gap: 0; border-top: 1px solid var(--soft-line); }
+.intro-side div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--soft-line); font-size: 14px; }
+.intro-side dt { font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 2px; }
+.intro-side dd { text-align: right; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.cta a { display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border: 1px solid var(--line); font-size: 14px; }
+.cta a.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.cta a:hover { border-color: var(--accent); }
+.cta a:not(.primary):hover { color: var(--accent); }
+@media (max-width: 899px) { .intro { padding: 40px 0 32px; } }

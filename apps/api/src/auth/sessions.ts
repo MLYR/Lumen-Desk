@@ -45,3 +45,25 @@ export function deleteAllSessions(db: DB): number {
 export function purgeExpiredSessions(db: DB, now = Date.now()): void {
   db.prepare('DELETE FROM sessions WHERE expires <= ?').run(now);
 }
+
+export interface SessionInfo {
+  hash: string;
+  created: number;
+}
+
+/** The live session behind this token, if any (expiry is checked by validateSession first). */
+export function getSession(db: DB, token: string | undefined, now = Date.now()): SessionInfo | undefined {
+  if (!token || token.length > 128) return undefined;
+  const hash = sha256Hex(token);
+  const row = db.prepare('SELECT created FROM sessions WHERE token_hash = ? AND expires > ?').get(hash, now) as { created: number } | undefined;
+  return row ? { hash, created: Number(row.created) } : undefined;
+}
+
+export function countSessions(db: DB, now = Date.now()): number {
+  return Number((db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE expires > ?').get(now) as { n: number }).n);
+}
+
+/** Deletes every session except the one with this hash. */
+export function deleteOtherSessions(db: DB, keepHash: string): number {
+  return Number(db.prepare('DELETE FROM sessions WHERE token_hash != ?').run(keepHash).changes);
+}

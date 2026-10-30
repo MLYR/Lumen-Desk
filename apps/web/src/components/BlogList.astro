@@ -15,7 +15,7 @@ import "../styles/blog.css";
 
 <script>
   // 运行时取最新 3 篇。失败时安静地显示空态；所有外部文本都转义，链接只指向 /blog/<slug>/。
-  type Item = { slug: string; title: string; summary?: string; tags?: string[]; publishedAt?: string | null };
+  type Item = { slug: string; title: string; summary?: string; tags?: string[]; publishedAt?: string | null; category?: { slug: string; name: string } | null };
   const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
   const day = (iso?: string | null) => {
     const d = iso ? new Date(iso) : null;
@@ -35,7 +35,7 @@ import "../styles/blog.css";
       box.innerHTML = items.map((x) =>
         `<li><a href="/blog/${esc(x.slug)}/"><span class="d">${esc(day(x.publishedAt))}</span>` +
         `<div><div class="t">${esc(x.title)}</div>${x.summary ? `<div class="s">${esc(x.summary)}</div>` : ""}</div>` +
-        `<span class="tags">${esc((Array.isArray(x.tags) ? x.tags : []).join(" · "))}</span></a></li>`).join("");
+        `<span class="tags">${x.category && typeof x.category.name === "string" ? `<span class="cat">${esc(x.category.name)}</span>` : ""}${esc((Array.isArray(x.tags) ? x.tags : []).join(" · "))}</span></a></li>`).join("");
     } catch { empty(); }
   })();
 </script>

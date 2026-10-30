@@ -11,26 +11,7 @@ import { renderMarkdown } from '../src/blog/render.js';
 import { fillShell } from '../src/blog/pages.js';
 import { importToInput } from '../src/blog/frontmatter.js';
 import { makeSnippet } from '../src/blog/posts.js';
-import { SECRET, sessionCookie, setup } from './helpers.js';
-
-const ORIGIN = 'https://blog.test';
-
-async function authed(start?: number) {
-  const s = setup(start);
-  const cookie = sessionCookie(await s.login(s.codeAt()));
-  const req = (url: string, init: RequestInit = {}) =>
-    s.app.request(url, { ...init, headers: { cookie, ...(init.headers as Record<string, string>) } });
-  const send = (method: string, url: string, body: unknown, headers: Record<string, string> = {}) =>
-    req(url, { method, headers: { 'content-type': 'application/json', origin: ORIGIN, ...headers }, body: JSON.stringify(body) });
-  const create = async (body: Record<string, unknown>) => {
-    const res = await send('POST', '/api/private/posts', { markdown: '正文', status: 'published', ...body });
-    expect(res.status).toBe(201);
-    return (await res.json()) as Record<string, unknown> & { id: number; slug: string };
-  };
-  const upload = (url: string, form: FormData, headers: Record<string, string> = {}) =>
-    req(url, { method: 'POST', body: form, headers: { origin: ORIGIN, ...headers } });
-  return { ...s, cookie, req, send, create, upload };
-}
+import { authed, ORIGIN, SECRET, setup } from './helpers.js';
 
 describe('blog: private CRUD', () => {
   it('rejects every private blog route without a session', async () => {
@@ -78,7 +59,7 @@ describe('blog: private CRUD', () => {
 
     const list = (await (await req('/api/private/posts')).json()) as { items: unknown[] };
     expect(list.items).toEqual([
-      { id: post.id, slug: 'hello-world', title: 'Hello World', status: 'published', tags: [], publishedAt: updated.publishedAt, updatedAt: updated.updatedAt },
+      { id: post.id, slug: 'hello-world', title: 'Hello World', status: 'published', tags: [], publishedAt: updated.publishedAt, categoryId: null, category: null, updatedAt: updated.updatedAt },
     ]);
 
     expect((await req(`/api/private/posts/${post.id}`, { method: 'DELETE', headers: { origin: ORIGIN } })).status).toBe(204);
@@ -212,8 +193,8 @@ describe('blog: public', () => {
     expect(res.headers.get('cache-control')).toBe('public, max-age=60');
     const { items } = (await res.json()) as { items: Array<Record<string, unknown>> };
     expect(items).toEqual([
-      { slug: 'new', title: 'new', summary: '手写摘要', tags: ['前端'], publishedAt: '2026-01-01T00:00:00.000Z' },
-      { slug: 'old', title: 'old', summary: '旧文章正文', tags: ['部署'], publishedAt: '2025-01-01T00:00:00.000Z' },
+      { slug: 'new', title: 'new', summary: '手写摘要', tags: ['前端'], publishedAt: '2026-01-01T00:00:00.000Z', category: null },
+      { slug: 'old', title: 'old', summary: '旧文章正文', tags: ['部署'], publishedAt: '2025-01-01T00:00:00.000Z', category: null },
     ]);
     expect(((await (await app.request('/api/posts?limit=1')).json()) as { items: unknown[] }).items).toHaveLength(1);
     const tagged = (await (await app.request(`/api/posts?tag=${encodeURIComponent('部署')}`)).json()) as { items: Array<{ slug: string }> };

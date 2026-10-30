@@ -1,5 +1,9 @@
-import type { DB } from '../db.js';
+import { tx, type DB } from '../db.js';
+import { ConflictError, InputError, NotFoundError } from '../http.js';
 import { htmlToText, renderMarkdown } from './render.js';
+import { dedupeTags, ensureCategoryByName, ensureTags, getCategory } from './taxonomy.js';
+
+export { InputError, NotFoundError };
 
 export type PostStatus = 'draft' | 'published';
 
@@ -12,8 +16,15 @@ export interface Post {
   markdown: string;
   status: PostStatus;
   publishedAt: string | null;
+  categoryId: number | null;
+  category: CategoryRef | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CategoryRef {
+  slug: string;
+  name: string;
 }
 
 export interface PostRow {
@@ -27,6 +38,7 @@ export interface PostRow {
   body_text: string;
   status: PostStatus;
   published_at: string | null;
+  category_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,11 +52,11 @@ export interface PostInput {
   markdown: string;
   status: PostStatus;
   publishedAt?: string | null;
+  /** undefined = keep (update) / none (create); null = uncategorized; string = category name, created if missing. */
+  category?: number | string | null;
 }
 
-export class InputError extends Error {}
-export class SlugTakenError extends Error {}
-export class NotFoundError extends Error {}
+const slugTakenError = () => new ConflictError('slug_taken', 'slug 已被占用');
 
 export const SLUG_RE = /^[a-z0-9-]{1,80}$/;
 export const MAX_MARKDOWN_BYTES = 1024 * 1024;
@@ -76,8 +88,9 @@ export function normalizeTags(v: unknown): string[] {
     const s = String(t).trim();
     if (!s) continue;
     if (len(s) > 30 || /[\u0000-\u001f]/.test(s)) throw new InputError('标签最多 30 字');
-    if (!out.includes(s)) out.push(s);
+    out.push(s);
   }
+  out.splice(0, out.length, ...dedupeTags(out));
   if (out.length > 10) throw new InputError('最多 10 个标签');
   return out;
 }
@@ -106,10 +119,30 @@ export function parsePostInput(body: unknown): PostInput {
     markdown: b.markdown,
     status: b.status,
     publishedAt: normalizeDate(b.publishedAt),
+    category: parseCategoryField(b),
   };
 }
 
-export function rowToPost(r: PostRow): Post {
+/** `categoryId` wins over `category` (a name) when both are given. */
+function parseCategoryField(b: Record<string, unknown>): PostInput['category'] {
+  if (b.categoryId !== undefined) {
+    if (b.categoryId === null) return null;
+    if (!Number.isSafeInteger(b.categoryId) || (b.categoryId as number) < 1) throw new InputError('categoryId 必须是正整数或 null');
+    return b.categoryId as number;
+  }
+  if (b.category === undefined) return undefined;
+  if (b.category === null || b.category === '') return null;
+  if (typeof b.category !== 'string') throw new InputError('category 必须是分类名');
+  return b.category;
+}
+
+export function categoryRef(db: DB, id: number | null): CategoryRef | null {
+  if (id === null) return null;
+  const c = getCategory(db, id);
+  return c ? { slug: c.slug, name: c.name } : null;
+}
+
+export function rowToPost(db: DB, r: PostRow): Post {
   return {
     id: r.id,
     slug: r.slug,
@@ -119,6 +152,8 @@ export function rowToPost(r: PostRow): Post {
     markdown: r.markdown,
     status: r.status,
     publishedAt: r.published_at,
+    categoryId: r.category_id,
+    category: categoryRef(db, r.category_id),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -185,30 +220,41 @@ export async function savePost(db: DB, input: PostInput, nowMs: number, id?: num
 
   let slug: string;
   if (input.slug) {
-    if (slugTaken(db, input.slug, existing?.id)) throw new SlugTakenError();
+    if (slugTaken(db, input.slug, existing?.id)) throw slugTakenError();
     slug = input.slug;
   } else {
     slug = existing?.slug ?? generateSlug(db, input.title, nowMs);
   }
 
-  const values = [slug, input.title, input.summary, JSON.stringify(input.tags), input.markdown, html, bodyText, input.status, publishedAt];
   try {
-    if (existing) {
-      db.prepare(
-        `UPDATE posts SET slug=?, title=?, summary=?, tags=?, markdown=?, html=?, body_text=?, status=?, published_at=?, updated_at=?
-         WHERE id=?`,
-      ).run(...values, now, existing.id);
-      return rowToPost(getRow(db, existing.id)!);
-    }
-    const r = db
-      .prepare(
-        `INSERT INTO posts (slug, title, summary, tags, markdown, html, body_text, status, published_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(...values, now, now);
-    return rowToPost(getRow(db, Number(r.lastInsertRowid))!);
+    return tx(db, () => {
+      let categoryId: number | null;
+      if (input.category === undefined) categoryId = existing?.category_id ?? null;
+      else if (input.category === null) categoryId = null;
+      else if (typeof input.category === 'number') {
+        if (!getCategory(db, input.category)) throw new InputError('分类不存在');
+        categoryId = input.category;
+      } else categoryId = ensureCategoryByName(db, input.category);
+      const tags = ensureTags(db, input.tags);
+
+      const values = [slug, input.title, input.summary, JSON.stringify(tags), input.markdown, html, bodyText, input.status, publishedAt, categoryId];
+      if (existing) {
+        db.prepare(
+          `UPDATE posts SET slug=?, title=?, summary=?, tags=?, markdown=?, html=?, body_text=?, status=?, published_at=?, category_id=?, updated_at=?
+           WHERE id=?`,
+        ).run(...values, now, existing.id);
+        return rowToPost(db, getRow(db, existing.id)!);
+      }
+      const r = db
+        .prepare(
+          `INSERT INTO posts (slug, title, summary, tags, markdown, html, body_text, status, published_at, category_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(...values, now, now);
+      return rowToPost(db, getRow(db, Number(r.lastInsertRowid))!);
+    });
   } catch (err) {
-    if (isUniqueViolation(err)) throw new SlugTakenError();
+    if (isUniqueViolation(err)) throw slugTakenError();
     throw err;
   }
 }
@@ -219,20 +265,32 @@ export interface PublicItem {
   summary: string;
   tags: string[];
   publishedAt: string;
+  category: CategoryRef | null;
 }
 
 /** Columns used by lists, RSS and sitemap. body_text is cut to what effectiveSummary needs. */
-export type ListRow = Pick<PostRow, 'slug' | 'title' | 'summary' | 'tags' | 'body_text' | 'updated_at'> & { published_at: string };
+export type ListRow = Pick<PostRow, 'slug' | 'title' | 'summary' | 'tags' | 'body_text' | 'updated_at'> & {
+  published_at: string;
+  cat_slug: string | null;
+  cat_name: string | null;
+};
 
-export function listPublished(db: DB, opts: { limit?: number; tag?: string } = {}): ListRow[] {
-  const where = ["status = 'published'"];
+export function listPublished(db: DB, opts: { limit?: number; tag?: string; categoryId?: number } = {}): ListRow[] {
+  const where = ["p.status = 'published'"];
   const args: Array<string | number> = [];
   if (opts.tag !== undefined) {
-    where.push('EXISTS (SELECT 1 FROM json_each(posts.tags) WHERE value = ?)');
+    // Tags compare case-insensitively everywhere else; json_each + lower() keeps ASCII consistent here.
+    where.push('EXISTS (SELECT 1 FROM json_each(p.tags) WHERE lower(value) = lower(?))');
     args.push(opts.tag);
   }
-  let sql = `SELECT slug, title, summary, tags, substr(body_text, 1, ${SUMMARY_CHARS + 1}) AS body_text, published_at, updated_at
-    FROM posts WHERE ${where.join(' AND ')} ORDER BY published_at DESC, id DESC`;
+  if (opts.categoryId !== undefined) {
+    where.push('p.category_id = ?');
+    args.push(opts.categoryId);
+  }
+  let sql = `SELECT p.slug, p.title, p.summary, p.tags, substr(p.body_text, 1, ${SUMMARY_CHARS + 1}) AS body_text,
+      p.published_at, p.updated_at, c.slug AS cat_slug, c.name AS cat_name
+    FROM posts p LEFT JOIN categories c ON c.id = p.category_id
+    WHERE ${where.join(' AND ')} ORDER BY p.published_at DESC, p.id DESC`;
   if (opts.limit !== undefined) {
     sql += ' LIMIT ?';
     args.push(opts.limit);
@@ -241,7 +299,14 @@ export function listPublished(db: DB, opts: { limit?: number; tag?: string } = {
 }
 
 export function toPublicItem(r: ListRow): PublicItem {
-  return { slug: r.slug, title: r.title, summary: effectiveSummary(r), tags: JSON.parse(r.tags) as string[], publishedAt: r.published_at };
+  return {
+    slug: r.slug,
+    title: r.title,
+    summary: effectiveSummary(r),
+    tags: JSON.parse(r.tags) as string[],
+    publishedAt: r.published_at,
+    category: r.cat_slug !== null && r.cat_name !== null ? { slug: r.cat_slug, name: r.cat_name } : null,
+  };
 }
 
 export interface SearchItem {

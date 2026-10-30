@@ -1,15 +1,18 @@
-<section class="intro">
+---
+import "../styles/intro.css";
+---
+<section class="intro" id="intro">
   <div>
     <div class="coord">// HELLO WORLD</div>
     <h1>写代码，<br>也喜欢研究<em>新东西</em>。</h1>
-    <p>我是 zreo，一名程序员。这里放我的简历、技术笔记，以及一些用 Canvas、WebGPU、WASM 做的小实验。（文案待你确认）</p>
-    <div class="cta">
+    <p id="intro-tagline">我是 zreo，一名程序员。这里放我的简历、技术笔记，以及一些用 Canvas、WebGPU、WASM 做的小实验。（文案待你确认）</p>
+    <div class="cta" id="intro-cta">
       <a class="primary" href="#resume">看简历</a>
-      <a href="#blog">读博客</a>
-      <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+      <a href="/blog/">读博客</a>
+      <a class="extra" href="https://github.com" target="_blank" rel="noopener">GitHub</a>
     </div>
   </div>
-  <dl class="intro-side">
+  <dl class="intro-side" id="intro-side">
     <div><dt>职业</dt><dd>程序员</dd></div>
     <div><dt>坐标</dt><dd>上海</dd></div>
     <div><dt>在研究</dt><dd>Astro · Hono · AI Agent</dd></div>
@@ -17,21 +20,27 @@
   </dl>
 </section>
 
-<style is:global>
-.intro { padding: 72px 0 48px; display: grid; gap: 32px; }
-@media (min-width: 900px) { .intro { grid-template-columns: 7fr 5fr; align-items: end; gap: 48px; } }
-.intro h1 { font-family: var(--display); font-weight: var(--display-weight); font-size: clamp(38px, 5.4vw, 72px); line-height: 1.05; letter-spacing: -.03em; }
-[data-theme="paper"] .intro h1 { letter-spacing: -.045em; }
-.intro h1 em { font-style: normal; color: var(--accent); white-space: nowrap; }
-.intro p { font-size: 17px; line-height: 1.75; color: var(--muted); max-width: 34em; margin-top: 20px; }
-.intro-side { display: grid; gap: 0; border-top: 1px solid var(--soft-line); }
-.intro-side div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--soft-line); font-size: 14px; }
-.intro-side dt { font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 2px; }
-.intro-side dd { text-align: right; }
-.cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
-.cta a { display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border: 1px solid var(--line); font-size: 14px; }
-.cta a.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-.cta a:hover { border-color: var(--accent); }
-.cta a:not(.primary):hover { color: var(--accent); }
-@media (max-width: 899px) { .intro { padding: 40px 0 32px; } }
-</style>
+<script>
+  // 运行时读取个人资料替换简介；请求失败时保留上面构建时写好的文案。h1 大标题不变。
+  import { renderIntro, type PublicProfile } from "../scripts/intro-render";
+  (async () => {
+    try {
+      const res = await fetch("/api/profile");
+      if (!res.ok) return;
+      const p = (await res.json()) as PublicProfile;
+      if (!p || typeof p.name !== "string") return;
+      renderIntro(p, {
+        tagline: document.getElementById("intro-tagline")!,
+        side: document.getElementById("intro-side")!,
+        cta: document.getElementById("intro-cta")!,
+      });
+      // 顶栏的名字和首字母
+      const brand = document.querySelector<HTMLElement>(".top .brand");
+      const mark = brand?.querySelector<HTMLElement>(".brand-mark");
+      if (brand && mark && p.name.trim()) {
+        mark.textContent = [...p.name.trim()][0].toLowerCase();
+        brand.replaceChildren(mark, document.createTextNode(p.name.trim()));
+      }
+    } catch { /* 保留静态文案 */ }
+  })();
+</script>

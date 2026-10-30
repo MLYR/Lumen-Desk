@@ -1,29 +1,15 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import ThemeSwitch from "../components/ThemeSwitch.astro";
+import ConsoleTop from "../components/ConsoleTop.astro";
 import "../styles/console.css";
 ---
 <Layout title="控制台 · 拾光台" noindex>
-<header class="top">
-  <div class="wrap">
-    <a class="brand" href="/console"><span class="brand-mark">z</span>zreo</a>
-    <span class="private" title="这个页面需要登录"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="lbl">仅自己可见</span></span>
-    <nav class="nav" aria-label="公开页面">
-      <a href="/">公开主页</a>
-      <a href="/blog/">博客</a>
-      <a href="/console/write">写文章</a>
-      <a href="/#lab">试验场</a>
-    </nav>
-    <div class="top-right">
-      <button class="btn" id="openPalette" aria-label="打开命令面板">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <span class="lbl">跳转</span><kbd>⌘K</kbd>
-      </button>
-      <ThemeSwitch />
-      <button class="btn" id="logout" type="button" title="退出登录"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg><span class="lbl">退出</span></button>
-    </div>
-  </div>
-</header>
+<ConsoleTop current="home">
+  <button slot="tools" class="btn" id="openPalette" aria-label="打开命令面板">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <span class="lbl">跳转</span><kbd>⌘K</kbd>
+  </button>
+</ConsoleTop>
 
 <main class="wrap">
   <section class="hero">
@@ -51,12 +37,12 @@ import "../styles/console.css";
         <span class="card-meta">公开主页同步展示</span>
       </div>
       <div class="profile">
-        <div class="avatar" aria-hidden="true">z</div>
+        <div class="avatar" aria-hidden="true"><img id="pf-avatar" alt="" hidden><span id="pf-initial">z</span></div>
         <div class="who">
-          <h2>zreo</h2>
+          <h2 id="pf-name">zreo</h2>
           <div class="role">程序员 · 喜欢研究新技术和新软件</div>
         </div>
-        <p class="bio">这里是我的私人控制台。公开主页上有我的简历、博客和技术试验场。</p>
+        <p class="bio" id="pf-bio">这里是我的私人控制台。公开主页上有我的简历、博客和技术试验场。</p>
         <dl class="spec">
           <div><dt>栈</dt><dd>Java · Vue · React（待确认）</dd></div>
           <div><dt>在研究</dt><dd>Astro · Hono · AI Agent</dd></div>

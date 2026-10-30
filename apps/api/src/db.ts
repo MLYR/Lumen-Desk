@@ -67,7 +67,83 @@ CREATE TRIGGER IF NOT EXISTS posts_fts_au AFTER UPDATE ON posts BEGIN
   INSERT INTO posts_fts(posts_fts, rowid, title, body_text) VALUES ('delete', old.id, old.title, old.body_text);
   INSERT INTO posts_fts(rowid, title, body_text) VALUES (new.id, new.title, new.body_text);
 END;
+CREATE TABLE IF NOT EXISTS categories (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug        TEXT NOT NULL UNIQUE,
+  name        TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  description TEXT NOT NULL DEFAULT '',
+  sort        INTEGER NOT NULL DEFAULT 0
+);
+-- Tag vocabulary. key = name.toLowerCase() (JS), so uniqueness is case-insensitive beyond ASCII too.
+CREATE TABLE IF NOT EXISTS tags (
+  key  TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  sort INTEGER NOT NULL DEFAULT 0
+);
 `;
+
+export const BUILTIN_CATEGORIES: ReadonlyArray<{ slug: string; name: string }> = [
+  { slug: 'frontend', name: '前端' },
+  { slug: 'backend', name: '后端' },
+  { slug: 'devops', name: '部署运维' },
+  { slug: 'ai', name: 'AI' },
+  { slug: 'notes', name: '随笔' },
+];
+export const BUILTIN_TAGS: readonly string[] = ['Astro', 'TypeScript', 'Node.js', 'Docker', 'Linux', 'Caddy', 'SQLite', '性能', '工具', '踩坑'];
+
+export const tagKey = (name: string): string => name.toLowerCase();
+
+function hasColumn(db: DB, table: string, column: string): boolean {
+  return (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).some((c) => c.name === column);
+}
+
+/** Idempotent data migrations that plain CREATE IF NOT EXISTS can't express. */
+function migrate(db: DB): void {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    if (!hasColumn(db, 'posts', 'category_id')) {
+      // Existing posts get NULL (uncategorized). Deleting a category also nulls it explicitly in code.
+      db.exec('ALTER TABLE posts ADD COLUMN category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL');
+    }
+    db.exec('CREATE INDEX IF NOT EXISTS posts_category ON posts(category_id)');
+
+    // Built-ins are written once; anything the user deletes later stays deleted.
+    if (kvGet(db, 'taxonomy_seeded') === undefined) {
+      const cat = db.prepare('INSERT OR IGNORE INTO categories (slug, name, sort) VALUES (?, ?, ?)');
+      BUILTIN_CATEGORIES.forEach((c, i) => cat.run(c.slug, c.name, i));
+      const tag = db.prepare('INSERT OR IGNORE INTO tags (key, name, sort) VALUES (?, ?, ?)');
+      BUILTIN_TAGS.forEach((t, i) => tag.run(tagKey(t), t, i));
+      kvSet(db, 'taxonomy_seeded', '1');
+    }
+
+    // Tags already used by posts belong in the vocabulary (pre-P2.5 databases, or rows edited by hand).
+    const used = db.prepare('SELECT DISTINCT j.value AS name FROM posts, json_each(posts.tags) j').all() as Array<{ name: unknown }>;
+    if (used.length) {
+      const next = db.prepare('SELECT COALESCE(MAX(sort), -1) + 1 AS n FROM tags');
+      const ins = db.prepare('INSERT OR IGNORE INTO tags (key, name, sort) VALUES (?, ?, ?)');
+      for (const { name } of used) {
+        if (typeof name === 'string' && name) ins.run(tagKey(name), name, Number((next.get() as { n: number }).n));
+      }
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
+/** Runs fn in a transaction (synchronous, so nothing else can interleave). */
+export function tx<T>(db: DB, fn: () => T): T {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const out = fn();
+    db.exec('COMMIT');
+    return out;
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
 
 /** Opens (and migrates) the SQLite database. Pass ':memory:' as dataDir for tests. */
 export function openDb(dataDir: string): DB {
@@ -79,6 +155,7 @@ export function openDb(dataDir: string): DB {
   const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }
 

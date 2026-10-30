@@ -15,7 +15,8 @@
 ## 1. 数据
 
 ```
-Category { id, slug: [a-z0-9-]{1,40} 唯一, name: 1–20 字 唯一, description: 0–200 字, sort: int }
+Category { id, slug: [a-z0-9-]{1,40} 唯一, name: 1–20 字 唯一（不区分大小写）, description: 0–200 字, sort: int }
+// 分类名、标签名、个人资料文字都不允许控制字符、零宽字符和双向控制字符（U+200B–200F、U+202A–202E、U+2060–2064、U+FEFF），且必须含可见字符；标签不能只由 . 组成
 Tag      { name: 1–30 字 唯一（不区分大小写）, sort: int }
 Post     增加 categoryId: number|null（删除分类时文章改为 null）
 Profile  {
@@ -39,13 +40,13 @@ Profile  {
 | 方法 路径 | 返回 |
 | --- | --- |
 | `GET /api/profile` | `{name, tagline, bio, avatar, facts, links}`（这些字段本来就是公开的）。`Cache-Control: public, max-age=60` |
-| `GET /api/categories` | `{items:[{slug,name,description,count}]}`，按 sort 排序；`count` 只计已发布的文章；包含 count=0 的分类 |
+| `GET /api/categories` | `{items:[{slug,name,description,count}]}`，按 sort 排序。`count` 只计已发布文章。只列出有已发布文章的分类，以及没有任何文章的内置分类（count=0）。自己新建的分类在里面有文章发布之前都不公开，它的分类页返回 404，这样草稿的分类名不会泄露（2026-10-30 两轮安全审查后收紧） |
 | `GET /api/tags` | `{items:[{name,count}]}`，只列出已发布文章里用到的标签，按 count 倒序 |
 | `GET /api/posts?category=<slug>` | 在原接口上增加分类筛选，每条结果增加 `category:{slug,name}|null` |
 | `GET /blog/category/<slug>[/]` | 分类页 HTML；分类不存在返回 404；分类存在但没有文章时显示「这个分类还没有文章」 |
 | `GET /blog/tags/` | 标签总览页 HTML，按文章数排列 |
 
-`/blog/` 列表页顶部加分类筛选栏，片段如下（web 负责样式）：
+`/blog/` 列表页顶部加分类筛选栏。筛选栏只列有已发布文章的分类，在分类页里当前分类也列出。片段如下，样式由 web 负责：
 
 ```html
 <nav class="cat-bar" aria-label="分类">

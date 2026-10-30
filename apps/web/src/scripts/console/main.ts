@@ -1,5 +1,7 @@
 // 控制台脚本。书签、热点、服务器状态全部在运行时从 API 取，构建产物里不含任何这类数据。
 import { startFlowField } from "../flowfield";
+import { getProfile } from "./topbar";
+import { initialOf, safeAvatar } from "./common";
 
 type BmNode = { name: string; children?: BmNode[]; links?: [string, string][] };
 type Flat = { name: string; url: string; top: string; sub: string; host: string; lan: boolean };
@@ -160,10 +162,14 @@ async function loadServer() {
 loadServer();
 setInterval(() => { if (!document.hidden) loadServer(); }, 30 * 1000);
 
-/* 退出登录 */
-$("#logout").addEventListener("click", async () => {
-  try { await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }); } catch {}
-  goLogin();
+/* 简介卡：名字、头像、bio 从个人资料读（退出登录在顶栏头像菜单里，见 topbar.ts） */
+getProfile().then((p) => {
+  if (!p) return;
+  $("#pf-name").textContent = p.name;
+  if (p.bio) $("#pf-bio").textContent = p.bio;
+  const src = safeAvatar(p.avatar);
+  if (src) { const img = $<HTMLImageElement>("#pf-avatar"); img.src = src; img.hidden = false; $("#pf-initial").hidden = true; }
+  else $("#pf-initial").textContent = initialOf(p.name);
 });
 
 /* 命令面板 */

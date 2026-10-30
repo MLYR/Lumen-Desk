@@ -54,6 +54,8 @@ export function importToInput(src: string, fileName: string): Record<string, unk
     markdown: body,
     status: published ? 'published' : 'draft',
     publishedAt: data.date === undefined ? undefined : normalizeDate(data.date),
+    // A name; savePost creates the category if the site doesn't have it yet.
+    category: str(data.category)?.trim() || undefined,
   };
 }
 
@@ -61,6 +63,7 @@ export function importToInput(src: string, fileName: string): Record<string, unk
 export function toMarkdownFile(p: Post): string {
   const meta: Record<string, unknown> = { title: p.title, slug: p.slug };
   if (p.publishedAt) meta.date = p.publishedAt;
+  if (p.category) meta.category = p.category.name;
   meta.tags = p.tags;
   if (p.summary) meta.summary = p.summary;
   meta.draft = p.status !== 'published';

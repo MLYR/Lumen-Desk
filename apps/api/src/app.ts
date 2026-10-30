@@ -10,6 +10,8 @@ import type { DB } from './db.js';
 import { readBookmarks } from './bookmarks.js';
 import { getHot } from './sources/aihot.js';
 import { registerBlog } from './blog/routes.js';
+import { lockedResponse } from './http.js';
+import { registerSettings } from './routes/settings.js';
 import { lockedFor, recordFailure, recordSuccess } from './auth/ratelimit.js';
 import { consumeRecoveryCode, RECOVERY_RE, normalizeRecovery } from './auth/recovery.js';
 import { createSession, deleteSession, SESSION_COOKIE, SESSION_TTL_S, validateSession } from './auth/sessions.js';
@@ -140,6 +142,7 @@ export function createApp({ config, db, now = Date.now }: AppDeps): Hono {
   });
 
   registerBlog(app, { config, db, now });
+  registerSettings(app, { config, db, now, totp, clientIp });
 
   app.notFound((c) => c.json({ error: 'not_found' }, 404));
   app.onError((err, c) => {
@@ -150,11 +153,6 @@ export function createApp({ config, db, now = Date.now }: AppDeps): Hono {
   return app;
 }
 
-function lockedResponse(c: Context, ms: number) {
-  const retryAfter = Math.ceil(ms / 1000);
-  c.header('Retry-After', String(retryAfter));
-  return c.json({ error: 'locked', retryAfter }, 429);
-}
 
 async function memAvailable(): Promise<number | null> {
   try {

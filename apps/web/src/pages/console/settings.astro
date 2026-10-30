@@ -1,0 +1,137 @@
+---
+// 设置页 /console/settings：个人资料、分类和标签、账号安全。
+// 构建后由 scripts/split-private.mjs 移到 dist-private/console/settings/。不传 analytics，不插 Umami。
+import Layout from "../../layouts/Layout.astro";
+import ConsoleTop from "../../components/ConsoleTop.astro";
+import "../../styles/console.css";
+import "../../styles/intro.css";
+import "../../styles/settings.css";
+---
+<Layout title="设置 · 拾光台" noindex>
+<ConsoleTop current="settings" />
+
+<main class="wrap st">
+  <nav class="st-nav" role="tablist" aria-label="设置分区" aria-orientation="vertical">
+    <button type="button" role="tab" id="tab-profile" data-s="profile" aria-controls="sec-profile" aria-selected="true">个人资料</button>
+    <button type="button" role="tab" id="tab-taxonomy" data-s="taxonomy" aria-controls="sec-taxonomy" aria-selected="false" tabindex="-1">分类和标签</button>
+    <button type="button" role="tab" id="tab-security" data-s="security" aria-controls="sec-security" aria-selected="false" tabindex="-1">账号安全</button>
+  </nav>
+
+  <div class="st-body">
+    <div class="st-msg" id="st-msg" role="status" aria-live="polite"></div>
+
+    <!-- 个人资料 -->
+    <section class="st-sec" id="sec-profile" role="tabpanel" aria-labelledby="tab-profile">
+      <div class="pf-grid">
+        <form class="pf-form" id="pf-form" autocomplete="off" novalidate>
+          <h1 class="st-h">个人资料</h1>
+          <p class="st-sub">同步到公开主页的简介、控制台的简介卡和右上角头像。</p>
+          <div class="pf-avatar-row">
+            <span class="pf-avatar" id="pfa"><img id="pfa-img" alt="" hidden><span id="pfa-ini">Z</span></span>
+            <div class="pf-avatar-btns">
+              <button class="btn" type="button" id="avatar-upload">上传头像</button>
+              <button class="btn" type="button" id="avatar-remove" hidden>移除头像</button>
+              <input type="file" id="avatar-file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden>
+              <span class="st-hint">会裁成正方形，不超过 10 MB</span>
+            </div>
+          </div>
+          <label class="fld"><span>名字</span><input id="pf-name" maxlength="40" required></label>
+          <label class="fld"><span>一句话介绍（主页大标题下面那段）</span><textarea id="pf-tagline" rows="2" maxlength="80"></textarea></label>
+          <label class="fld"><span>简介（控制台简介卡）</span><textarea id="pf-bio" rows="3" maxlength="500"></textarea></label>
+
+          <fieldset class="pf-list"><legend>主页右侧信息（最多 6 条）</legend>
+            <ul id="facts-list"></ul>
+            <button class="btn" type="button" id="fact-add">添加一条</button>
+          </fieldset>
+          <fieldset class="pf-list"><legend>链接（最多 6 条，只支持 http、https、mailto）</legend>
+            <ul id="links-list"></ul>
+            <button class="btn" type="button" id="link-add">添加一条</button>
+          </fieldset>
+          <div class="st-actions"><button class="btn primary" type="submit" id="pf-save">保存资料</button></div>
+        </form>
+
+        <aside class="pf-preview" aria-label="主页简介预览">
+          <div class="pv-head">主页预览</div>
+          <section class="intro pv-intro">
+            <div>
+              <div class="coord">// HELLO WORLD</div>
+              <h1>写代码，<br>也喜欢研究<em>新东西</em>。</h1>
+              <p id="pv-tagline"></p>
+              <div class="cta" id="pv-links"></div>
+            </div>
+            <dl class="intro-side" id="pv-facts"></dl>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 分类和标签 -->
+    <section class="st-sec" id="sec-taxonomy" role="tabpanel" aria-labelledby="tab-taxonomy" hidden>
+      <h1 class="st-h">分类和标签</h1>
+      <p class="st-sub">分类用英文 slug 做网址，一篇文章只属于一个分类；标签网址保持中文。</p>
+      <div class="tx-grid">
+        <div class="tx-col">
+          <h2 class="st-h2">分类</h2>
+          <ul class="tx-list" id="cat-list"></ul>
+          <form class="tx-add" id="cat-add" autocomplete="off">
+            <input id="cat-name" maxlength="20" placeholder="新分类名称" aria-label="新分类名称">
+            <input id="cat-slug" maxlength="40" placeholder="slug（可选）" aria-label="新分类 slug" spellcheck="false">
+            <button class="btn" type="submit">添加</button>
+          </form>
+        </div>
+        <div class="tx-col">
+          <h2 class="st-h2">标签</h2>
+          <ul class="tx-list" id="tag-list"></ul>
+          <form class="tx-add" id="tag-add" autocomplete="off">
+            <input id="tag-name" maxlength="30" placeholder="新标签" aria-label="新标签">
+            <button class="btn" type="submit">添加</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 账号安全 -->
+    <section class="st-sec" id="sec-security" role="tabpanel" aria-labelledby="tab-security" hidden>
+      <h1 class="st-h">账号安全</h1>
+      <dl class="sc-stats">
+        <div><dt>剩余恢复码</dt><dd id="sc-codes">—</dd></div>
+        <div><dt>已登录设备</dt><dd id="sc-sessions">—</dd></div>
+        <div><dt>本设备登录于</dt><dd id="sc-since">—</dd></div>
+      </dl>
+      <p class="sc-warn" id="sc-warn" hidden>恢复码只剩不到 3 个了，建议重新生成。</p>
+
+      <h2 class="st-h2">退出设备</h2>
+      <div class="st-actions">
+        <button class="btn" type="button" id="revoke-others">退出其他设备</button>
+        <button class="btn danger" type="button" id="revoke-all">退出所有设备</button>
+      </div>
+
+      <h2 class="st-h2">重新生成恢复码</h2>
+      <p class="st-sub">旧恢复码会全部作废。新的恢复码只显示一次，请立刻保存。</p>
+      <form class="sc-regen" id="regen-form" autocomplete="off">
+        <label class="fld"><span>当前的 6 位验证码</span><input id="regen-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"></label>
+        <button class="btn primary" type="submit" id="regen-btn">重新生成</button>
+      </form>
+      <div class="sc-codes" id="sc-codes-box" hidden>
+        <div class="sc-codes-head">新的恢复码（只显示这一次）</div>
+        <ul id="sc-codes-list"></ul>
+        <div class="st-actions">
+          <button class="btn" type="button" id="codes-copy">复制</button>
+          <button class="btn" type="button" id="codes-download">下载 .txt</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>设置 · 仅自己可见</span>
+    <a href="/console">返回控制台</a>
+  </div>
+</footer>
+
+<script>
+  import "../../scripts/console/settings";
+</script>
+</Layout>

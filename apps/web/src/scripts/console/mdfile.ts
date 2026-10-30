@@ -6,6 +6,8 @@ export type ParsedMd = {
   title: string;
   slug: string;
   summary: string;
+  /** frontmatter 里的分类名，没写为空串 */
+  category: string;
   tags: string[];
   status: "draft" | "published";
   publishedAt: Date;
@@ -154,6 +156,7 @@ export function parseMdFile(raw: string, fileName: string, now: Date): ParsedMd 
     title: [...title].slice(0, 200).join(""),
     slug,
     summary: [...unquote(kv.get("summary") ?? kv.get("description") ?? "")].slice(0, 500).join(""),
+    category: [...unquote(kv.get("category") ?? "")].slice(0, 20).join(""),
     tags: front ? parseTags(front) : [],
     status: isDraft ? "draft" : "published",
     publishedAt: parseDate(kv.get("date") ?? kv.get("publishedat"), now),

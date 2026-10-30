@@ -29,19 +29,19 @@
 				respond 401
 			}
 		}
-		# 和 api 自身的上限对齐：图片上传 12 MB，批量导入 .md（最多 20 个 × 1 MB）21 MB，
-		# 其他私有接口 3 MB（单篇正文 1 MB，JSON 转义后会变大）。
-		@upload path /api/private/uploads
+		# 和 api 自身的上限对齐（都按 MiB）：图片和头像上传 12 MiB，批量导入 .md（最多 20 个 × 1 MiB）21 MiB，
+		# 其他私有接口 3 MiB（单篇正文 1 MiB，JSON 转义后会变大）。
+		@upload path /api/private/uploads /api/private/profile/avatar
 		request_body @upload {
 			max_size 12MiB
 		}
 		@import path /api/private/posts/import
 		request_body @import {
-			max_size 21MB
+			max_size 21MiB
 		}
-		@otherprivate not path /api/private/uploads /api/private/posts/import
+		@otherprivate not path /api/private/uploads /api/private/profile/avatar /api/private/posts/import
 		request_body @otherprivate {
-			max_size 3MB
+			max_size 3MiB
 		}
 		reverse_proxy api:3000 {
 			header_up X-Forwarded-For {remote_host}

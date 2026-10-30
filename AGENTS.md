@@ -61,6 +61,7 @@ pnpm --filter api dev        # 3000，读 apps/api/.env
 - 首屏压缩后 ≤ 200 KB；不加载中文 Web 字体；不引入 UI 框架，除非 ROADMAP 里的任务明确需要。
 - 样式用 CSS 变量，两个主题（`paper`、`blueprint`）都要检查，1440 和 375 宽度无横向溢出。
 - 尊重 `prefers-reduced-motion`。
+- 控制台里不要用原生 `confirm()`、`alert()`、`prompt()`，也不要用没增强过的 `<select>`、`datetime-local`。改用 `src/scripts/ui/` 里的组件（规格见 `docs/contracts/ui-components.md`）。
 - 用户可见文字用简体中文。
 
 ### 后端

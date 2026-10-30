@@ -3,16 +3,20 @@
 import { $, api, ApiError, explain, initialOf, jsonInit, safeAvatar } from "./common";
 import { setProfileCache, type Fact, type Link, type Profile } from "./topbar";
 import { renderIntro } from "../intro-render";
+import { confirmDialog } from "../ui/dialog";
+import { toast } from "../ui/toast";
 
 type Cat = { id: number; slug: string; name: string; description: string; sort: number; count: number; draftCount: number };
 type TagItem = { name: string; sort: number; count: number; draftCount: number };
 
 const msgEl = $("st-msg");
 let msgTimer = 0;
+/** 消息条只放错误和进行中的提示；成功类消息走 Toast。错误同时弹 Toast。 */
 function setMsg(text: string, kind: "" | "err" | "ok" = "") {
   clearTimeout(msgTimer);
+  if (kind === "ok" && text && !/…$/.test(text)) { msgEl.textContent = ""; msgEl.className = "st-msg"; toast(text, { kind: "ok" }); return; }
   msgEl.textContent = text; msgEl.className = "st-msg " + kind;
-  if (kind === "ok" && text) msgTimer = window.setTimeout(() => { msgEl.textContent = ""; }, 5000);
+  if (kind === "err" && text) toast(text, { kind: "err" });
 }
 const fail = (prefix: string, e: unknown) => setMsg(`${prefix}：${explain(e)}`, "err");
 
@@ -197,8 +201,8 @@ function editCat(li: HTMLElement, c: Cat) {
 }
 async function delCat(c: Cat) {
   const n = c.count + c.draftCount;
-  const tail = n ? `\n\n有 ${affected(c)} 属于这个分类，删除后它们会变成「未分类」。` : "\n\n没有文章属于这个分类。";
-  if (!confirm(`确定删除分类「${c.name}」吗？${tail}`)) return;
+  const body = n ? `有 ${affected(c)} 属于这个分类。\n删除后它们会变成「未分类」。` : "没有文章属于这个分类。";
+  if (!(await confirmDialog({ title: `删除分类「${c.name}」？`, body, confirmText: "删除", danger: true }))) return;
   try { await api<void>(`/api/private/categories/${c.id}`, { method: "DELETE" }); setMsg(`已删除分类「${c.name}」`, "ok"); await loadTaxonomy(); } catch (e) { fail("删除失败", e); }
 }
 async function moveCat(i: number, d: number) {
@@ -233,7 +237,7 @@ function editTag(li: HTMLElement, t: TagItem) {
     const other = tagItems.find((x) => x.name !== t.name && x.name.toLowerCase() === to.toLowerCase());
     if (other) {
       const total = t.count + t.draftCount;
-      if (!confirm(`标签「${other.name}」已经存在。\n\n继续会把「${t.name}」合并进「${other.name}」：${total} 篇使用「${t.name}」的文章会改用「${other.name}」，「${t.name}」这个标签会消失。`)) return;
+      if (!(await confirmDialog({ title: `合并标签「${t.name}」？`, body: `标签「${other.name}」已经存在。\n继续会把「${t.name}」合并进「${other.name}」：${total} 篇使用「${t.name}」的文章会改用「${other.name}」，「${t.name}」这个标签会消失。`, confirmText: "合并" }))) return;
     }
     try {
       const r = await api<{ updated: number }>("/api/private/tags/rename", jsonInit("PUT", { from: t.name, to: other ? other.name : to }));
@@ -246,8 +250,8 @@ function editTag(li: HTMLElement, t: TagItem) {
 }
 async function delTag(t: TagItem) {
   const n = t.count + t.draftCount;
-  const tail = n ? `\n\n有 ${affected(t)} 用了这个标签，会从这些文章里移除。` : "\n\n没有文章用这个标签。";
-  if (!confirm(`确定删除标签「${t.name}」吗？${tail}`)) return;
+  const body = n ? `有 ${affected(t)} 用了这个标签。\n删除后会从这些文章里移除。` : "没有文章用这个标签。";
+  if (!(await confirmDialog({ title: `删除标签「${t.name}」？`, body, confirmText: "删除", danger: true }))) return;
   try { await api<void>(`/api/private/tags/${encodeURIComponent(t.name)}`, { method: "DELETE" }); setMsg(`已删除标签「${t.name}」`, "ok"); await loadTaxonomy(); } catch (e) { fail("删除失败", e); }
 }
 $("tag-add").addEventListener("submit", async (e) => {
@@ -270,11 +274,11 @@ async function loadSecurity() {
   } catch (e) { fail("读取账号安全信息失败", e); }
 }
 $("revoke-others").addEventListener("click", async () => {
-  if (!confirm("确定退出除本设备以外的所有设备吗？")) return;
+  if (!(await confirmDialog({ title: "退出其他设备？", body: "除本设备以外，其他已登录的设备都会退出登录。", confirmText: "退出其他设备" }))) return;
   try { await api<void>("/api/private/security/sessions/revoke-others", { method: "POST" }); setMsg("已退出其他设备", "ok"); await loadSecurity(); } catch (e) { fail("操作失败", e); }
 });
 $("revoke-all").addEventListener("click", async () => {
-  if (!confirm("确定退出所有设备吗？包括当前设备，之后需要重新登录。")) return;
+  if (!(await confirmDialog({ title: "退出所有设备？", body: "包括当前设备在内，所有设备都会退出登录。\n之后需要重新登录。", confirmText: "全部退出", danger: true }))) return;
   try { await api<void>("/api/private/security/sessions/revoke-all", { method: "POST" }); location.href = "/login"; } catch (e) { fail("操作失败", e); }
 });
 
@@ -291,7 +295,7 @@ $("regen-form").addEventListener("submit", async (e) => {
   const input = $<HTMLInputElement>("regen-code"), b = $<HTMLButtonElement>("regen-btn");
   const code = input.value.replace(/\D/g, "");
   if (code.length !== 6) { setMsg("请输入 6 位验证码", "err"); return; }
-  if (!confirm("重新生成后，旧的恢复码会全部作废。继续吗？")) return;
+  if (!(await confirmDialog({ title: "重新生成恢复码？", body: "旧的恢复码会全部作废。\n新的恢复码只显示一次，请马上保存。", confirmText: "重新生成", danger: true }))) return;
   b.disabled = true;
   try {
     const r = await api<{ codes: string[] }>("/api/private/security/recovery-codes", jsonInit("POST", { code }));

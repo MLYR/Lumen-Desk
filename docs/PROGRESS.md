@@ -17,10 +17,18 @@
 | P1.5 上线加固 | 3 / 10 | CSP、Actions 固定 SHA、日志轮转已完成；其余要等服务器和备案 |
 | P2 博客 | 10 / 11 | 只差第一篇文章（P2-11，用户写） |
 | P2.5 分类、标签、设置 | 8 / 8 | 完成，见 `docs/contracts/taxonomy-profile.md` |
+| P2.6 基础 UI 组件 | 完成 | 见 `docs/contracts/ui-components.md` |
 | P3 试验场 | 0 / 5 | 主页上有一个流场粒子预览 |
 | P4 增强 | 2 / 7 | Umami、Uptime Kuma 已部署到本机；其余待定 |
 
 ## 2. 已完成
+
+### P2.6 基础 UI 组件（2026-10-30，Orca 协同）
+
+- 用户选了方案 A：不引入 UI 库，自己写。规格见 `docs/contracts/ui-components.md`。
+- **组件**（Orca Worker `blog-web-v2`，claude-sonnet-5.5）：`src/scripts/ui/` 下的 Select（可搜索，带副标题和 action 项）、confirmDialog / promptDialog（基于原生 `<dialog>`）、Toast（放在 popover 顶层）、DateTimePicker（日历网格），以及 `src/styles/ui.css`。两套主题各有样式。合计 gzip 8.9 KB，用户接受比原定的 8 KB 多出这部分。支持 WAI-ARIA 和键盘操作，开启 reduced-motion 时不播放动画。
+- **替换**：写文章页的 3 个 select、1 个 datetime-local、2 处 confirm()；设置页的 6 处 confirm()；成功消息改为 Toast。`apps/web/src` 里已经没有原生 `confirm(`。演示页 `/console/ui-demo` 已删除。
+- **验证**（Lead）：在本机 Docker 上用真实后端做了 15 项端到端测试，全程没有弹出任何原生对话框，也没有页面报错。
 
 ### P2.5 分类、标签、个人资料、设置（2026-10-30，Orca 协同）
 
@@ -112,6 +120,7 @@
 | 2026-10-30 | 新增 ROADMAP.md、PROGRESS.md、README.md、AGENTS.md |
 | 2026-10-30 | 用户确认：自动部署用 GitHub Actions；要 Umami 和 Uptime Kuma |
 | 2026-10-30 | P2 博客、Umami、Uptime Kuma、自动部署完成（Orca 协同 3 个 Worker） |
+| 2026-10-30 | P2.6 完成：控制台原生下拉框、confirm、日期选择换成自制组件，新增 Toast |
 | 2026-10-30 | P2.5 完成：分类、标签、个人资料、设置页、头像菜单；安全审查 4 项低危修复 |
 | 2026-10-30 | 写文章页改版：左写右预览，导入在顶部且回显到编辑器（不直接入库），去掉文章列表改为下拉框，新文章默认发布、发布时间默认当前 |
 | 2026-10-30 | 用户确认 P2.5：分类和标签内置一批、也能手动添加，控制台加头像菜单和设置页，个人资料同步到主页 |

@@ -5,6 +5,7 @@ import Layout from "../../layouts/Layout.astro";
 import ConsoleTop from "../../components/ConsoleTop.astro";
 import "../../styles/console.css";
 import "../../styles/blog.css";
+import "../../styles/ui.css";
 import "../../styles/write.css";
 ---
 <Layout title="写文章 · 拾光台" noindex>
@@ -14,7 +15,7 @@ import "../../styles/write.css";
   <div class="ed-toolbar" role="toolbar" aria-label="文章操作">
     <div class="ed-tb-left">
       <button class="btn" id="import-btn" type="button" title="选择一个 .md 文件填进编辑器，也可以把文件拖进页面">导入 .md</button>
-      <select class="ed-open" id="open-select" aria-label="打开已有文章"><option value="">打开已有文章…</option></select>
+      <select id="open-select" data-size="compact" aria-label="打开已有文章"><option value="">打开已有文章…</option></select>
       <button class="btn" id="new-post" type="button">新文章</button>
       <a class="btn" id="export-link" href="/api/private/posts/export" download>导出全部</a>
       <input id="import-file" type="file" accept=".md,.markdown,text/markdown" multiple hidden>
@@ -37,13 +38,13 @@ import "../../styles/write.css";
     <div class="fld-row">
       <label class="fld"><span>slug</span><input id="f-slug" maxlength="80" placeholder="留空自动生成" spellcheck="false" autocapitalize="off"></label>
       <label class="fld"><span>状态</span>
-        <select id="f-status"><option value="published">发布</option><option value="draft">草稿</option></select>
+        <select id="f-status" aria-label="状态"><option value="published">发布</option><option value="draft">草稿</option></select>
       </label>
-      <label class="fld"><span>发布时间</span><input id="f-published" type="datetime-local"></label>
+      <label class="fld"><span>发布时间</span><input id="f-published" type="datetime-local" aria-label="发布时间"></label>
     </div>
     <div class="fld-row fld-row2">
       <label class="fld"><span>分类</span>
-        <select id="f-category"><option value="">未分类</option><option value="__new">+ 新分类…</option></select>
+        <select id="f-category" aria-label="分类"><option value="">未分类</option><option value="__new" data-kind="action">+ 新分类…</option></select>
       </label>
       <div class="fld fld-tags">
         <span id="tags-label">标签（回车或逗号添加）</span>
@@ -54,10 +55,7 @@ import "../../styles/write.css";
         <ul class="tag-suggest" id="tag-suggest" role="listbox" hidden></ul>
       </div>
     </div>
-    <div class="fld newcat" id="newcat-row" hidden>
-      <span>新分类名称（保存时自动创建）</span>
-      <div class="newcat-line"><input id="f-newcat" maxlength="20" placeholder="1–20 个字"><button class="btn" id="newcat-cancel" type="button">取消</button></div>
-    </div>
+
     <label class="fld"><span>摘要（留空取正文开头）</span><textarea id="f-summary" rows="2" maxlength="500"></textarea></label>
     <label class="fld grow"><span>正文（Markdown）</span><textarea id="f-md" spellcheck="false" placeholder="在这里写 Markdown。粘贴或拖入图片会自动上传。"></textarea></label>
   </form>

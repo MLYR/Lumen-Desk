@@ -1,0 +1,157 @@
+/* 基础 UI 组件：Select、Dialog、Toast、DateTimePicker。只用 theme.css 的变量。
+   层级：浮层 70 < 弹框 80 < Toast 90（拖放遮罩 60 在它们下面）。 */
+
+/* 被替换的原生控件：留在 DOM 里读写 value，但不可见、不可聚焦 */
+.ui-native { position: absolute !important; width: 1px !important; height: 1px !important; margin: 0; padding: 0; border: 0; opacity: 0; pointer-events: none; overflow: hidden; clip-path: inset(50%); }
+.ui-select, .ui-dt { position: relative; min-width: 0; display: block; }
+.ui-select.inline { display: inline-block; }
+
+/* 触发按钮（Select 和日期共用） */
+.ui-select-btn, .ui-dt-btn { width: 100%; min-width: 0; height: 40px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font-size: 15px; text-align: left; cursor: pointer; border-radius: 0; transition: border-color .12s, background-color .12s; }
+.ui-select-btn:hover:not(:disabled), .ui-dt-btn:hover:not(:disabled) { border-color: var(--accent); }
+.ui-select-btn:focus-visible, .ui-dt-btn:focus-visible, .ui-select-btn[aria-expanded="true"], .ui-dt-btn[aria-expanded="true"] { outline: 0; border-color: var(--accent); }
+.ui-select-btn:disabled, .ui-dt-btn:disabled { opacity: .5; cursor: default; }
+.ui-select-btn::after { content: ""; flex: none; width: 7px; height: 7px; margin: -3px 2px 0 0; border: solid var(--muted); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); transition: transform .14s, border-color .12s; }
+.ui-select-btn[aria-expanded="true"]::after { transform: translateY(3px) rotate(-135deg); border-color: var(--accent); }
+.ui-val, .ui-dt-val { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-dt-val { font-family: var(--mono); font-size: 14px; }
+.ui-val.is-ph, .ui-dt-val.is-ph { color: var(--muted); }
+.ui-dt-ic { flex: none; display: grid; color: var(--muted); }
+.ui-dt-btn:hover .ui-dt-ic, .ui-dt-btn[aria-expanded="true"] .ui-dt-ic { color: var(--accent); }
+[data-theme="blueprint"] .ui-val { font-size: 14px; }
+/* 工具栏里的紧凑下拉（高度和 .btn 一致） */
+.ui-select.compact .ui-select-btn { height: 36px; font-size: 13px; color: var(--muted); background: var(--card); }
+.ui-select.compact .ui-select-btn:hover { color: var(--fg); }
+
+/* 浮层（下拉、日历） */
+.ui-pop { position: fixed; z-index: 70; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); font-size: 14px; animation: ui-pop-in .14s cubic-bezier(.2, .7, .3, 1) both; }
+.ui-pop.up { animation-name: ui-pop-up; }
+.ui-pop.is-out { animation: ui-pop-out .1s ease-in both; pointer-events: none; }
+.ui-pop.is-out.up { animation-name: ui-pop-out-up; }
+[data-theme="paper"] .ui-pop { box-shadow: 0 8px 24px rgba(21, 21, 21, .1); }
+[data-theme="blueprint"] .ui-pop { background: color-mix(in srgb, var(--panel) 92%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 14px 36px rgba(0, 0, 0, .35); }
+/* 蓝图：左上和右下的 2px 角标，和 .card 一样 */
+.ui-pop::before, .ui-pop::after, .ui-dialog::before, .ui-dialog::after { content: none; }
+[data-theme="blueprint"] :is(.ui-pop, .ui-dialog)::before, [data-theme="blueprint"] :is(.ui-pop, .ui-dialog)::after { content: ""; position: absolute; width: 9px; height: 9px; border: 0 solid var(--accent); pointer-events: none; }
+[data-theme="blueprint"] :is(.ui-pop, .ui-dialog)::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+[data-theme="blueprint"] :is(.ui-pop, .ui-dialog)::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+@keyframes ui-pop-in { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes ui-pop-up { from { opacity: 0; transform: translateY(4px); } }
+@keyframes ui-pop-out { to { opacity: 0; transform: translateY(-4px); } }
+@keyframes ui-pop-out-up { to { opacity: 0; transform: translateY(4px); } }
+
+/* Select 列表 */
+.ui-lp { display: flex; flex-direction: column; }
+.ui-search { flex: none; padding: 8px; border-bottom: 1px solid var(--soft-line); }
+.ui-search input { width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--soft-line); background: var(--panel); color: var(--fg); font-size: 14px; border-radius: 0; }
+.ui-search input:focus { outline: 0; border-color: var(--accent); }
+[data-theme="blueprint"] .ui-search input { font-family: var(--mono); font-size: 13px; }
+.ui-list { list-style: none; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0; max-height: 296px; scrollbar-width: thin; scrollbar-color: var(--soft-line) transparent; }
+.ui-opt { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 38px; padding: 6px 12px; cursor: pointer; border-left: 2px solid transparent; }
+.ui-opt-main { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ui-opt-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; }
+.ui-opt-s { font-family: var(--mono); font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-opt.is-active { background: var(--card-hover); }
+[data-theme="blueprint"] .ui-opt { font-family: var(--mono); font-size: 13px; }
+[data-theme="blueprint"] .ui-opt.is-active { border-left-color: var(--accent); }
+[data-theme="blueprint"] .ui-opt[aria-selected="true"] .ui-opt-t { color: var(--accent); }
+.ui-opt[aria-disabled="true"] { opacity: .45; cursor: default; }
+.ui-ck { flex: none; width: 5px; height: 10px; margin: -3px 4px 0 0; border: solid var(--accent); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+[data-theme="blueprint"] .ui-ck { width: 6px; height: 6px; margin: 0 4px 0 0; border: 0; border-radius: 0; background: var(--accent); transform: none; }
+.ui-opt.is-action { color: var(--accent); }
+.ui-opt.sep { margin-top: 5px; }
+.ui-opt.sep::before { content: ""; position: absolute; left: 0; right: 0; top: -3px; border-top: 1px solid var(--soft-line); }
+.ui-empty { padding: 14px 12px; font-size: 13px; color: var(--muted); text-align: center; }
+.ui-empty[hidden] { display: none; }
+
+/* Dialog */
+.ui-dialog { position: fixed; z-index: 80; box-sizing: border-box; width: min(440px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); margin: auto; padding: 0; overflow: visible; border: 1px solid var(--line); background: var(--bg); color: var(--fg); animation: ui-dlg-in .14s cubic-bezier(.2, .7, .3, 1) both; }
+.ui-dialog::backdrop { background: rgba(10, 14, 24, .42); animation: ui-fade .14s ease both; }
+[data-theme="paper"] .ui-dialog { border-top: 2px solid var(--line); box-shadow: 0 16px 48px rgba(21, 21, 21, .14); }
+[data-theme="paper"] .ui-dialog::backdrop { background: rgba(21, 21, 21, .28); }
+[data-theme="blueprint"] .ui-dialog { background: color-mix(in srgb, var(--panel) 94%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 24px 60px rgba(0, 0, 0, .45); }
+[data-theme="blueprint"] .ui-dialog::backdrop { background: rgba(4, 12, 28, .6); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+.ui-dialog.is-out { animation: ui-dlg-out .1s ease-in both; }
+.ui-dialog.is-out::backdrop { animation: ui-fade-out .1s ease-in both; }
+@keyframes ui-dlg-in { from { opacity: 0; transform: scale(.98); } }
+@keyframes ui-dlg-out { to { opacity: 0; transform: scale(.98); } }
+@keyframes ui-fade { from { opacity: 0; } }
+@keyframes ui-fade-out { to { opacity: 0; } }
+.ui-dialog-body { padding: 22px 24px 8px; }
+.ui-dialog-title { font-family: var(--display); font-weight: var(--display-weight); font-size: 19px; line-height: 1.35; letter-spacing: -.01em; overflow-wrap: anywhere; }
+[data-theme="blueprint"] .ui-dialog-title { font-size: 16px; }
+.ui-dialog-text { margin-top: 10px; font-size: 14px; line-height: 1.7; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+.ui-note { margin-top: 12px; display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--accent); }
+.ui-note::before { content: ""; width: 7px; height: 7px; flex: none; background: var(--accent); }
+[data-theme="paper"] .ui-note::before { border-radius: 50%; }
+.ui-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 14px 24px 20px; }
+.ui-label { display: block; margin-top: 14px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.ui-input { width: 100%; height: 40px; margin-top: 6px; padding: 0 12px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font-size: 15px; border-radius: 0; }
+.ui-input:focus { outline: 0; border-color: var(--accent); }
+.ui-input[aria-invalid="true"] { border-color: var(--accent); }
+.ui-err { min-height: 20px; margin-top: 6px; font-size: 13px; color: var(--accent); overflow-wrap: anywhere; }
+
+/* 按钮 */
+.ui-btn { height: 36px; padding: 0 16px; border: 1px solid var(--line); background: none; color: var(--fg); font-size: 14px; cursor: pointer; border-radius: 0; transition: background-color .12s, border-color .12s, color .12s, transform .08s; }
+.ui-btn:active { transform: scale(.98); }
+.ui-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.ui-btn.primary:hover { filter: brightness(1.08); }
+.ui-btn.ghost { border-color: transparent; color: var(--muted); }
+.ui-btn.ghost:hover { color: var(--fg); background: var(--card-hover); }
+[data-theme="blueprint"] .ui-btn.ghost { border-color: var(--soft-line); }
+[data-theme="blueprint"] .ui-btn { font-family: var(--mono); font-size: 13px; }
+.ui-btn.sm { height: 30px; padding: 0 10px; font-size: 12px; }
+.ui-btn:focus-visible, .ui-nav:focus-visible, .ui-day:focus-visible, .ui-tx:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Toast */
+.ui-toasts { position: fixed; z-index: 90; inset: auto 16px 16px auto; margin: 0; padding: 0; border: 0; background: none; overflow: visible; color: inherit; display: flex; flex-direction: column; gap: 8px; width: min(360px, calc(100vw - 32px)); pointer-events: none; }
+.ui-toasts:not(:popover-open) { display: flex; }
+.ui-toast { position: relative; pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 12px 8px 14px 12px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; line-height: 1.5; overflow: hidden; animation: ui-toast-in .16s cubic-bezier(.2, .7, .3, 1) both; }
+.ui-toast.is-out { animation: ui-toast-out .12s ease-in both; }
+[data-theme="paper"] .ui-toast { box-shadow: 0 6px 20px rgba(21, 21, 21, .1); }
+[data-theme="blueprint"] .ui-toast { background: color-mix(in srgb, var(--panel) 94%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); font-family: var(--mono); font-size: 13px; box-shadow: 0 10px 28px rgba(0, 0, 0, .4); }
+@keyframes ui-toast-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes ui-toast-out { to { opacity: 0; transform: translateY(4px); } }
+.ui-ti { flex: none; width: 18px; height: 18px; margin-top: 1px; display: grid; place-items: center; border: 1px solid currentColor; font-family: var(--mono); font-size: 11px; font-weight: 700; line-height: 1; color: var(--muted); }
+[data-theme="paper"] .ui-ti { border-radius: 50%; }
+.k-ok .ui-ti { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
+.k-err .ui-ti { color: var(--accent); }
+.k-err { border-color: var(--accent); }
+.ui-tm { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ui-tx { flex: none; width: 24px; height: 24px; border: 0; background: none; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; }
+.ui-tx:hover { color: var(--fg); }
+.ui-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--accent); opacity: .55; transform-origin: left; animation: ui-bar linear both; }
+.k-info .ui-bar { background: var(--muted); }
+.ui-toast.paused .ui-bar { animation-play-state: paused; }
+@keyframes ui-bar { to { transform: scaleX(0); } }
+
+/* 日历 */
+.ui-dtp { padding: 12px; }
+.ui-dt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.ui-dt-title { font-weight: 600; font-variant-numeric: tabular-nums; }
+[data-theme="blueprint"] .ui-dt-title { font-family: var(--mono); font-size: 13px; }
+.ui-nav { width: 30px; height: 30px; border: 1px solid var(--soft-line); background: none; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 0; }
+.ui-nav:hover { color: var(--accent); border-color: var(--accent); }
+.ui-row { display: grid; grid-template-columns: repeat(7, 1fr); }
+.ui-wd { height: 26px; display: grid; place-items: center; font-size: 12px; color: var(--muted); }
+[data-theme="blueprint"] .ui-wd { font-family: var(--mono); }
+.ui-cell { display: grid; place-items: center; }
+.ui-day { position: relative; width: 100%; max-width: 38px; aspect-ratio: 1; min-height: 32px; border: 0; background: none; color: var(--fg); font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer; border-radius: 0; }
+[data-theme="blueprint"] .ui-day { font-family: var(--mono); }
+.ui-day.out { color: var(--muted); opacity: .55; }
+.ui-day:hover { background: var(--card-hover); }
+.ui-day.today::after { content: ""; position: absolute; left: 50%; bottom: 5px; width: 4px; height: 4px; margin-left: -2px; background: var(--accent); }
+[data-theme="paper"] .ui-day.today::after { border-radius: 50%; }
+.ui-day.sel { background: var(--accent); color: var(--accent-fg); font-weight: 700; opacity: 1; }
+.ui-day.sel.today::after { background: var(--accent-fg); }
+.ui-time { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--soft-line); }
+.ui-tl { font-size: 12px; color: var(--muted); margin-right: 2px; }
+.ui-tn { width: 40px; height: 32px; padding: 0; border: 1px solid var(--line); background: var(--panel); color: var(--fg); text-align: center; font-family: var(--mono); font-size: 14px; border-radius: 0; }
+.ui-tn:focus { outline: 0; border-color: var(--accent); }
+.ui-colon { color: var(--muted); font-family: var(--mono); }
+.ui-tbtn { margin-left: auto; display: flex; gap: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-pop, .ui-dialog, .ui-dialog::backdrop, .ui-toast, .ui-bar { animation: none !important; }
+  .ui-select-btn::after, .ui-btn { transition: none !important; }
+}

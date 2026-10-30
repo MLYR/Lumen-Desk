@@ -3,6 +3,10 @@
 import { MAX_MD_BYTES, parseMdFile } from "./mdfile";
 import { $, api, ApiError, esc, explain as explainBase, jsonInit } from "./common";
 import "./topbar";
+import { enhanceSelect } from "../ui/select";
+import { enhanceDateTime } from "../ui/datetime";
+import { confirmDialog, promptDialog } from "../ui/dialog";
+import { toast } from "../ui/toast";
 
 type Status = "draft" | "published";
 type ListItem = { id: number; slug: string; title: string; status: Status; tags: string[]; publishedAt: string | null; updatedAt: string };
@@ -18,7 +22,7 @@ const explain = (e: unknown) => explainBase(e, ERR_OVERRIDES);
 /* ---------- 元素与状态 ---------- */
 const ed = $("ed"), msgEl = $("ed-msg"), stateEl = $("ed-state"), pvState = $("pv-state"), previewEl = $("preview"), saveLabel = $("save-label");
 const fTitle = $<HTMLInputElement>("f-title"), fSlug = $<HTMLInputElement>("f-slug"), fStatus = $<HTMLSelectElement>("f-status"),
-  fPub = $<HTMLInputElement>("f-published"), fTags = $<HTMLInputElement>("f-tags"), fCat = $<HTMLSelectElement>("f-category"), fNewCat = $<HTMLInputElement>("f-newcat"), newCatRow = $("newcat-row"), fSummary = $<HTMLTextAreaElement>("f-summary"), fMd = $<HTMLTextAreaElement>("f-md");
+  fPub = $<HTMLInputElement>("f-published"), fTags = $<HTMLInputElement>("f-tags"), fCat = $<HTMLSelectElement>("f-category"), fSummary = $<HTMLTextAreaElement>("f-summary"), fMd = $<HTMLTextAreaElement>("f-md");
 const form = $<HTMLFormElement>("pane-edit"), saveBtn = $<HTMLButtonElement>("save-btn"), delBtn = $<HTMLButtonElement>("delete-btn");
 const importBtn = $<HTMLButtonElement>("import-btn"), importFile = $<HTMLInputElement>("import-file"), dropEl = $("drop"), openSel = $<HTMLSelectElement>("open-select");
 
@@ -26,7 +30,18 @@ let currentId: number | null = null;
 let dirty = false;
 let busy = false;
 
-function setMsg(text: string, kind: "" | "err" | "ok" = "") { msgEl.textContent = text; msgEl.className = "ed-msg " + kind; }
+/** 消息条。错误同时弹 Toast（消息条保留）；成功类消息用 ok() 走 Toast。 */
+function setMsg(text: string, kind: "" | "err" | "ok" = "", alsoToast = true) {
+  msgEl.textContent = text; msgEl.className = "ed-msg " + kind;
+  if (kind === "err" && text && alsoToast) toast(text, { kind: "err" });
+}
+function ok(text: string) { setMsg(""); toast(text, { kind: "ok" }); }
+
+/* 下拉框和日期用自定义组件替换；原生控件仍在 DOM 里，读写 value 的代码不变 */
+enhanceSelect(openSel, { searchable: true, placeholder: "打开已有文章…" });
+enhanceSelect(fStatus);
+enhanceSelect(fCat);
+enhanceDateTime(fPub);
 function setDirty(v: boolean) {
   dirty = v;
   stateEl.classList.toggle("dirty", v);
@@ -81,8 +96,8 @@ function collect() {
   if (slug) body.slug = slug;
   const pub = localToIso(fPub.value);
   if (pub) body.publishedAt = pub;
-  if (fCat.value === NEW_CAT) { const n = fNewCat.value.trim(); if (n) body.category = n; else body.categoryId = null; }
-  else body.categoryId = fCat.value ? Number(fCat.value) : null;
+  if (fCat.value === TMP_CAT && pendingCat) body.category = pendingCat;
+  else body.categoryId = fCat.value && fCat.value !== NEW_CAT ? Number(fCat.value) : null;
   return body;
 }
 function validate(b: Record<string, unknown>): string | null {
@@ -91,14 +106,15 @@ function validate(b: Record<string, unknown>): string | null {
   const tags = b.tags as string[];
   if (tags.length > 10) return "标签最多 10 个";
   if (tags.some((t) => [...t].length > 30)) return "每个标签最多 30 个字";
-  if (fCat.value === NEW_CAT && !fNewCat.value.trim()) return "请填写新分类的名称，或改选其他分类";
-  if (fCat.value === NEW_CAT && [...fNewCat.value.trim()].length > 20) return "分类名称最多 20 个字";
   return null;
 }
 
 /* ---------- 分类 ---------- */
-const NEW_CAT = "__new";
+const NEW_CAT = "__new", TMP_CAT = "__tmp";
 let cats: Cat[] = [];
+/** 选了「+ 新分类…」并输入的名字：作为临时选项放进下拉框，保存时用 category 字段发送，由服务端创建 */
+let pendingCat: string | null = null;
+let lastCat = "";
 async function loadCategories() {
   try {
     const d = await api<{ items: Cat[] }>("/api/private/categories");
@@ -109,33 +125,45 @@ async function loadCategories() {
 function renderCategoryOptions(selected?: string) {
   const keep = selected ?? fCat.value;
   fCat.replaceChildren();
-  const add = (v: string, t: string) => { const o = document.createElement("option"); o.value = v; o.textContent = t; fCat.append(o); };
+  const add = (v: string, t: string, kind?: string) => { const o = document.createElement("option"); o.value = v; o.textContent = t; if (kind) o.dataset.kind = kind; fCat.append(o); };
   add("", "未分类");
   for (const c of cats) add(String(c.id), c.name); // 名称只用 textContent
-  add(NEW_CAT, "+ 新分类…");
+  if (pendingCat !== null) add(TMP_CAT, `${pendingCat}（新分类）`);
+  add(NEW_CAT, "+ 新分类…", "action");
   fCat.value = [...fCat.options].some((o) => o.value === keep) ? keep : "";
-  syncNewCat();
+  lastCat = fCat.value;
 }
-function syncNewCat() {
-  const on = fCat.value === NEW_CAT;
-  newCatRow.hidden = !on;
-}
+/** 导入或保存后用：设置为临时的新分类 */
+function setPendingCategory(name: string) { pendingCat = name; renderCategoryOptions(TMP_CAT); }
 /** v: 分类 id、分类名（导入或保存后返回）或 null。名字对不上时返回 false。 */
 function setCategory(v: number | string | null): boolean {
-  fNewCat.value = "";
+  pendingCat = null;
   if (v === null || v === "") { renderCategoryOptions(""); return true; }
   const c = typeof v === "number" ? cats.find((x) => x.id === v) : cats.find((x) => x.name === v);
   if (c) { renderCategoryOptions(String(c.id)); return true; }
   renderCategoryOptions("");
   return false;
 }
-fCat.addEventListener("change", () => {
-  syncNewCat();
-  if (fCat.value === NEW_CAT) fNewCat.focus();
+// 选「+ 新分类…」再取消时不应算作修改：在 input 冒泡到 form 之前记下原来的状态
+let dirtyBeforeCat = false;
+fCat.addEventListener("input", () => { dirtyBeforeCat = dirty; });
+fCat.addEventListener("change", async () => {
+  if (fCat.value === NEW_CAT) {
+    const name = await promptDialog({
+      title: "新建分类", label: "分类名称", placeholder: "1–20 个字", maxLength: 20,
+      validate: (v) => ([...v].length > 20 ? "分类名称最多 20 个字" : null),
+    });
+    if (name === null) { fCat.value = lastCat; setDirty(dirtyBeforeCat); return; } // 取消：回到原来的选项
+    const exist = cats.find((c) => c.name === name);
+    if (exist) { pendingCat = null; renderCategoryOptions(String(exist.id)); toast(`已有分类「${name}」，已为你选中`, { kind: "info" }); }
+    else { pendingCat = name; renderCategoryOptions(TMP_CAT); }
+    setDirty(true);
+    return;
+  }
+  if (fCat.value !== TMP_CAT && pendingCat !== null) { pendingCat = null; renderCategoryOptions(fCat.value); }
+  lastCat = fCat.value;
   setDirty(true);
 });
-$("newcat-cancel").addEventListener("click", () => { fNewCat.value = ""; renderCategoryOptions(""); fCat.focus(); });
-fNewCat.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); } });
 
 /* ---------- 标签：小块 + 自动补全 ---------- */
 let tags: string[] = [];
@@ -220,7 +248,8 @@ async function loadList() {
     for (const x of items) {
       const o = document.createElement("option");
       o.value = String(x.id);
-      o.textContent = `${x.title || "（无标题）"}（${x.status === "published" ? "已发布" : "草稿"}）`;
+      o.textContent = x.title || "（无标题）";
+      o.dataset.sub = `${x.status === "published" ? "已发布" : "草稿"} · ${dayOf(x.publishedAt ?? x.updatedAt).slice(5)}`;
       openSel.append(o);
     }
     openSel.value = currentId === null ? "" : String(currentId);
@@ -229,13 +258,14 @@ async function loadList() {
     setMsg("文章列表加载失败：" + explain(e), "err");
   }
 }
-const confirmDiscard = () => !dirty || confirm("有未保存的修改，确定放弃吗？");
+const confirmDiscard = async (): Promise<boolean> =>
+  !dirty || confirmDialog({ title: "放弃未保存的修改？", body: "当前文章有未保存的修改，继续会丢失它们。", confirmText: "放弃修改", danger: true });
 
 openSel.addEventListener("change", async () => {
   const id = Number(openSel.value);
   if (!openSel.value || !Number.isInteger(id)) { openSel.value = currentId === null ? "" : String(currentId); return; }
   if (id === currentId) return;
-  if (!confirmDiscard()) { openSel.value = currentId === null ? "" : String(currentId); return; }
+  if (!(await confirmDiscard())) { openSel.value = currentId === null ? "" : String(currentId); return; }
   setMsg("加载中…", "ok");
   try {
     fill(await api<Post>(`/api/private/posts/${id}`));
@@ -244,8 +274,8 @@ openSel.addEventListener("change", async () => {
     openSel.value = currentId === null ? "" : String(currentId);
   }
 });
-$("new-post").addEventListener("click", () => {
-  if (!confirmDiscard()) return;
+$("new-post").addEventListener("click", async () => {
+  if (!(await confirmDiscard())) return;
   fill(null);
   fTitle.focus();
 });
@@ -264,7 +294,7 @@ async function save() {
     // 以服务器返回为准（slug、发布时间可能被补全）；返回里没有 markdown 时保留编辑器里的文本。
     const keepMd = fMd.value;
     fill({ ...p, markdown: typeof p.markdown === "string" ? p.markdown : keepMd });
-    setMsg(p.status === "published" ? "已发布" : "已保存为草稿", "ok");
+    ok(p.status === "published" ? "已发布" : "已保存为草稿");
     await Promise.all([loadList(), loadCategories(), loadVocab()]);
     setCategory(p.categoryId ?? p.category?.name ?? null);
   } catch (e) { setMsg("保存失败：" + explain(e), "err"); }
@@ -274,12 +304,13 @@ saveBtn.addEventListener("click", () => { void save(); });
 form.addEventListener("submit", (e) => { e.preventDefault(); void save(); });
 delBtn.addEventListener("click", async () => {
   if (currentId === null || busy) return;
-  if (!confirm(`确定删除「${fTitle.value.trim() || "这篇文章"}」吗？删除后无法恢复。`)) return;
+  const name = fTitle.value.trim() || "这篇文章";
+  if (!(await confirmDialog({ title: "删除这篇文章？", body: `「${name}」\n删除后无法恢复。`, confirmText: "删除", danger: true }))) return;
   busy = true;
   try {
     await api<void>(`/api/private/posts/${currentId}`, { method: "DELETE" });
     fill(null);
-    setMsg("已删除", "ok");
+    ok("已删除");
     await loadList();
   } catch (e) { setMsg("删除失败：" + explain(e), "err"); }
   finally { busy = false; }
@@ -341,7 +372,7 @@ async function uploadImages(files: File[]) {
       const r = await api<{ url: string }>("/api/private/uploads", { method: "POST", body: fd });
       if (typeof r.url !== "string" || !/^\/uploads\/[A-Za-z0-9._-]+$/.test(r.url)) throw new ApiError(0, "invalid_request");
       insertAtCursor(`![](${r.url})\n`);
-      setMsg("图片已上传", "ok");
+      ok("图片已上传");
     } catch (e) { setMsg("图片上传失败：" + explain(e), "err"); }
   }
 }
@@ -366,7 +397,7 @@ async function openMdFiles(files: File[]) {
   if (!md.length) { setMsg("只能打开 .md 文件", "err"); return; }
   const file = md[0];
   if (file.size > MAX_MD_BYTES) { setMsg(`${file.name} 超过 1 MB，没有打开`, "err"); return; }
-  if (!confirmDiscard()) return;
+  if (!(await confirmDiscard())) return;
   let text: string;
   try { text = await file.text(); } catch { setMsg(`读取 ${file.name} 失败`, "err"); return; }
   const r = parseMdFile(text, file.name, new Date());
@@ -388,12 +419,13 @@ async function openMdFiles(files: File[]) {
   parts.push(r.status === "published" ? "检查后点发布" : "检查后点保存草稿");
   if (r.category) {
     if (!setCategory(r.category)) {
-      renderCategoryOptions(NEW_CAT); fNewCat.value = r.category;
+      setPendingCategory(r.category);
       r.warnings.push(`保存时会新建分类 ${r.category}`);
     }
   }
   const warn = r.warnings.length ? "。" + r.warnings.join("；") : "";
-  setMsg(parts.join("，") + warn, r.warnings.length ? "err" : "ok");
+  setMsg(parts.join("，") + warn, r.warnings.length ? "err" : "ok", false); // 详情留在消息条里
+  toast(`已导入 ${file.name}`, { kind: "ok" });
   fTitle.focus();
 }
 importBtn.addEventListener("click", () => importFile.click());

@@ -1,0 +1,14 @@
+# 私有书签数据，不进仓库
+design-demos/bookmarks.data.js
+*.bookmarks.json
+.env
+node_modules/
+.DS_Store
+# 控制台截图里能看到私人书签，不进公开仓库
+design-demos/shots/navigator-*.png
+design-demos/shots/bm-filter.png
+dist/
+.astro/
+*.db
+*.sqlite
+data/

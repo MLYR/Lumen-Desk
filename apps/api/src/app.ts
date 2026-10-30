@@ -125,10 +125,13 @@ export function createApp({ config, db, now = Date.now }: AppDeps): Hono {
   app.get('/api/private/server', async (c) => {
     const [load1, load5, load15] = os.loadavg();
     const total = os.totalmem();
+    // Docker doesn't namespace /proc/meminfo or loadavg, so these are host values.
+    // MemAvailable excludes page cache, matching what `free` reports as used.
+    const available = await memAvailable();
     const st = await fs.statfs(config.dataDir);
     return c.json({
       cpu: { cores: os.availableParallelism(), load1, load5, load15 },
-      mem: { total, used: total - os.freemem() },
+      mem: { total, used: total - (available ?? os.freemem()) },
       disk: { total: st.blocks * st.bsize, used: (st.blocks - st.bfree) * st.bsize },
       uptime: process.uptime(),
       hostUptime: os.uptime(),
@@ -148,4 +151,13 @@ function lockedResponse(c: Context, ms: number) {
   const retryAfter = Math.ceil(ms / 1000);
   c.header('Retry-After', String(retryAfter));
   return c.json({ error: 'locked', retryAfter }, 429);
+}
+
+async function memAvailable(): Promise<number | null> {
+  try {
+    const m = /^MemAvailable:\s+(\d+) kB/m.exec(await fs.readFile('/proc/meminfo', 'utf8'));
+    return m ? Number(m[1]) * 1024 : null;
+  } catch {
+    return null;
+  }
 }

@@ -1,4 +1,4 @@
-# 拾光台 Lumen Desk
+# 拾光台
 
 zreo 的个人站：公开的主页、博客和技术试验场，加一个只有自己能登录的私人控制台（搜索、AI 热点、收藏夹、服务器状态）。
 
@@ -85,3 +85,7 @@ docs/            方案、计划、进度、交接文档
 ## 数据来源
 
 AI 热点来自 [AIHOT](https://aihot.news)，按其[使用规则](https://aihot.news/terms)个人非商业使用：保留来源和原文链接，缓存不超过 7 天，不做镜像。
+
+## 许可
+
+代码使用 [MIT](LICENSE) 许可。博客文章等内容使用 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/deed.zh-hans)：可以转载，需要署名，不能商用。

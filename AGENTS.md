@@ -32,6 +32,8 @@ pnpm --filter api dev        # 3000，读 apps/api/.env
 
 ## 硬性规则
 
+- 不使用对象存储和 CDN，所有资源走服务器带宽（3 Mbps），图片必须压缩。
+
 ### 私有数据
 
 - 书签数据（`design-demos/bookmarks.data.js`、`apps/api/data/`、任何 `bookmarks.json`）、`.env`、TOTP 密钥、恢复码、`*.db`，**永远不进 Git**，也不能复制进测试、fixture、文档、提交信息或日志。

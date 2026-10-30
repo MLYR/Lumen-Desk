@@ -1,0 +1,113 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout title="登录 · Lumen Desk" noindex>
+  <main class="box">
+    <a class="brand" href="/" style="margin-bottom:20px"><span class="brand-mark">z</span>zreo</a>
+    <div class="card">
+      <div class="coord">// PRIVATE AREA</div>
+      <h1>控制台登录</h1>
+      <p class="sub">打开 Google Authenticator，输入「Lumen Desk」的 6 位验证码。</p>
+      <form id="f">
+        <label for="otp" id="otpLabel">验证码</label>
+        <div class="field otp" id="field"><input id="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" autofocus required></div>
+        <div class="err" id="err" role="alert"></div>
+        <button class="submit" id="submit" type="submit">进入控制台</button>
+      </form>
+      <button class="alt" id="alt" type="button">使用恢复码</button>
+      <p class="note">输满 6 位自动提交。连续失败 5 次锁定 15 分钟。登录状态在本设备保持 30 天。</p>
+    </div>
+    <a class="back" href="/">← 返回公开主页</a>
+  </main>
+</Layout>
+
+<style is:global>
+body { display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: 24px; }
+.box { width: min(400px, 100%); }
+.box .card { padding: 28px; }
+[data-theme="paper"] .box .card { padding: 24px 0 0; border-left: 0; }
+h1 { font-family: var(--display); font-weight: var(--display-weight); font-size: 28px; line-height: 1.2; margin-bottom: 6px; }
+.sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+label { display: block; font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.field { display: flex; align-items: center; height: 48px; padding: 0 14px; border: 1px solid var(--line); background: var(--panel); margin-bottom: 16px; }
+.field:focus-within { border-color: var(--accent); }
+.field input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 16px; }
+.otp { height: 64px; }
+.otp input { font-family: var(--mono); font-size: 28px; letter-spacing: .5em; text-align: center; padding-left: .5em; }
+.otp.recovery input { font-size: 22px; letter-spacing: .12em; padding-left: .12em; }
+.submit { width: 100%; height: 48px; border: 0; background: var(--accent); color: var(--accent-fg); font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 4px; }
+.submit:disabled { opacity: .55; cursor: default; }
+.alt { display: inline-block; margin-top: 14px; border: 0; background: none; padding: 0; font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.alt:hover { color: var(--accent); }
+.note { margin-top: 18px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+.back { display: inline-block; margin-top: 20px; font-size: 13px; color: var(--muted); }
+.back:hover { color: var(--accent); }
+.err { display: none; color: var(--accent); font-size: 13px; margin-bottom: 12px; }
+.err.show { display: block; }
+</style>
+
+<script>
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const f = $<HTMLFormElement>("f"), otp = $<HTMLInputElement>("otp"), err = $("err"),
+    btn = $<HTMLButtonElement>("submit"), alt = $<HTMLButtonElement>("alt"),
+    field = $("field"), label = $("otpLabel"), note = document.querySelector(".note") as HTMLElement;
+  let recovery = false, busy = false;
+
+  function showErr(msg: string) { err.textContent = msg; err.classList.add("show"); }
+  function clearErr() { err.classList.remove("show"); err.textContent = ""; }
+
+  alt.addEventListener("click", () => {
+    recovery = !recovery;
+    otp.value = ""; clearErr();
+    if (recovery) {
+      otp.removeAttribute("inputmode"); otp.removeAttribute("pattern"); otp.removeAttribute("autocomplete");
+      otp.type = "text"; otp.maxLength = 9; otp.placeholder = "xxxx-xxxx"; otp.autocapitalize = "off"; otp.spellcheck = false;
+      field.classList.add("recovery"); label.textContent = "恢复码"; alt.textContent = "使用验证码";
+      note.hidden = true;
+    } else {
+      otp.setAttribute("inputmode", "numeric"); otp.setAttribute("pattern", "[0-9]{6}"); otp.setAttribute("autocomplete", "one-time-code");
+      otp.maxLength = 6; otp.placeholder = "000000";
+      field.classList.remove("recovery"); label.textContent = "验证码"; alt.textContent = "使用恢复码";
+      note.hidden = false;
+    }
+    otp.focus();
+  });
+
+  otp.addEventListener("input", () => {
+    if (recovery) return; // 恢复码只在点击按钮时提交
+    otp.value = otp.value.replace(/\D/g, "").slice(0, 6);
+    if (otp.value.length === 6) f.requestSubmit();
+  });
+
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    const code = otp.value.trim();
+    if (!code) return;
+    busy = true; btn.disabled = true; clearErr();
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      if (res.ok) { location.href = "/console"; return; }
+      if (res.status === 429) {
+        let sec = Number(res.headers.get("Retry-After")) || 0;
+        try { const j = await res.json(); sec = Number(j.retryAfter) || sec; } catch {}
+        showErr(`尝试次数过多，请 ${Math.max(1, Math.ceil(sec / 60))} 分钟后再试`);
+      } else if (res.status === 401) {
+        showErr("验证码不正确");
+      } else {
+        showErr("网络错误，请重试");
+      }
+      otp.value = ""; otp.focus();
+    } catch {
+      showErr("网络错误，请重试");
+      otp.focus();
+    } finally {
+      busy = false; btn.disabled = false;
+    }
+  });
+</script>

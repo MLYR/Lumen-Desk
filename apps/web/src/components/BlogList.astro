@@ -1,0 +1,24 @@
+<section class="grid" id="blog">
+  <article class="card first last">
+    <div class="card-head">
+      <h2 class="card-title"><span class="dot"></span>博客</h2>
+      <span class="card-meta">RSS · 待上线</span>
+    </div>
+    <ul class="post-list">
+      <li><a href="#"><span class="d">草稿</span><div><div class="t">用一台 3M 小水管服务器搭个人站</div><div class="s">带宽只有 375 KB/s 时，页面要怎么做。</div></div><span class="tags">部署</span></a></li>
+      <li><a href="#"><span class="d">草稿</span><div><div class="t">接入 AIHOT：ETag 与条件请求</div><div class="s">用 304 把轮询成本降到几乎为零。</div></div><span class="tags">后端</span></a></li>
+      <li><a href="#"><span class="d">草稿</span><div><div class="t">Astro 岛屿架构上手记录</div><div class="s">默认零 JS，交互组件按需加载。</div></div><span class="tags">前端</span></a></li>
+    </ul>
+  </article>
+</section>
+
+<style is:global>
+.post-list { list-style: none; }
+.post-list li a { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 16px 0; border-top: 1px solid var(--soft-line); }
+@media (min-width: 700px) { .post-list li a { grid-template-columns: 120px 1fr auto; gap: 20px; align-items: baseline; } }
+.post-list .d { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.post-list .t { font-size: 17px; font-weight: 600; }
+.post-list .s { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.post-list .tags { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.post-list a:hover .t { color: var(--accent); }
+</style>

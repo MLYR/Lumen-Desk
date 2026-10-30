@@ -1,0 +1,32 @@
+{
+  "name": "api",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "init-totp": "tsx --env-file-if-exists=.env src/cli/init-totp.ts",
+    "revoke-sessions": "tsx --env-file-if-exists=.env src/cli/revoke-sessions.ts",
+    "import-bookmarks": "tsx --env-file-if-exists=.env src/cli/import-bookmarks.ts",
+    "unlock-logins": "tsx --env-file-if-exists=.env src/cli/unlock-logins.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "croner": "^11.0.0",
+    "hono": "^4.13.14",
+    "otpauth": "^9.5.2",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/qrcode-terminal": "^0.12.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

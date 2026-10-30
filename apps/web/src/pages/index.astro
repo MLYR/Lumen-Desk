@@ -1,0 +1,23 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+import Intro from "../components/Intro.astro";
+import Resume from "../components/Resume.astro";
+import BlogList from "../components/BlogList.astro";
+import LabList from "../components/LabList.astro";
+import Footer from "../components/Footer.astro";
+---
+<Layout title="zreo · 拾光台 Lumen Desk" description="zreo 的个人主页：简历、技术博客与试验场。">
+  <Header />
+  <main class="wrap">
+    <Intro />
+    <Resume />
+    <BlogList />
+    <LabList />
+  </main>
+  <Footer />
+</Layout>
+
+<style is:global>
+section { scroll-margin-top: 76px; }
+</style>

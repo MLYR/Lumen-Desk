@@ -1,7 +1,7 @@
-# 交接文档 · 航点 Waypoint
+# 交接文档 · 拾光台 Lumen Desk
 
 更新日期：2026-10-30
-阶段：P0 结束（方案和页面布局已定稿），下一步进入 P1 编码。
+阶段：P1 代码完成并在本机 Docker 全栈验证通过，待部署到服务器。仓库：<https://github.com/MLYR/Lumen-Desk>。
 完整方案见 `docs/PLAN.md`，本文只写接手需要知道的事。
 
 ## 1. 项目是什么
@@ -11,7 +11,7 @@ zreo 的个人站，部署在一台腾讯云轻量服务器上，分成两部分
 - **公开主页**：一句话介绍、简历、博客、技术试验场，所有人可看。
 - **私人控制台**：时间和搜索、个人简介、AI 热点滚动、收藏夹、服务器状态、博客和试验场入口，只有 zreo 自己能登录。
 
-项目名暂定 **航点 / Waypoint**，用户还没最终确认，备选见第 8 节。
+项目名定为 **拾光台 / Lumen Desk**（用户以此名创建仓库）。页面上的显示名仍是 zreo。
 
 ## 2. 已经定下来的决定
 
@@ -48,7 +48,7 @@ AAA/
 
 原型都是纯前端，没有真实后端：登录页不校验验证码；AI 热点是 2026-10-30 拉取的快照写死在页面里；服务器状态是示例数据；博客和简历是占位内容。
 
-目录还不是 Git 仓库，没有 `git init`。
+已推送到 GitHub。控制台截图含书签内容，同样在 `.gitignore` 里。
 
 ## 4. ⚠ 敏感数据
 
@@ -95,6 +95,19 @@ AAA/
   - 网站一旦商业化，要先申请书面授权。
 
 ## 7. 下一步
+
+### P1 完成情况（2026-10-30）
+- `apps/api`：Hono + `node:sqlite`。TOTP 登录（防重放）、恢复码、会话、限流、`/api/auth/check`、AIHOT 热点缓存、私有书签和服务器指标。CLI：`init-totp`、`import-bookmarks`、`revoke-sessions`、`unlock-logins`。19 个 vitest 测试通过。
+- `apps/web`：Astro 静态站，`/`、`/login`、`/console`；构建后控制台拆到 `dist-private/`。原型是纯 CSS，没有改写成 Tailwind。
+- `deploy/`：Caddyfile（forward_auth）、docker-compose.yml、`.env.example`、部署 README。`.github/workflows/deploy.yml`：仓库变量 `DEPLOY_ENABLED=true` 并配置 4 个 Secrets 后才部署。
+- 本机 Docker 实测：未登录访问 `/console`（含大小写、`//`、`..`、`%2F` 变体）都 302 到 `/login`；私有接口返回 401；20 个并发错误码只记 4 次 401，其余 429；伪造 X-Forwarded-For 无效。
+- 安全审查修复：登录检查改为无 await 的同步段（修复并发绕过限流）；登录只收 `application/json`；全站暂停期间恢复码可用，并新增 `unlock-logins`；书签链接只允许 http/https。
+
+### 已知遗留
+- 未加 CSP 头（Astro 的内联主题脚本需要 hash，后续再做）。
+- CI 里的 Actions 用版本标签而不是 commit SHA。
+- 备案前是纯 HTTP，`COOKIE_SECURE=false`，会话 Cookie 明文传输。
+- `dist/_astro/` 里有控制台 JS（只有代码和接口路径，没有数据）。
 
 ### 用户要做的（不阻塞编码）
 - [ ] 在腾讯云控制台提交 ICP 备案。个人备案的网站名称不要用"导航""平台"等字样，可以用"航点 · zreo 的个人主页"。整个流程 1～3 周，是最长的一步。

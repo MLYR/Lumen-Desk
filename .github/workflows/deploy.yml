@@ -1,0 +1,135 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  DEPLOY_DIR: /opt/lumen-desk
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm -r test
+
+      - name: Build web
+        run: pnpm --filter web build
+
+      - name: Upload public site
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-public
+          path: apps/web/dist/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload private console
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-private
+          path: apps/web/dist-private/
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    needs: build
+    # 服务器在国内，直接拉 GitHub / Docker Hub 很慢，所以在 CI 里构建镜像并把产物传过去。
+    # secrets 不能用于 if，所以用 vars 作为开关。
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download public site
+        uses: actions/download-artifact@v4
+        with:
+          name: web-public
+          path: apps/web/dist/
+
+      - name: Download private console
+        uses: actions/download-artifact@v4
+        with:
+          name: web-private
+          path: apps/web/dist-private/
+
+      - name: Build API image
+        run: |
+          docker build -f apps/api/Dockerfile -t lumen-desk-api:latest .
+          docker save lumen-desk-api:latest | gzip > "$RUNNER_TEMP/lumen-desk-api.tar.gz"
+
+      - name: Set up SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Sync static files
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          RSYNC_SSH="ssh -i $HOME/.ssh/id_deploy -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o StrictHostKeyChecking=yes"
+          ssh -i "$HOME/.ssh/id_deploy" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "mkdir -p $DEPLOY_DIR/web/public $DEPLOY_DIR/web/private $DEPLOY_DIR/data"
+          rsync -az --delete -e "$RSYNC_SSH" apps/web/dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DIR/web/public/"
+          rsync -az --delete -e "$RSYNC_SSH" apps/web/dist-private/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DIR/web/private/"
+
+      - name: Ship config and image
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          SCP_OPTS=(-i "$HOME/.ssh/id_deploy" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o StrictHostKeyChecking=yes)
+          TARGET="$DEPLOY_USER@$DEPLOY_HOST"
+          scp "${SCP_OPTS[@]}" deploy/Caddyfile deploy/docker-compose.yml "$TARGET:$DEPLOY_DIR/"
+          scp "${SCP_OPTS[@]}" "$RUNNER_TEMP/lumen-desk-api.tar.gz" "$TARGET:$DEPLOY_DIR/lumen-desk-api.tar.gz"
+
+      - name: Load image and restart
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i "$HOME/.ssh/id_deploy" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<EOF
+          set -euo pipefail
+          cd "$DEPLOY_DIR"
+          gunzip -c lumen-desk-api.tar.gz | docker load
+          rm -f lumen-desk-api.tar.gz
+          docker compose up -d --no-build --remove-orphans
+          docker compose ps
+          EOF
+
+      - name: Clean up key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy

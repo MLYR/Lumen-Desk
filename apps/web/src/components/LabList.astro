@@ -1,0 +1,33 @@
+<section class="grid" id="lab">
+  <article class="card first last">
+    <div class="card-head">
+      <h2 class="card-title"><span class="dot"></span>试验场</h2>
+      <span class="card-meta">每个实验一个页面</span>
+    </div>
+    <div class="labs">
+      <a class="lab" href="#"><canvas class="pv" id="lab-canvas" aria-label="流场粒子演示"></canvas><div class="body"><div class="nm">流场粒子</div><div class="ds">Canvas 2D，用三角函数造一个向量场。</div><div class="st">Canvas · 已完成</div></div></a>
+      <a class="lab" href="#"><div class="pv empty">WebGPU</div><div class="body"><div class="nm">WebGPU 粒子</div><div class="ds">计算着色器跑十万个粒子。</div><div class="st">WebGPU · 计划中</div></div></a>
+      <a class="lab" href="#"><div class="pv empty">WASM</div><div class="body"><div class="nm">浏览器里的图片压缩</div><div class="ds">Rust 编译成 WASM，不上传服务器。</div><div class="st">WASM · 计划中</div></div></a>
+    </div>
+  </article>
+</section>
+
+<style is:global>
+.labs { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 600px) { .labs { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 900px) { .labs { grid-template-columns: repeat(3, 1fr); } }
+.lab { display: block; border: 1px solid var(--soft-line); }
+.lab:hover { border-color: var(--accent); }
+.lab .pv { height: 160px; display: block; width: 100%; border-bottom: 1px solid var(--soft-line); }
+.lab .pv.empty { display: grid; place-items: center; font-family: var(--mono); font-size: 12px; color: var(--muted);
+  background-image: repeating-linear-gradient(45deg, var(--soft-line) 0 1px, transparent 1px 12px); }
+.lab .body { padding: 14px 16px 16px; }
+.lab .nm { font-size: 15px; font-weight: 600; }
+.lab .ds { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.lab .st { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 10px; }
+</style>
+
+<script>
+  import { startFlowField } from "../scripts/flowfield";
+  startFlowField(document.getElementById("lab-canvas") as HTMLCanvasElement, 260);
+</script>

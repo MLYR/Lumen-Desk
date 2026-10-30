@@ -1,0 +1,42 @@
+<section class="grid" id="resume">
+  <article class="card first last">
+    <div class="card-head">
+      <h2 class="card-title"><span class="dot"></span>简历</h2>
+      <span class="tag">占位内容</span>
+    </div>
+    <div class="resume">
+      <div>
+        <h3>// 经历</h3>
+        <ul class="timeline">
+          <li><span class="when">20XX — 至今</span><div><div class="what">公司名 · 职位</div><div class="desc">负责的方向、做过的代表项目，一两句话。</div></div></li>
+          <li><span class="when">20XX — 20XX</span><div><div class="what">公司名 · 职位</div><div class="desc">负责的方向、做过的代表项目，一两句话。</div></div></li>
+          <li><span class="when">20XX — 20XX</span><div><div class="what">学校 · 专业</div><div class="desc">学历信息。</div></div></li>
+        </ul>
+      </div>
+      <div>
+        <h3>// 技能</h3>
+        <dl class="skills">
+          <div><dt>后端</dt><dd><span class="chip">待填写</span><span class="chip">待填写</span></dd></div>
+          <div><dt>前端</dt><dd><span class="chip">Vue</span><span class="chip">React</span><span class="chip">待确认</span></dd></div>
+          <div><dt>运维</dt><dd><span class="chip">Docker</span><span class="chip">Linux</span><span class="chip">待确认</span></dd></div>
+          <div><dt>在学</dt><dd><span class="chip">Astro</span><span class="chip">Hono</span><span class="chip">AI Agent</span></dd></div>
+        </dl>
+      </div>
+    </div>
+  </article>
+</section>
+
+<style is:global>
+.resume { display: grid; gap: 28px; }
+@media (min-width: 900px) { .resume { grid-template-columns: 1fr 1fr; gap: 48px; } }
+.resume h3 { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 12px; letter-spacing: .04em; }
+.timeline { list-style: none; }
+.timeline li { display: grid; grid-template-columns: 112px 1fr; gap: 16px; padding: 12px 0; border-top: 1px solid var(--soft-line); }
+.timeline .when { font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 3px; }
+.timeline .what { font-size: 15px; font-weight: 600; }
+.timeline .desc { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.skills { display: grid; gap: 12px; }
+.skills div { display: grid; grid-template-columns: 72px 1fr; gap: 12px; align-items: baseline; padding-top: 12px; border-top: 1px solid var(--soft-line); }
+.skills dt { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.skills dd { display: flex; flex-wrap: wrap; gap: 6px; }
+</style>

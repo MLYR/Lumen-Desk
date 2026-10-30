@@ -1,0 +1,80 @@
+{
+	admin off
+}
+
+# SITE_ADDRESS 默认 :80（ICP 备案前用 IP 访问）；备案后改成域名即自动 HTTPS。
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# 私有接口：未登录一律 401，不做跳转。
+	handle /api/private/* {
+		forward_auth api:3000 {
+			uri /api/auth/check
+			@unauth status 401
+			handle_response @unauth {
+				respond 401
+			}
+		}
+		reverse_proxy api:3000 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
+	# 私人控制台：未登录跳转登录页。私有静态文件在 /srv/private。
+	@console path /console /console/*
+	handle @console {
+		forward_auth api:3000 {
+			uri /api/auth/check
+			@unauth status 401
+			handle_response @unauth {
+				redir * /login 302
+			}
+		}
+		root * /srv/private
+		header X-Robots-Tag noindex
+		header Cache-Control no-store
+		try_files {path} {path}/index.html
+		file_server
+	}
+
+	# 登录页：公开可访问，但不收录。
+	handle /login* {
+		header X-Robots-Tag noindex
+		root * /srv/public
+		try_files {path} {path}/ {path}/index.html
+		file_server
+	}
+
+	# 公开接口（AIHOT 缓存等）。覆盖客户端自带的 X-Forwarded-For。
+	handle /api/* {
+		reverse_proxy api:3000 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
+	# 其余全部是公开静态页。
+	handle {
+		root * /srv/public
+		header /_astro/* Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} {path}/ {path}/index.html
+		file_server
+	}
+
+	# 404 时返回 /404.html（若存在）。
+	handle_errors {
+		@notfound expression {http.error.status_code} == 404
+		handle @notfound {
+			root * /srv/public
+			rewrite * /404.html
+			file_server
+		}
+	}
+}

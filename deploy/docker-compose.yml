@@ -1,0 +1,44 @@
+name: lumen-desk
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web/public:/srv/public:ro
+      - ./web/private:/srv/private:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  api:
+    image: ${API_IMAGE:-lumen-desk-api:latest}
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    # 不发布端口，只允许 Caddy 通过内部网络访问。
+    expose:
+      - "3000"
+    volumes:
+      - ./data:/data
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/healthz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  caddy_data:
+  caddy_config:

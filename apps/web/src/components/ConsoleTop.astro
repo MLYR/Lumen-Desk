@@ -1,6 +1,6 @@
 ---
 // 三个控制台页面（/console、/console/write、/console/settings）共用的顶栏。
-// 右侧是头像菜单：设置、退出登录。写文章入口在控制台「博客」卡片上。脚本在 scripts/console/topbar.ts。
+// 右侧是头像菜单：编辑简历、设置、退出登录。写文章入口在控制台「博客」卡片上。脚本在 scripts/console/topbar.ts。
 import ThemeSwitch from "./ThemeSwitch.astro";
 import "../styles/topbar.css";
 interface Props { current: "home" | "write" | "settings" | "resume"; wide?: boolean; }
@@ -19,6 +19,7 @@ const { current, wide = false } = Astro.props;
       <div class="avatar-wrap">
         <button class="avatar-btn" id="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="avatar-menu" aria-label="账号菜单"><img id="avatar-img" alt="" width="32" height="32" hidden><span id="avatar-initial" aria-hidden="true">Z</span></button>
         <div class="avatar-menu" id="avatar-menu" role="menu" aria-label="账号" hidden>
+          <a role="menuitem" tabindex="-1" href="/console/resume" aria-current={current === "resume" ? "page" : undefined}>编辑简历</a>
           <a role="menuitem" tabindex="-1" href="/console/settings" aria-current={current === "settings" ? "page" : undefined}>设置</a>
           <button role="menuitem" tabindex="-1" id="logout" type="button">退出登录</button>
         </div>

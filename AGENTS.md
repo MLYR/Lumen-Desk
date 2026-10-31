@@ -37,6 +37,7 @@ pnpm --filter api dev        # 3000，读 apps/api/.env
 ### 私有数据
 
 - 书签数据（`design-demos/bookmarks.data.js`、`apps/api/data/`、任何 `bookmarks.json`）、`.env`、TOTP 密钥、恢复码、`*.db`，**永远不进 Git**，也不能复制进测试、fixture、文档、提交信息或日志。
+- 简历（`kv.resume`）同样是私有数据：真实内容只能通过 `/api/private/resume` 导入，不能写进代码、测试、文档或提交信息。打码必须在服务端完成，公开接口绝不能返回敏感原文。
 - 测试只用 `apps/api/test/fixtures/` 里的合成数据。
 - 控制台截图（`design-demos/shots/navigator-*`、`bm-filter.png`）含书签，已 gitignore，不要提交新的控制台截图。
 - 仓库是公开的。提交前检查 `git diff --cached`，确认没有内网地址、IP、密钥。

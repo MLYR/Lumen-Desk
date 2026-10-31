@@ -95,20 +95,25 @@ import "../styles/bookmarks.css";
   </section>
 
   <section class="grid">
-    <article class="card span-4 first">
+    <article class="card span-4 first" id="srvCard">
       <div class="card-head">
         <h2 class="card-title"><span class="dot"></span>服务器</h2>
+        <span class="srv-tag" id="srvTag" hidden></span>
       </div>
-      <div class="stats">
-        <div class="stat"><div class="v" id="svCpu">—</div><div class="k" id="svCpuK">CPU</div><div class="bar"><i id="svCpuBar" style="width:0"></i></div></div>
-        <div class="stat"><div class="v" id="svMem">—</div><div class="k" id="svMemK">内存</div><div class="bar"><i id="svMemBar" style="width:0"></i></div></div>
-        <div class="stat"><div class="v" id="svDisk">—</div><div class="k" id="svDiskK">磁盘</div><div class="bar"><i id="svDiskBar" style="width:0"></i></div></div>
+      <p class="srv-line" id="srvLine">—</p>
+      <div class="stats srv-stats">
+        <div class="stat" id="stCpu"><div class="v">—</div><div class="k">CPU</div><div class="bar"><i style="width:0"></i></div></div>
+        <div class="stat" id="stMem"><div class="v">—</div><div class="k">内存</div><div class="bar"><i style="width:0"></i></div></div>
+        <div class="stat" id="stDisk"><div class="v">—</div><div class="k">磁盘</div><div class="bar"><i style="width:0"></i></div></div>
+        <div class="stat" id="stSwap"><div class="v">—</div><div class="k">交换</div><div class="bar"><i style="width:0"></i></div></div>
       </div>
+      <div class="srv-net" id="srvNet"><span class="net-rate" id="srvRate">—</span><span class="net-total" id="srvTotal"></span></div>
       <div class="services">
         <div class="svc"><span>负载 1 / 5 / 15 分钟</span><span class="val" id="svLoad">—</span></div>
-        <div class="svc"><span>API 已运行</span><span class="val" id="svUp">—</span></div>
         <div class="svc"><span>主机已运行</span><span class="val" id="svHost">—</span></div>
+        <div class="svc"><span>API 已运行</span><span class="val" id="svUp">—</span></div>
       </div>
+      <ul class="srv-svcs" id="srvSvcs" aria-label="服务状态"></ul>
     </article>
     <article class="card span-4">
       <div class="card-head">

@@ -13,13 +13,21 @@ export function countUnusedRecoveryCodes(db: DB): number {
 }
 
 /** Replaces all recovery codes with `count` fresh ones; returns the plaintext codes (shown once). */
-export function generateRecoveryCodes(db: DB, count = 10, now = Date.now()): string[] {
+export function generateRecoveryCodes(db: DB, count = 10, now = Date.now(), opts: { inTransaction?: boolean } = {}): string[] {
   const codes = Array.from({ length: count }, newRecoveryCode);
-  db.exec('BEGIN');
-  try {
+  const write = () => {
     db.exec('DELETE FROM recovery_codes');
     const ins = db.prepare('INSERT INTO recovery_codes (code_hash, created) VALUES (?, ?)');
     for (const c of codes) ins.run(sha256Hex(c), now);
+  };
+  // Inside a caller's transaction (init-totp), just write; otherwise wrap it in our own.
+  if (opts.inTransaction) {
+    write();
+    return codes;
+  }
+  db.exec('BEGIN');
+  try {
+    write();
     db.exec('COMMIT');
   } catch (e) {
     db.exec('ROLLBACK');

@@ -173,3 +173,21 @@ a.ui-mi { text-decoration: none; }
 /* 弹框里的下拉浮层要高于弹框内容 */
 .ui-dialog .ui-pop { z-index: 5; }
 .ui-btn.primary.danger { background: var(--accent); }
+
+/* 重新绑定验证器弹框 */
+.rebind { width: min(460px, calc(100vw - 32px)); }
+.rb-steps { list-style: none; display: flex; gap: 4px; margin: 10px 0 14px; font: 11px var(--mono); color: var(--muted); }
+.rb-steps li { flex: 1; padding-top: 6px; border-top: 2px solid var(--soft-line); }
+.rb-steps li.on { color: var(--fg); border-color: var(--accent); }
+.rb-steps li.done { border-color: var(--muted); }
+.rb-qr { width: 232px; height: 232px; margin: 8px auto 12px; padding: 16px; background: #fff; border: 1px solid var(--line); display: grid; place-items: center; }
+.rb-qr img { display: block; width: 200px; height: 200px; image-rendering: pixelated; background: #fff; }
+.rb-manual { margin: 0 0 8px; font-size: 13px; }
+.rb-manual summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
+.rb-secret { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; margin-top: 4px; border: 1px dashed var(--line); }
+.rb-secret code { font: 14px var(--mono); letter-spacing: .06em; overflow-wrap: anywhere; user-select: all; }
+.rb-count { font: 12px var(--mono); color: var(--muted); margin: 4px 0 2px; }
+.rb-count.warn { color: var(--accent); }
+.rb-code { letter-spacing: .4em; text-align: center; font-size: 20px; }
+.ui-btn.sm { height: 30px; padding: 0 10px; font-size: 12px; }
+.ui-btn:disabled { opacity: .45; cursor: default; }

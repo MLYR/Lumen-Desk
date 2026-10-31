@@ -14,7 +14,7 @@ const consoleSrc = resolve(root, "dist/console");
 const privateDir = resolve(root, "dist-private");
 const consoleDest = resolve(privateDir, "console");
 if (!existsSync(resolve(consoleSrc, "index.html"))) fail("dist/console/index.html 不存在，astro build 是否成功？");
-for (const sub of ["write", "settings"]) {
+for (const sub of ["write", "settings", "resume"]) {
   if (!existsSync(resolve(consoleSrc, sub, "index.html"))) fail(`dist/console/${sub}/index.html 不存在，astro build 是否成功？`);
 }
 
@@ -41,7 +41,7 @@ if (existsSync(blogSrcDir)) fail("dist/blog 仍然存在");
 if (existsSync(resolve(root, "dist/blog.html"))) fail("dist/blog.html 不应存在");
 if (!existsSync(resolve(root, "dist/index.html"))) fail("dist/index.html 不存在");
 // 2. dist-private/ 有控制台、编辑器和设置页
-for (const f of ["console/index.html", "console/write/index.html", "console/settings/index.html"]) {
+for (const f of ["console/index.html", "console/write/index.html", "console/settings/index.html", "console/resume/index.html"]) {
   if (!existsSync(resolve(privateDir, f))) fail(`dist-private/${f} 不存在`);
 }
 // 3. dist-shell/blog.html 含三个占位符，各出现位置正确
@@ -58,7 +58,7 @@ for (const [name, re] of checks) {
 if (!shell.includes('id="blog-search"') || !shell.includes('id="blog-search-results"')) fail("dist-shell/blog.html 缺少搜索框或结果容器");
 
 // 4. 登录页和控制台永远不含统计脚本
-for (const f of [resolve(privateDir, "console/index.html"), resolve(privateDir, "console/write/index.html"), resolve(privateDir, "console/settings/index.html"), resolve(root, "dist/login/index.html")]) {
+for (const f of [resolve(privateDir, "console/index.html"), resolve(privateDir, "console/write/index.html"), resolve(privateDir, "console/settings/index.html"), resolve(privateDir, "console/resume/index.html"), resolve(root, "dist/login/index.html")]) {
   if (readFileSync(f, "utf8").includes("data-website-id")) fail(`${f} 不应含 Umami 脚本`);
 }
 

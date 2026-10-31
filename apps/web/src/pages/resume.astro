@@ -1,0 +1,40 @@
+---
+// 公开简历页 /resume/（要插入 Umami）。内容在浏览器里请求 /api/resume 后渲染，前端不做打码。
+// 接口返回 reveal=true（完整信息对外显示）时，用 JS 往 head 里加 noindex，避免完整信息被搜索引擎缓存。
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import "../styles/resume.css";
+---
+<Layout title="简历 · 拾光台" description="zreo 的简历：工作经历、项目经历与专业技能。" analytics>
+  <Header current="resume" />
+  <main class="wrap rs-main">
+    <div class="rs-bar">
+      <a class="rs-back" href="/">← 返回主页</a>
+      <button class="btn" id="rs-print" type="button">打印 / 存为 PDF</button>
+    </div>
+    <div class="rs" id="rs" aria-live="polite"><p class="rs-note">加载中…</p></div>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  import { renderResume, type PResume } from "../scripts/resume-render";
+  const root = document.getElementById("rs")!;
+  const note = (t: string) => { root.replaceChildren(); const p = document.createElement("p"); p.className = "rs-note"; p.textContent = t; root.append(p); };
+  document.getElementById("rs-print")!.addEventListener("click", () => window.print());
+  (async () => {
+    try {
+      const res = await fetch("/api/resume", { cache: "no-store" });
+      if (res.status === 404) return note("简历整理中");
+      if (!res.ok) throw new Error(String(res.status));
+      const r = (await res.json()) as PResume;
+      if (!r || !r.basics || !Array.isArray(r.work)) return note("简历整理中");
+      if (r.reveal === true || r.revealPublic === true) {
+        const m = document.createElement("meta"); m.name = "robots"; m.content = "noindex"; document.head.append(m);
+      }
+      renderResume(r, root);
+      if (r.basics.name?.text) document.title = `${r.basics.name.text} 的简历 · 拾光台`;
+    } catch { note("简历暂时无法加载，请稍后再试"); }
+  })();
+</script>

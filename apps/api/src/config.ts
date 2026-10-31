@@ -11,6 +11,10 @@ export interface Config {
   siteUrl: string;
   /** Directory holding blog.html (built by apps/web as dist-shell). */
   shellDir: string;
+  /** Read-only host files for the server card (os-release, hostname, net_dev). Default /host. */
+  hostRoot: string;
+  /** 32-byte key (base64) for AES-256-GCM encryption of secrets in the database; undefined = plaintext. */
+  secretKey: string | undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -28,5 +32,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     trustProxy: env.TRUST_PROXY?.toLowerCase() === 'true',
     siteUrl: (env.SITE_URL || 'https://example.com').replace(/\/+$/, ''),
     shellDir: path.resolve(env.SHELL_DIR || '../web/dist-shell'),
+    hostRoot: path.resolve(env.HOST_ROOT || '/host'),
+    secretKey: env.SECRET_KEY?.trim() || undefined,
   };
 }

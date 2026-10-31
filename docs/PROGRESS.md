@@ -20,10 +20,21 @@
 | P2.6 基础 UI 组件 | 完成 | 见 `docs/contracts/ui-components.md` |
 | P2.7 博客阅读体验 | 完成 | 见 `docs/contracts/blog-reader.md` |
 | P2.8 收藏夹管理 | 完成 | 见 `docs/contracts/bookmarks.md`；不做浏览器扩展 |
+| P2.9 服务器状态卡 | 完成 | `docs/contracts/server-status.md` |
+| P2.10 简历 | 完成 | `docs/contracts/resume.md`；简历内容只在服务器数据库 |
+| P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
 | P3 试验场 | 0 / 5 | 主页上有一个流场粒子预览 |
 | P4 增强 | 2 / 7 | Umami、Uptime Kuma 已部署到本机；其余待定 |
 
 ## 2. 已完成
+
+### P2.9–P2.11 服务器状态卡、简历、重新绑定验证器（2026-10-31，Orca 协同）
+
+- **服务器状态卡**（后端 `blog-api-v2`，前端 `blog-web-v2`）：`src/system/` 采集 CPU 使用率（/proc/stat 差值）、内存、交换、磁盘、负载、网络速率与累计（宿主 `/proc/1/net/dev`）、主机信息、服务状态（网站、AIHOT、经 Caddy 探测 Umami、Kuma）。compose 给 api 加 3 个只读文件挂载，不挂 docker.sock。本机 OrbStack 显示「Docker 虚拟机」。前端每 5 秒刷新一次，后台标签页暂停。
+- **简历**：只存在 `kv.resume`，不进 Git。服务端打码（姓名、手机、邮箱、生日、籍贯、现居地、公司、项目、客户，以及 keywords）。用 split/join 和线性的 findLoose 匹配：手机号允许分隔符和全角，邮箱忽略大小写，姓名允许中间有空白，统一 NFC。最后在归一化形式上再查一遍，有残留就整段替换。总开关 revealPublic 默认关闭，打开时 noindex 并从 sitemap 移除。公开页面 `/resume/` 支持打印 A4；控制台 `/console/resume` 可编辑并预览两种视图。用户的 2024 年简历由 Lead 通过私有接口导入，22 个敏感值（包括片段）在公开接口、页面 DOM、全部网络响应中精确匹配和归一化匹配都是 0 命中。
+- **重新绑定验证器**：密钥用 AES-256-GCM 加密存进 `kv.totp_secret`（需要 `SECRET_KEY`）。rebind 要先验证当前码；新密钥放在 pending 里 10 分钟；confirm 在一个事务里替换密钥、重置 last_step、退出其他会话，然后热替换。二维码由 uqr 生成 SVG。init-totp 改为写数据库，`--force` 视为重置。
+- **安全审查**（`security-review`，第五轮）：中 1 项，自由文本里敏感词换个写法就会漏，比如手机号带分隔符或全角、邮箱大小写不同、姓名中间有空格、NFD 编码；已修复。低 3 项：GCM 的 tag 长度没有固定，配置了 key 后仍接受 plain:；init-totp 的 --print-env 和 --force 存在隐患；主页在 reveal 打开时没有 noindex。均已修复。api 测试 153 个。
+- **本机配置**：`.env` 新增 `SECRET_KEY`、`HOST_ROOT`（原配置备份在 `.env.bak-p210`）；数据库备份在 `data/pre-p210.db`。
 
 ### P2.8 收藏夹管理（2026-10-31，Orca 协同）
 
@@ -136,6 +147,7 @@
 | 2026-10-30 | 新增 ROADMAP.md、PROGRESS.md、README.md、AGENTS.md |
 | 2026-10-30 | 用户确认：自动部署用 GitHub Actions；要 Umami 和 Uptime Kuma |
 | 2026-10-30 | P2 博客、Umami、Uptime Kuma、自动部署完成（Orca 协同 3 个 Worker） |
+| 2026-10-31 | P2.9 服务器状态卡、P2.10 简历（服务端打码）、P2.11 重新绑定验证器完成；第五轮安全审查 4 项修复 |
 | 2026-10-31 | 博客页加宽：外框 1680px，正文最宽 1040px（原来 68ch 约 690px），左右栏宽度不变；控制台顶栏只保留「控制台」，个人简介、博客、试验场的卡片标题在新标签页打开，头像菜单去掉「写文章」（入口在博客卡片上） |
 | 2026-10-31 | P2.8 完成：收藏夹在控制台里增删改、排序，导入导出浏览器格式，快照；第四轮安全审查 4 项修复 |
 | 2026-10-30 | P2.7 完成：博客左侧分类导航、右侧目录、上下篇、回到顶部/底部；第三轮安全审查 2 项修复 |

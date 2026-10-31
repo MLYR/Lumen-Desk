@@ -1,0 +1,48 @@
+---
+// 简历编辑器 /console/resume。构建后由 scripts/split-private.mjs 移到 dist-private/console/resume/。
+// 内容多（基本信息、经历、项目、技能、两种预览），所以单独成页；设置页里有入口。不插 Umami。
+import Layout from "../../layouts/Layout.astro";
+import ConsoleTop from "../../components/ConsoleTop.astro";
+import "../../styles/console.css";
+import "../../styles/ui.css";
+import "../../styles/resume.css";
+import "../../styles/resume-edit.css";
+---
+<Layout title="编辑简历 · 拾光台" noindex>
+<ConsoleTop current="resume" wide />
+<main class="wrap wide re" id="re" data-tab="edit">
+  <div class="re-toolbar" role="toolbar" aria-label="简历操作">
+    <div class="re-reveal">
+      <button class="re-switch" id="re-reveal" type="button" role="switch" aria-checked="false"><span class="re-sw" aria-hidden="true"></span><span>对外显示完整信息</span></button>
+      <span class="re-hint" id="re-reveal-hint">关闭：访客看到打码版</span>
+    </div>
+    <div class="re-tb-right">
+      <span class="re-state" id="re-state">已保存</span>
+      <a class="btn" id="re-export" href="/api/private/resume/export" download>导出 JSON 备份</a>
+      <button class="btn primary" id="re-save" type="button">保存 <kbd>⌘S</kbd></button>
+    </div>
+  </div>
+  <div class="re-msg" id="re-msg" role="status" aria-live="polite"></div>
+
+  <div class="re-tabs" role="tablist" aria-label="编辑与预览">
+    <button type="button" role="tab" id="rt-edit" data-t="edit" aria-selected="true">编辑</button>
+    <button type="button" role="tab" id="rt-preview" data-t="preview" aria-selected="false">预览</button>
+  </div>
+
+  <div class="re-form" id="re-form" role="tabpanel" aria-labelledby="rt-edit"></div>
+
+  <aside class="re-prev" id="re-prev" role="tabpanel" aria-labelledby="rt-preview">
+    <div class="re-prev-head">
+      <div class="re-seg" role="group" aria-label="预览视角">
+        <button type="button" id="pv-me" aria-pressed="true">我看到的</button>
+        <button type="button" id="pv-guest" aria-pressed="false">访客看到的</button>
+      </div>
+      <span class="re-hint" id="pv-state"></span>
+    </div>
+    <div class="rs" id="re-rs"></div>
+  </aside>
+</main>
+<script>
+  import "../../scripts/console/resume";
+</script>
+</Layout>

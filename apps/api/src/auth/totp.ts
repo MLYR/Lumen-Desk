@@ -15,19 +15,29 @@ export function makeTotp(secretBase32: string, issuer = 'Lumen Desk', label = 'z
   });
 }
 
-const LAST_STEP_KEY = 'totp_last_step';
+export const LAST_STEP_KEY = 'totp_last_step';
 
 /**
  * RFC 6238 check with a ±1 step window and replay protection: the matched
  * time-step must be strictly greater than the last accepted one.
  */
 export function verifyTotp(db: DB, totp: OTPAuth.TOTP, code: string, nowMs: number): boolean {
-  if (!/^\d{6}$/.test(code)) return false;
+  return matchStep(db, totp, code, nowMs, true) !== null;
+}
+
+/**
+ * Matched time-step, or null. `replay` = also require step > the last accepted one and record it.
+ * Rebind confirm uses replay=false for the *new* secret (its steps are independent of the old one's)
+ * and then sets totp_last_step itself inside its transaction.
+ */
+export function matchStep(db: DB, totp: OTPAuth.TOTP, code: string, nowMs: number, replay: boolean): number | null {
+  if (!/^\d{6}$/.test(code)) return null;
   const delta = totp.validate({ token: code, timestamp: nowMs, window: 1 });
-  if (delta === null) return false;
+  if (delta === null) return null;
   const step = totp.counter({ timestamp: nowMs }) + delta;
+  if (!replay) return step;
   const last = Number(kvGet(db, LAST_STEP_KEY) ?? -1);
-  if (step <= last) return false;
+  if (step <= last) return null;
   kvSet(db, LAST_STEP_KEY, String(step));
-  return true;
+  return step;
 }

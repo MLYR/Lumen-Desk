@@ -3,6 +3,7 @@ import { zipSync, strToU8 } from 'fflate';
 import type { Context, Hono } from 'hono';
 import type { Config } from '../config.js';
 import type { DB } from '../db.js';
+import { getSettings as getResumeSettings } from '../resume.js';
 import { ConflictError, errorResponse, InputError, limit, readJson, requireType, sameOrigin as sameOriginFor } from '../http.js';
 import { importToInput, toMarkdownFile } from './frontmatter.js';
 import { blogNav, fillShell, indexPage, listLayout, loadShell, notFoundPage, postPage, rss, SITE_NAME, sitemap, tagsPage } from './pages.js';
@@ -172,7 +173,7 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
     c.header('Cache-Control', PUBLIC_CACHE);
     c.header('Content-Type', 'application/xml; charset=utf-8');
     const cats = listCategoriesPublic(db).filter((x) => x.count > 0).map((x) => x.slug);
-    return c.body(sitemap(config.siteUrl, listPublished(db), cats));
+    return c.body(sitemap(config.siteUrl, listPublished(db), cats, !getResumeSettings(db).revealPublic));
   });
 
   // ---------- private ----------

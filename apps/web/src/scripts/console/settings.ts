@@ -5,6 +5,7 @@ import { setProfileCache, type Fact, type Link, type Profile } from "./topbar";
 import { renderIntro } from "../intro-render";
 import { confirmDialog } from "../ui/dialog";
 import { toast } from "../ui/toast";
+import { openRebind } from "./rebind";
 
 type Cat = { id: number; slug: string; name: string; description: string; sort: number; count: number; draftCount: number };
 type TagItem = { name: string; sort: number; count: number; draftCount: number };
@@ -320,6 +321,8 @@ $("codes-download").addEventListener("click", () => {
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
+
+$("rebind-btn").addEventListener("click", () => void openRebind(() => void loadSecurity()));
 
 /* ---------- 离开提醒、启动 ---------- */
 window.addEventListener("beforeunload", (e) => { if (pfDirty) { e.preventDefault(); e.returnValue = ""; } });

@@ -1,0 +1,83 @@
+/* 简历页 /resume/ 与控制台预览。两套主题 + 打印（A4 白底黑字）。 */
+.rs-main { padding-top: 24px; padding-bottom: 32px; }
+.rs-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 860px; margin: 0 auto 8px; }
+.rs-back { font: 13px var(--mono); color: var(--muted); }
+.rs-back:hover { color: var(--accent); }
+.rs { max-width: 860px; margin: 0 auto; padding: 8px 0 0; min-width: 0; overflow-wrap: anywhere; }
+[data-theme="blueprint"] .rs { padding: 28px 28px 32px; border: 1px solid var(--soft-line); background: var(--card); position: relative; }
+[data-theme="blueprint"] .rs::before, [data-theme="blueprint"] .rs::after { content: ""; position: absolute; width: 9px; height: 9px; border: 0 solid var(--accent); pointer-events: none; }
+[data-theme="blueprint"] .rs::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+[data-theme="blueprint"] .rs::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+.rs-note { color: var(--muted); font-size: 15px; padding: 32px 0; text-align: center; }
+
+.rs-head { padding-bottom: 20px; border-bottom: 2px solid var(--line); }
+[data-theme="blueprint"] .rs-head { border-bottom: 1px solid var(--line); }
+.rs-name { font-family: var(--display); font-weight: var(--display-weight); font-size: clamp(32px, 6vw, 52px); line-height: 1.1; letter-spacing: -.03em; }
+.rs-title { margin-top: 6px; font-size: 18px; color: var(--accent); font-weight: 600; }
+[data-theme="blueprint"] .rs-title { font-family: var(--mono); font-size: 15px; font-weight: 500; }
+.rs-meta { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 20px; margin-top: 16px; font-size: 14px; }
+.rs-meta li { display: flex; gap: 8px; min-width: 0; }
+.rs-k { flex: none; font: 12px var(--mono); color: var(--muted); padding-top: 2px; }
+.rs-sum { margin-top: 14px; font-size: 15px; line-height: 1.8; color: var(--muted); max-width: 46em; }
+
+.rs-sec { margin-top: 32px; }
+.rs-h { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: var(--display-weight); font-size: 22px; letter-spacing: -.01em; margin-bottom: 14px; }
+[data-theme="blueprint"] .rs-h { font-size: 15px; letter-spacing: .02em; }
+[data-theme="blueprint"] .rs-h::before { content: "//"; color: var(--accent); }
+.rs-h::after { content: ""; flex: 1; height: 1px; background: var(--soft-line); }
+
+.rs-tl { list-style: none; position: relative; margin-left: 6px; padding-left: 20px; border-left: 1px solid var(--line); }
+.rs-job { position: relative; padding-bottom: 24px; }
+.rs-job:last-child { padding-bottom: 0; }
+.rs-job::before { content: ""; position: absolute; left: -26px; top: 6px; width: 9px; height: 9px; background: var(--bg); border: 2px solid var(--accent); }
+[data-theme="paper"] .rs-job::before { border-radius: 50%; }
+.rs-jobtop { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.rs-when { font: 12px var(--mono); color: var(--muted); white-space: nowrap; }
+.rs-co { font-size: 17px; }
+.rs-role { font-size: 14px; color: var(--muted); }
+.rs-bl { list-style: none; margin-top: 8px; display: grid; gap: 4px; font-size: 14.5px; line-height: 1.75; }
+.rs-bl li { position: relative; padding-left: 16px; }
+.rs-bl li::before { content: ""; position: absolute; left: 2px; top: .8em; width: 5px; height: 5px; background: var(--accent); }
+[data-theme="paper"] .rs-bl li::before { border-radius: 50%; }
+
+.rs-projects { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+@media (min-width: 760px) { .rs-projects { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rs-proj { padding: 16px; border: 1px solid var(--soft-line); min-width: 0; }
+[data-theme="paper"] .rs-proj { border-width: 2px 0 0; border-color: var(--line); padding: 14px 0 0; }
+.rs-pname { font-size: 16px; line-height: 1.4; }
+.rs-client { margin-top: 4px; font-size: 13px; display: flex; gap: 8px; color: var(--muted); }
+.rs-desc { margin-top: 8px; font-size: 14px; line-height: 1.7; color: var(--muted); white-space: pre-line; }
+.rs-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rs-chips li { padding: 1px 8px; border: 1px solid var(--soft-line); font: 12px var(--mono); color: var(--muted); }
+.rs-proj .rs-bl { font-size: 14px; }
+
+.rs-skills { display: grid; gap: 0; }
+.rs-skills div { display: grid; grid-template-columns: minmax(84px, 128px) minmax(0, 1fr); gap: 16px; padding: 10px 0; border-top: 1px solid var(--soft-line); font-size: 14.5px; line-height: 1.7; }
+.rs-skills dt { font: 600 13px var(--mono); color: var(--accent); padding-top: 2px; }
+@media (max-width: 520px) { .rs-skills div { grid-template-columns: 1fr; gap: 2px; } .rs-meta { grid-template-columns: 1fr; } }
+.rf-lock { display: inline-flex; vertical-align: -1px; margin-left: 4px; color: var(--muted); opacity: .8; }
+
+/* 打印：A4，白底黑字；隐藏顶栏、页脚、操作栏；每段经历不跨页 */
+@page { size: A4; margin: 14mm 14mm; }
+@media print {
+  :root, [data-theme] { --bg: #fff; --fg: #000; --muted: #333; --line: #000; --soft-line: #999; --accent: #000; --card: #fff; --panel: #fff; --card-hover: #fff; }
+  html, body, [data-theme="blueprint"] body { background: #fff !important; color: #000 !important; font-size: 11pt; }
+  .top, footer, .rs-bar, .rd-fab, .ui-toasts { display: none !important; }
+  .wrap { max-width: none; padding: 0; }
+  .rs-main { padding: 0; }
+  .rs, [data-theme="blueprint"] .rs { max-width: none; padding: 0; border: 0; background: #fff; }
+  [data-theme="blueprint"] .rs::before, [data-theme="blueprint"] .rs::after { display: none; }
+  .rs-name { font-size: 26pt; }
+  .rs-title { color: #000; }
+  .rs-sec { margin-top: 14pt; }
+  .rs-h { font-size: 13pt; break-after: avoid; }
+  .rs-job, .rs-proj, .rs-skills > div, .rs-head { break-inside: avoid; page-break-inside: avoid; }
+  .rs-job::before { background: #fff; border-color: #000; }
+  .rs-bl li::before { background: #000; }
+  .rs-projects { grid-template-columns: 1fr 1fr; gap: 8pt; }
+  .rs-proj, [data-theme="paper"] .rs-proj { border: 1px solid #999; padding: 8pt; }
+  .rs-chips li { border-color: #999; color: #000; }
+  .rs-skills dt { color: #000; }
+  .rf-lock { display: none; }
+  a { color: #000; text-decoration: none; }
+}

@@ -82,7 +82,13 @@ Docker 卷（不在目录里）：`caddy_data`（证书）、`umami_db`（Umami 
 
    之后用 GitHub Actions 部署时，这一步会自动做，不用再手动执行。
 
-3. 复制 `deploy/.env.example` 为 `/opt/lumen-desk/.env`，此时 `TOTP_SECRET` 留空。按下面「生成后台登录密码」填好 `ADMIN_USER` 和 `ADMIN_PASSWORD_HASH`。
+3. 复制 `deploy/.env.example` 为 `/opt/lumen-desk/.env`，`TOTP_SECRET` 留空。按下面「生成后台登录密码」填好 `ADMIN_USER` 和 `ADMIN_PASSWORD_HASH`。再生成 `SECRET_KEY`（加密数据库里 TOTP 密钥用的主密钥）填进去：
+
+   ```bash
+   openssl rand -base64 32
+   ```
+
+   它只放在服务器的 `.env` 里，不进仓库，另外离线备份一份。丢了它，数据库里的 TOTP 密钥就解不开，只能重新运行 init-totp。不填也能运行，但密钥会明文存在数据库里，api 启动时会打印警告。
 4. 复制 `deploy/umami.env.example` 为 `/opt/lumen-desk/umami.env`，生成并填好 Umami 的数据库密码和签名密钥：
 
    ```bash
@@ -106,7 +112,9 @@ Docker 卷（不在目录里）：`caddy_data`（证书）、`umami_db`（Umami 
    ```
 
    终端会打印二维码，用 Google Authenticator 扫码。同时会显示 10 个一次性恢复码，离线保存好，只显示一次。
-   把脚本输出的 `TOTP_SECRET` 手动填进 `.env`。
+   密钥直接写进数据库（`data/lumen.db` 的 `kv.totp_secret`，用 `SECRET_KEY` 加密），**不用**再手动填进 `.env`。
+   已经有密钥时脚本会拒绝覆盖，确实要重来就加 `--force`。用 `--force` 重新生成密钥等于重置：旧验证器和旧恢复码立即失效，所有设备都会退出登录。
+   想要旧的行为（打印 `TOTP_SECRET=…` 让你填进 `.env`，不写数据库）就加 `--print-env`；数据库里已经有密钥时它会拒绝执行，因为 `.env` 的值不会生效。
 6. 首次启动：
 
    ```bash
@@ -156,6 +164,30 @@ rm /tmp/bookmarks.html
 - 两种方式都会先把原来的书签存一份快照（最多保留 10 份），导错了可以在控制台「管理 → 快照列表」里恢复。
 - 命令只打印文件夹数和链接数，不打印书签内容。文件超过 32 层嵌套或 20000 条时会拒绝导入，数据库不变。
 - 从旧版本升级：第一次启动时，如果数据库里还没有书签，api 会把 `data/bookmarks.json` 导入数据库，然后改名为 `data/bookmarks.json.migrated`（不删除，确认无误后可以手动删）。导入失败时会回滚，原文件不动，下次启动再试。
+
+## 服务器状态
+
+控制台的「服务器」卡片显示 api 所在机器的 CPU、内存、交换、磁盘、网络流量、负载和几个服务的状态，每 5 秒刷新一次。
+
+CPU、内存、负载、开机时长直接读容器里的 `/proc`（Docker 不隔离这些，读到的就是宿主机内核的值）。另外三项要靠 `docker-compose.yml` 里给 api 加的三个挂载：
+
+| 挂载 | 用途 |
+| --- | --- |
+| `/etc/os-release:/host/os-release:ro` | 宿主机的系统名称，例如 `Ubuntu 24.04 LTS` |
+| `/etc/hostname:/host/hostname:ro` | 宿主机的主机名 |
+| `/proc/1/net/dev:/host/net_dev:ro` | 宿主机网络命名空间里各网卡的收发字节数，用来算网速和累计流量 |
+
+- 三个都是 `:ro` 只读、都是单个文件。没有挂 `docker.sock`，没开 `privileged`，api 没有多出任何权限。
+- 读取目录由环境变量 `HOST_ROOT`（默认 `/host`）指定，compose 里已经写好。
+- 少了某个挂载也能运行：系统名称换成容器自己的，网络一栏显示「—」，卡片上会标「容器」。
+- 在本机 OrbStack 或 Docker Desktop 里跑时，读到的是 Docker 虚拟机，卡片上会标「Docker 虚拟机」；部署到服务器上就是服务器本身。
+- 「访问统计」和「网站监控」两项由 api 探测：分别请求 `http://caddy/u/script.js`（带 `SITE_URL` 的主机名作为 Host）和 `http://uptime-kuma:3001/`，超时 1.5 秒，结果缓存 30 秒。api 不加入 stats 网络。
+
+## 重新绑定验证器
+
+换手机或者怀疑密钥泄露时，登录控制台，在「设置 → 账号安全 → 重新绑定验证器」里操作：先输入**当前**验证器上的码，再扫新的二维码，输入**新**验证器上的码确认。确认之前旧验证器一直有效；确认后旧的立即失效，其他设备全部退出登录，恢复码不变，不用重启 api。
+
+从旧版本升级：`.env` 里原来的 `TOTP_SECRET` 会继续生效，直到第一次重新绑定（或运行 init-totp）把密钥写进数据库。之后 api 以数据库为准，启动日志里会有一行「TOTP 密钥来自数据库，.env 里的 TOTP_SECRET 已不再使用」，这时可以把 `.env` 里的 `TOTP_SECRET` 删掉。
 
 ## 作废所有登录会话
 
@@ -268,7 +300,7 @@ gh variable set DEPLOY_ENABLED --body "true"
 
 ### 6. 在服务器上准备 `.env` 和 `umami.env`
 
-CI 不会创建这两个文件。第一次部署前，按"首次部署"里的第 3、4、5 步，在 `/opt/lumen-desk/` 下填好 `.env`（含 `TOTP_SECRET`、`ADMIN_USER`、`ADMIN_PASSWORD_HASH`）和 `umami.env`。缺任何一项，`docker compose up` 会报错，部署会失败。
+CI 不会创建这两个文件。第一次部署前，按"首次部署"里的第 3、4、5 步，在 `/opt/lumen-desk/` 下填好 `.env`（含 `SECRET_KEY`、`ADMIN_USER`、`ADMIN_PASSWORD_HASH`）和 `umami.env`，并运行一次 init-totp。缺任何一项，`docker compose up` 会报错，部署会失败。
 
 ### 7. 第一次运行
 
@@ -395,6 +427,6 @@ ICP 备案拿到号之前，全部用 IP 走 HTTP 访问。备案通过后：
 ## 注意
 
 - 生产镜像不含 `tsx`，所以容器里用 `node dist/cli/*.js` 运行脚本；本地开发用 `pnpm --filter api init-totp` 等命令。
-- `TOTP_SECRET`、恢复码、`.env`、`umami.env`、书签数据、`data/` 都不进 Git。
+- `SECRET_KEY`、`TOTP_SECRET`、恢复码、`.env`、`umami.env`、书签数据、简历、`data/` 都不进 Git。
 - 备案前 `SITE_ADDRESS=:80`，用 IP 访问。备案后的完整步骤见上面的「备案后切换到域名」。
 - 在 `COOKIE_SECURE=false` 的纯 HTTP 阶段，验证码和会话 Cookie 都是明文传输。这段时间尽量不在公共网络登录控制台，或用 SSH 隧道访问。

@@ -3,7 +3,7 @@
 // 右侧是头像菜单：设置、退出登录。写文章入口在控制台「博客」卡片上。脚本在 scripts/console/topbar.ts。
 import ThemeSwitch from "./ThemeSwitch.astro";
 import "../styles/topbar.css";
-interface Props { current: "home" | "write" | "settings"; wide?: boolean; }
+interface Props { current: "home" | "write" | "settings" | "resume"; wide?: boolean; }
 const { current, wide = false } = Astro.props;
 ---
 <header class="top">

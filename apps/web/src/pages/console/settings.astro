@@ -27,6 +27,7 @@ import "../../styles/settings.css";
         <form class="pf-form" id="pf-form" autocomplete="off" novalidate>
           <h1 class="st-h">个人资料</h1>
           <p class="st-sub">同步到公开主页的简介、控制台的简介卡和右上角头像。</p>
+          <p class="st-sub"><a class="st-link" href="/console/resume">编辑简历 →</a> 简历内容、哪些信息对访客打码、预览访客看到的样子，都在单独的页面里。</p>
           <div class="pf-avatar-row">
             <span class="pf-avatar" id="pfa"><img id="pfa-img" alt="" hidden><span id="pfa-ini">Z</span></span>
             <div class="pf-avatar-btns">
@@ -106,6 +107,10 @@ import "../../styles/settings.css";
         <button class="btn" type="button" id="revoke-others">退出其他设备</button>
         <button class="btn danger" type="button" id="revoke-all">退出所有设备</button>
       </div>
+
+      <h2 class="st-h2">验证器</h2>
+      <p class="st-sub">换了手机或想更换验证器时，重新绑定。需要先输入当前验证器上的 6 位码；新验证器确认之前，旧的一直有效。</p>
+      <div class="st-actions"><button class="btn" type="button" id="rebind-btn">重新绑定验证器</button></div>
 
       <h2 class="st-h2">重新生成恢复码</h2>
       <p class="st-sub">旧恢复码会全部作废。新的恢复码只显示一次，请立刻保存。</p>

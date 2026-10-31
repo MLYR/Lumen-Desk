@@ -1,10 +1,7 @@
-import fs from 'node:fs/promises';
-import os from 'node:os';
 import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { getConnInfo } from '@hono/node-server/conninfo';
-import type * as OTPAuth from 'otpauth';
 import type { Config } from './config.js';
 import type { DB } from './db.js';
 import { getHot } from './sources/aihot.js';
@@ -12,23 +9,31 @@ import { registerBlog } from './blog/routes.js';
 import { lockedResponse } from './http.js';
 import { registerSettings } from './routes/settings.js';
 import { registerBookmarks } from './routes/bookmarks.js';
+import { registerResume } from './routes/resume.js';
+import { ServerCollector, type CollectorOptions } from './system/index.js';
 import { lockedFor, recordFailure, recordSuccess } from './auth/ratelimit.js';
 import { consumeRecoveryCode, RECOVERY_RE, normalizeRecovery } from './auth/recovery.js';
 import { createSession, deleteSession, SESSION_COOKIE, SESSION_TTL_S, validateSession } from './auth/sessions.js';
-import { makeTotp, verifyTotp } from './auth/totp.js';
+import { verifyTotp } from './auth/totp.js';
+import { parseSecretKey, TotpStore } from './auth/secret-store.js';
 
 export interface AppDeps {
   config: Config;
   db: DB;
   now?: () => number;
+  /** Server card collector overrides (fixture proc files, mocked probes). */
+  server?: Partial<CollectorOptions>;
+  /** Tests may share one store between app instances. */
+  totpStore?: TotpStore;
 }
 
-export function createApp({ config, db, now = Date.now }: AppDeps): Hono {
+export function createApp({ config, db, now = Date.now, server: serverOpts, totpStore }: AppDeps): Hono {
   const app = new Hono();
-  const totp: OTPAuth.TOTP | null = config.totpSecret
-    ? makeTotp(config.totpSecret, config.totpIssuer, config.totpLabel)
-    : null;
-  if (!totp) console.warn('[auth] TOTP_SECRET is not set; only recovery codes can log in');
+  const server = new ServerCollector({ db, dataDir: config.dataDir, hostRoot: config.hostRoot, siteUrl: config.siteUrl, now, ...serverOpts });
+  // The live TOTP instance: read through totp.get() on every check, so a rebind applies at once.
+  const totp =
+    totpStore ??
+    new TotpStore({ db, key: parseSecretKey(config.secretKey), envSecret: config.totpSecret, issuer: config.totpIssuer, label: config.totpLabel });
 
   const clientIp = (c: Context): string => {
     if (config.trustProxy) {
@@ -75,7 +80,10 @@ export function createApp({ config, db, now = Date.now }: AppDeps): Hono {
       if (locked > 0) return lockedResponse(c, locked);
 
       let ok = false;
-      if (isTotp) ok = totp !== null && verifyTotp(db, totp, code, t);
+      if (isTotp) {
+        const live = totp.get();
+        ok = live !== null && verifyTotp(db, live, code, t);
+      }
       else if (isRecovery) ok = consumeRecoveryCode(db, code, t);
 
       if (!ok) {
@@ -121,24 +129,11 @@ export function createApp({ config, db, now = Date.now }: AppDeps): Hono {
 
   registerBookmarks(app, { config, db, now });
 
-  app.get('/api/private/server', async (c) => {
-    const [load1, load5, load15] = os.loadavg();
-    const total = os.totalmem();
-    // Docker doesn't namespace /proc/meminfo or loadavg, so these are host values.
-    // MemAvailable excludes page cache, matching what `free` reports as used.
-    const available = await memAvailable();
-    const st = await fs.statfs(config.dataDir);
-    return c.json({
-      cpu: { cores: os.availableParallelism(), load1, load5, load15 },
-      mem: { total, used: total - (available ?? os.freemem()) },
-      disk: { total: st.blocks * st.bsize, used: (st.blocks - st.bfree) * st.bsize },
-      uptime: process.uptime(),
-      hostUptime: os.uptime(),
-    });
-  });
+  app.get('/api/private/server', async (c) => c.json(await server.collect()));
 
   registerBlog(app, { config, db, now });
   registerSettings(app, { config, db, now, totp, clientIp });
+  registerResume(app, { config, db, now });
 
   app.notFound((c) => c.json({ error: 'not_found' }, 404));
   app.onError((err, c) => {
@@ -147,14 +142,4 @@ export function createApp({ config, db, now = Date.now }: AppDeps): Hono {
   });
 
   return app;
-}
-
-
-async function memAvailable(): Promise<number | null> {
-  try {
-    const m = /^MemAvailable:\s+(\d+) kB/m.exec(await fs.readFile('/proc/meminfo', 'utf8'));
-    return m ? Number(m[1]) * 1024 : null;
-  } catch {
-    return null;
-  }
 }

@@ -50,12 +50,18 @@ services:
     environment:
       # 博客页面外壳（apps/web 的 dist-shell）由 CI 同步到 ./web/shell。
       SHELL_DIR: /srv/shell
+      # 控制台「服务器」卡片读取下面三个只读挂载的目录。
+      HOST_ROOT: /host
     # 不发布端口，只允许 Caddy 通过内部网络访问。
     expose:
       - "3000"
     volumes:
       - ./data:/data
       - ./web/shell:/srv/shell:ro
+      # 服务器状态卡用，全部只读、都是单个文件（不挂 docker.sock，不开特权）。
+      - /etc/os-release:/host/os-release:ro
+      - /etc/hostname:/host/hostname:ro
+      - /proc/1/net/dev:/host/net_dev:ro
     mem_limit: 256m
     logging: *default-logging
     healthcheck:

@@ -1,6 +1,6 @@
 ---
 import ThemeSwitch from "./ThemeSwitch.astro";
-interface Props { current?: "home" | "blog"; wide?: boolean; }
+interface Props { current?: "home" | "blog" | "resume"; wide?: boolean; }
 const { current = "home", wide = false } = Astro.props;
 ---
 <header class="top">
@@ -8,7 +8,7 @@ const { current = "home", wide = false } = Astro.props;
     <a class="brand" href="/"><span class="brand-mark">z</span>zreo</a>
     <nav class="nav" aria-label="主导航">
       <a href="/" aria-current={current === "home" ? "page" : undefined}>主页</a>
-      <a href="/#resume">简历</a>
+      <a href="/resume/" aria-current={current === "resume" ? "page" : undefined}>简历</a>
       <a href="/blog/" aria-current={current === "blog" ? "page" : undefined}>博客</a>
       <a href="/#lab">试验场</a>
     </nav>

@@ -3,6 +3,7 @@ import { startFlowField } from "../flowfield";
 import { getProfile } from "./topbar";
 import { esc, initialOf, initials, safeAvatar, safeUrl } from "./common";
 import { bookmarkCmds, loadBookmarks } from "./bookmarks";
+import { startServerCard } from "./server";
 
 type Hot = { rank: number; title: string; sourceCount: number; url: string };
 type Cmd = { name: string; group: string; keys?: string; run: () => void };
@@ -55,35 +56,8 @@ loadHot();
 /* 收藏夹（逻辑在 bookmarks.ts；增删改之后会回调这里刷新命令面板的数据） */
 loadBookmarks(() => buildCmds());
 
-/* 服务器状态 */
-const GB = 1024 ** 3;
-const fmtSize = (b: number) => (b >= GB ? (b / GB).toFixed(b >= 10 * GB ? 0 : 1) + "G" : Math.round(b / 1024 ** 2) + "M");
-const fmtUp = (s: number) => { const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60); return d ? `${d} 天 ${h} 小时` : h ? `${h} 小时 ${m} 分` : `${m} 分`; };
-const pct = (a: number, b: number) => (b > 0 ? Math.max(0, Math.min(100, (a / b) * 100)) : 0);
-function setStat(id: string, v: string, k: string, p: number) {
-  $("#" + id).textContent = v; $("#" + id + "K").textContent = k; $("#" + id + "Bar").style.width = p.toFixed(0) + "%";
-}
-function serverFail() {
-  ["svCpu", "svMem", "svDisk", "svLoad", "svUp", "svHost"].forEach((id) => { $("#" + id).textContent = "—"; });
-  ["svCpuBar", "svMemBar", "svDiskBar"].forEach((id) => { $("#" + id).style.width = "0"; });
-}
-async function loadServer() {
-  try {
-    const res = await getJSON("/api/private/server");
-    if (res.status === 401) return goLogin();
-    if (!res.ok) throw new Error(String(res.status));
-    const s = await res.json();
-    const cpu = pct(s.cpu.load1, s.cpu.cores);
-    setStat("svCpu", cpu.toFixed(0) + "%", `CPU · ${s.cpu.cores} 核`, cpu);
-    setStat("svMem", fmtSize(s.mem.used), `内存 / ${fmtSize(s.mem.total)}`, pct(s.mem.used, s.mem.total));
-    setStat("svDisk", fmtSize(s.disk.used), `磁盘 / ${fmtSize(s.disk.total)}`, pct(s.disk.used, s.disk.total));
-    $("#svLoad").textContent = [s.cpu.load1, s.cpu.load5, s.cpu.load15].map((n: number) => n.toFixed(2)).join(" / ");
-    $("#svUp").textContent = fmtUp(s.uptime);
-    $("#svHost").textContent = fmtUp(s.hostUptime);
-  } catch { serverFail(); }
-}
-loadServer();
-setInterval(() => { if (!document.hidden) loadServer(); }, 30 * 1000);
+/* 服务器状态（逻辑在 server.ts） */
+startServerCard();
 
 /* 简介卡：名字、头像、bio 从个人资料读（退出登录在顶栏头像菜单里，见 topbar.ts） */
 getProfile().then((p) => {

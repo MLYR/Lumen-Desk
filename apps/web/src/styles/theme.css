@@ -18,6 +18,7 @@ button, input { font: inherit; color: inherit; }
   --fg: #151515; --muted: #5b5852; --line: #151515; --soft-line: rgba(21,21,21,.16);
   --accent: #d93a17; --accent-fg: #fff;
   --display: var(--sans); --display-weight: 800;
+  --ok: #1f8a57;
 }
 /* 蓝图（夜间） */
 [data-theme="blueprint"] {
@@ -25,6 +26,7 @@ button, input { font: inherit; color: inherit; }
   --fg: #e7eefc; --muted: #a2b6d8; --line: rgba(170, 200, 255, .24); --soft-line: rgba(170, 200, 255, .16);
   --accent: #ffb547; --accent-fg: #0c2042;
   --display: var(--mono); --display-weight: 500;
+  --ok: #3ddc97;
 }
 [data-theme="blueprint"] body {
   background-image:

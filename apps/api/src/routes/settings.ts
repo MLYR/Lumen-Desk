@@ -1,22 +1,23 @@
 import path from 'node:path';
 import type { Context, Hono } from 'hono';
 import { deleteCookie, getCookie } from 'hono/cookie';
-import type * as OTPAuth from 'otpauth';
 import type { Config } from '../config.js';
 import type { DB } from '../db.js';
-import { errorResponse, limit, lockedResponse, readJson, requireType, sameOrigin as sameOriginFor } from '../http.js';
+import { errorResponse, limit, readJson, requireType, sameOrigin as sameOriginFor } from '../http.js';
 import { getProfile, parseProfile, saveProfile, setAvatar } from '../profile.js';
-import { lockedFor, recordFailure, recordSuccess } from '../auth/ratelimit.js';
 import { countUnusedRecoveryCodes, generateRecoveryCodes } from '../auth/recovery.js';
 import { countSessions, deleteAllSessions, deleteOtherSessions, getSession, SESSION_COOKIE } from '../auth/sessions.js';
 import { verifyTotp } from '../auth/totp.js';
+import type { TotpStore } from '../auth/secret-store.js';
+import { checkCurrentTotp } from './totp-guard.js';
+import { registerTotpRebind } from './totp-rebind.js';
 import { imageErrorResponse, readImageField, storeAvatar } from '../blog/uploads.js';
 
 export interface SettingsDeps {
   config: Config;
   db: DB;
   now: () => number;
-  totp: OTPAuth.TOTP | null;
+  totp: TotpStore;
   clientIp: (c: Context) => string;
 }
 
@@ -97,20 +98,15 @@ export function registerSettings(app: Hono, { config, db, now, totp, clientIp }:
       return errorResponse(c, err);
     }
 
-    // Same rules as login: no await from the lock check to recording the outcome,
-    // so parallel requests can't all get past the lock. Shares the login counters.
-    const ip = clientIp(c);
     const t = now();
-    const locked = lockedFor(db, ip, t);
-    if (locked > 0) return lockedResponse(c, locked);
-    const ok = /^\d{6}$/.test(code) && totp !== null && verifyTotp(db, totp, code, t);
-    if (!ok) {
-      const lockMs = recordFailure(db, ip, t);
-      if (lockMs > 0) return lockedResponse(c, lockMs);
-      return c.json({ error: 'invalid_code' }, 401);
-    }
-    recordSuccess(db, ip);
+    const denied = checkCurrentTotp(c, db, clientIp(c), t, (code6, at) => {
+      const live = totp.get();
+      return live !== null && verifyTotp(db, live, code6, at);
+    }, code);
+    if (denied) return denied;
     // Replaces every old code in one transaction; the plaintext only ever appears in this response.
     return c.json({ codes: generateRecoveryCodes(db, 10, t) });
   });
+
+  registerTotpRebind(app, { config, db, now, totp, clientIp });
 }

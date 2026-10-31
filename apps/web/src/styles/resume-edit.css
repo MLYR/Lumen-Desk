@@ -1,0 +1,87 @@
+/* 简历编辑器 /console/resume */
+.re { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding-top: 20px; padding-bottom: 32px; align-items: start; }
+.re > * { min-width: 0; }
+.re-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding-bottom: 12px; border-bottom: 1px solid var(--soft-line); }
+.re-reveal, .re-tb-right { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.re-state { font: 12px var(--mono); color: var(--muted); }
+.re-state.dirty { color: var(--accent); }
+.re-hint { font: 12px var(--mono); color: var(--muted); }
+.re-hint.on { color: var(--accent); }
+.re-switch { display: inline-flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border: 1px solid var(--line); background: var(--card); color: var(--fg); font-size: 14px; cursor: pointer; border-radius: 0; }
+.re-switch:hover { border-color: var(--accent); }
+.re-sw { width: 28px; height: 14px; border: 1px solid var(--line); background: var(--panel); background-image: linear-gradient(var(--muted), var(--muted)); background-size: 10px 10px; background-repeat: no-repeat; background-position: 1px center; transition: background-position .14s; }
+.re-switch[aria-checked="true"] { border-color: var(--accent); }
+.re-switch[aria-checked="true"] .re-sw { background-image: linear-gradient(var(--accent), var(--accent)); background-position: 15px center; border-color: var(--accent); }
+.re-msg { min-height: 20px; font-size: 13px; overflow-wrap: anywhere; color: var(--muted); }
+.re-msg.err { color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn.primary kbd { color: inherit; border-color: currentColor; opacity: .8; }
+.btn.sm { height: 30px; padding: 0 10px; font-size: 12px; }
+.btn:disabled { opacity: .45; cursor: default; }
+a.btn { text-decoration: none; }
+
+.re-tabs { display: flex; border-bottom: 1px solid var(--line); }
+.re-tabs button { flex: 1; height: 40px; border: 0; border-bottom: 2px solid transparent; background: none; cursor: pointer; font-size: 14px; color: var(--muted); }
+.re-tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+@media (max-width: 1099px) { .re[data-tab="edit"] .re-prev, .re[data-tab="preview"] .re-form { display: none; } }
+@media (min-width: 1100px) { .re { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 32px; } .re-toolbar, .re-msg { grid-column: 1 / -1; } .re-tabs { display: none; } .re-prev { position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow: auto; } }
+
+.re-sec { margin-top: 22px; }
+.re-sec-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--soft-line); }
+.re-sec-h h2 { font: 500 13px var(--mono); color: var(--muted); letter-spacing: .04em; }
+.re-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 20px; }
+@media (min-width: 640px) and (max-width: 1099px), (min-width: 1500px) { .re-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.re-row { display: grid; grid-template-columns: 72px minmax(0, 1fr) 36px; gap: 8px; align-items: start; margin-bottom: 10px; }
+.re-l { font: 12px var(--mono); color: var(--muted); padding-top: 11px; }
+.re-in { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font-size: 14px; border-radius: 0; line-height: 1.6; }
+input.re-in { height: 38px; }
+textarea.re-in { resize: vertical; }
+.re-in:focus { outline: 0; border-color: var(--accent); }
+.re-lock { display: grid; place-items: center; width: 36px; height: 38px; padding: 0; border: 1px solid var(--soft-line); background: none; color: var(--muted); cursor: pointer; border-radius: 0; }
+.re-lock svg { display: block; }
+.re-lock[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.re-lock:hover { border-color: var(--accent); color: var(--accent); }
+.re-lock:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.re-nolock { display: block; }
+.re-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.re-two .re-row { grid-template-columns: 44px minmax(0, 1fr); }
+.re-two .re-nolock { display: none; }
+.re-card { padding: 12px; border: 1px solid var(--soft-line); margin-bottom: 12px; background: var(--card); }
+[data-theme="paper"] .re-card { border-width: 2px 0 0; border-color: var(--line); padding: 12px 0 0; background: none; }
+.re-card-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.re-card-h strong { font: 600 13px var(--mono); }
+.re-tools { display: inline-flex; gap: 4px; }
+.re-ib { min-width: 32px; height: 30px; padding: 0 8px; border: 1px solid var(--soft-line); background: none; color: var(--muted); font-size: 13px; cursor: pointer; border-radius: 0; }
+.re-ib:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.re-ib:disabled { opacity: .3; cursor: default; }
+.re-ib.del:hover:not(:disabled) { color: var(--accent); }
+.re-bl { margin: 4px 0 4px 0; }
+.re-bl-h { font: 12px var(--mono); color: var(--muted); margin-bottom: 6px; }
+.re-bl ul { list-style: none; display: grid; gap: 6px; margin-bottom: 8px; }
+.re-bl li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 4px; align-items: start; }
+.re-skill { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(0, 3fr) auto auto auto; gap: 4px; margin-bottom: 8px; align-items: start; }
+@media (max-width: 599px) { .re-skill { grid-template-columns: minmax(0, 1fr) auto auto auto; } .re-skill > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; } .re-row { grid-template-columns: 60px minmax(0, 1fr) 36px; } }
+
+.re-prev { border: 1px solid var(--soft-line); background: var(--card); padding: 12px 16px 20px; }
+.re-prev-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--soft-line); }
+.re-seg { display: inline-flex; border: 1px solid var(--line); }
+.re-seg button { height: 30px; padding: 0 12px; border: 0; background: none; color: var(--muted); font-size: 13px; cursor: pointer; }
+.re-seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.re-prev .rs { max-width: none; font-size: 14px; }
+.re-prev .rs-name { font-size: 30px; }
+.re-prev .rs-h { font-size: 17px; }
+@media (prefers-reduced-motion: reduce) { .re-sw { transition: none; } }
+
+/* 其他需要隐藏的词 */
+.re-kw-note { margin-bottom: 8px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+.tagbox.re-kw { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 40px; padding: 4px 8px; border: 1px solid var(--line); background: var(--panel); cursor: text; }
+.tagbox.re-kw:focus-within { border-color: var(--accent); }
+.re-kw .tag-chips { display: contents; }
+.re-kw .tag-chip { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; height: 28px; padding: 0 2px 0 8px; border: 1px solid var(--soft-line); background: var(--card-hover); font-size: 13px; }
+.re-kw .tag-chip > span { overflow-wrap: anywhere; }
+.re-kw .tag-x { width: 24px; height: 24px; border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 16px; line-height: 1; }
+.re-kw .tag-x:hover, .re-kw .tag-x:focus-visible { color: var(--accent); }
+.re-kw input { flex: 1 1 140px; min-width: 100px; height: 28px; border: 0; padding: 0 2px; background: none; color: var(--fg); font-size: 14px; outline: 0; }
+.re-kw-err { min-height: 18px; margin-top: 4px; font-size: 12px; color: var(--accent); }
+.re-kw-n { font: 11px var(--mono); color: var(--muted); text-align: right; }
+.kw-mark { text-decoration: underline dashed; text-decoration-color: color-mix(in srgb, var(--accent) 70%, transparent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; background: color-mix(in srgb, var(--accent) 8%, transparent); }

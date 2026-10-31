@@ -53,7 +53,6 @@ import "../styles/bookmarks.css";
         </dl>
         <div class="pub-links">
           <a href="/">公开主页</a>
-          <a href="/#resume">简历</a>
           <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
         </div>
       </div>
@@ -95,7 +94,25 @@ import "../styles/bookmarks.css";
   </section>
 
   <section class="grid">
-    <article class="card span-4 first" id="srvCard">
+        <article class="card span-6 first" id="rsCard">
+      <div class="card-head">
+        <h2 class="card-title"><a class="card-link" href="/resume/" target="_blank" rel="noopener" title="在新标签页打开公开简历"><span class="dot"></span>简历<svg class="ext" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></h2>
+        <a class="card-meta more" href="/console/resume">编辑简历</a>
+      </div>
+      <div class="rs" id="rsBody">
+        <div class="rs-state"><span class="rs-badge" id="rsBadge">—</span><span class="rs-note" id="rsNote">加载中…</span></div>
+        <dl class="rs-stats">
+          <div><dt>工作经历</dt><dd id="rsWork">—</dd></div>
+          <div><dt>项目</dt><dd id="rsProj">—</dd></div>
+          <div><dt>技能分组</dt><dd id="rsSkill">—</dd></div>
+          <div><dt>打码字段</dt><dd id="rsMasked">—</dd></div>
+        </dl>
+        <div class="rs-recent"><p class="rs-h">最近经历</p><ul id="rsRecent"><li class="rs-empty">—</li></ul></div>
+        <div class="svc"><span>最近更新</span><span class="val" id="rsUpdated">—</span></div>
+        <a class="rs-public" href="/resume/" target="_blank" rel="noopener">查看公开简历 →</a>
+      </div>
+    </article>
+    <article class="card span-6 last" id="srvCard">
       <div class="card-head">
         <h2 class="card-title"><span class="dot"></span>服务器</h2>
         <span class="srv-tag" id="srvTag" hidden></span>
@@ -115,7 +132,7 @@ import "../styles/bookmarks.css";
       </div>
       <ul class="srv-svcs" id="srvSvcs" aria-label="服务状态"></ul>
     </article>
-    <article class="card span-4">
+    <article class="card span-6 first">
       <div class="card-head">
         <h2 class="card-title"><a class="card-link" href="/blog/" target="_blank" rel="noopener" title="在新标签页打开博客"><span class="dot"></span>博客<svg class="ext" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></h2>
         <a class="card-meta more" href="/console/write">写文章</a>
@@ -126,7 +143,7 @@ import "../styles/bookmarks.css";
         <li><span class="t">Astro 岛屿架构上手记录</span><span class="d">草稿</span></li>
       </ul>
     </article>
-    <article class="card span-4 last">
+    <article class="card span-6 last">
       <div class="card-head">
         <h2 class="card-title"><a class="card-link" href="/#lab" target="_blank" rel="noopener" title="在新标签页打开试验场"><span class="dot"></span>试验场<svg class="ext" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></h2>
         <a class="card-meta more" href="/#lab">全部实验</a>

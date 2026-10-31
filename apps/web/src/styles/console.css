@@ -183,3 +183,26 @@ button.btn { font-family: inherit; }
 .sv.bad { color: var(--accent); }
 .sv.bad .dot { background: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .stat .v, .bar i { transition: none; } }
+
+/* 控制台「简历」卡片 */
+.rs { display: grid; gap: 14px; }
+.rs-state { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; }
+.rs-badge { font-family: var(--mono); font-size: 12px; padding: 2px 8px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.rs-badge.masked { color: var(--ok); border-color: var(--ok); }
+.rs-badge.reveal { color: var(--accent); border-color: var(--accent); }
+.rs-note { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.rs-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--soft-line); }
+@media (min-width: 600px) { .rs-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.rs-stats div { padding: 10px 0; border-bottom: 1px solid var(--soft-line); }
+.rs-stats dt { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.rs-stats dd { font-size: 22px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+[data-theme="blueprint"] .rs-stats dd { font-family: var(--mono); font-weight: 500; }
+.rs-recent .rs-h { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.rs-recent ul { list-style: none; }
+.rs-recent li { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--soft-line); font-size: 14px; }
+.rs-recent li.rs-empty { display: block; color: var(--muted); }
+.rs-recent .when { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; padding-top: 2px; }
+.rs-recent .what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 420px) { .rs-recent li { grid-template-columns: 1fr; gap: 2px; } .rs-recent .what { white-space: normal; overflow-wrap: anywhere; } }
+.rs-public { justify-self: start; font-size: 14px; color: var(--muted); }
+.rs-public:hover, .rs-public:focus-visible { color: var(--accent); }

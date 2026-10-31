@@ -4,6 +4,7 @@ import { getProfile } from "./topbar";
 import { esc, initialOf, initials, safeAvatar, safeUrl } from "./common";
 import { bookmarkCmds, loadBookmarks } from "./bookmarks";
 import { startServerCard } from "./server";
+import { startResumeCard } from "./resume-card";
 
 type Hot = { rank: number; title: string; sourceCount: number; url: string };
 type Cmd = { name: string; group: string; keys?: string; run: () => void };
@@ -58,6 +59,7 @@ loadBookmarks(() => buildCmds());
 
 /* 服务器状态（逻辑在 server.ts） */
 startServerCard();
+void startResumeCard();
 
 /* 简介卡：名字、头像、bio 从个人资料读（退出登录在顶栏头像菜单里，见 topbar.ts） */
 getProfile().then((p) => {

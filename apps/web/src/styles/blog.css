@@ -14,8 +14,8 @@
 .empty { color: var(--muted); font-size: 14px; padding: 16px 0; }
 
 /* 列表页、标签页 */
-.post-index, .post { max-width: 68ch; margin: 0 auto; padding: 40px 0 8px; min-width: 0; }
-.post-index { max-width: 860px; }
+.post-index, .post { max-width: 1040px; margin: 0 auto; padding: 40px 0 8px; min-width: 0; }
+.post-index { max-width: 1290px; }
 .page-title { font-family: var(--display); font-weight: var(--display-weight); font-size: clamp(28px, 5vw, 40px); line-height: 1.2; letter-spacing: -.02em; margin-bottom: 20px; overflow-wrap: anywhere; }
 .year-group { margin-top: 28px; }
 .year { display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--muted); }
@@ -31,7 +31,7 @@
 a.tag:hover { color: var(--accent); border-color: var(--accent); }
 
 /* 正文 */
-.prose { font-size: 16px; line-height: 1.85; min-width: 0; max-width: 68ch; overflow-wrap: anywhere; word-break: break-word; }
+.prose { font-size: 16px; line-height: 1.85; min-width: 0; max-width: 1040px; overflow-wrap: anywhere; word-break: break-word; }
 .prose > :first-child { margin-top: 0; }
 .prose > :last-child { margin-bottom: 0; }
 .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { font-family: var(--display); font-weight: var(--display-weight); line-height: 1.35; letter-spacing: -.01em; margin: 2em 0 .6em; }
@@ -62,8 +62,10 @@ a.tag:hover { color: var(--accent); border-color: var(--accent); }
 [data-theme="blueprint"] .shiki, [data-theme="blueprint"] .shiki span { color: var(--shiki-dark); background-color: var(--shiki-dark-bg); }
 
 /* 博客外壳：搜索 */
+/* 博客页（顶栏、正文、页脚）比全站的 1200px 更宽：左 240 + 正文 1040 + 右 200 + 间距 80 + 内边距 48 */
+.wrap.wrap-blog { max-width: 1680px; }
 .blog-main { padding-bottom: 24px; }
-.blog-search { max-width: 860px; margin: 32px auto 0; }
+.blog-search { max-width: 1290px; margin: 32px auto 0; }
 .blog-search-box { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px; border: 1px solid var(--line); background: var(--card); }
 .blog-search-box:focus-within { border-color: var(--accent); }
 .blog-search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 16px; }
@@ -97,10 +99,10 @@ a.cat:hover { background: var(--accent); color: var(--accent-fg); }
 .post-layout > * { min-width: 0; }
 .post-layout .post, .post-layout .post-index { max-width: none; margin: 0; padding: 0; }
 @media (min-width: 900px) { .post-layout { grid-template-columns: 240px minmax(0, 1fr); gap: 40px; } }
-@media (min-width: 1200px) { .post-layout:not(.list) { grid-template-columns: 240px minmax(0, 68ch) 200px; justify-content: center; } }
+@media (min-width: 1200px) { .post-layout:not(.list) { grid-template-columns: 240px minmax(0, 1040px) 200px; justify-content: center; } }
 /* 没有目录的文章（以及没有 JS 时）：用 :has() 也能退化成两栏 */
 @media (min-width: 900px) { .post-layout:not(.list):not(:has(.post-toc)) { grid-template-columns: 240px minmax(0, 1fr); } }
-@media (min-width: 1200px) { .post-layout:not(.list):not(:has(.post-toc)) { grid-template-columns: 240px minmax(0, 68ch); justify-content: center; } }
+@media (min-width: 1200px) { .post-layout:not(.list):not(:has(.post-toc)) { grid-template-columns: 240px minmax(0, 1040px); justify-content: center; } }
 
 /* 左侧导航 */
 .blog-nav { position: relative; display: flex; flex-direction: column; align-self: start; font-size: 14px; }
@@ -204,5 +206,5 @@ a.cat:hover { background: var(--accent); color: var(--accent-fg); }
 @media (max-width: 599px) { .rd-fab { right: 12px; bottom: 12px; } }
 
 /* 页面里没有 .blog-nav（例如导航为空）时：单栏，正文居中 */
-.post-layout:not(:has(.blog-nav)) { grid-template-columns: minmax(0, 68ch) !important; justify-content: center; }
-.post-layout.list:not(:has(.blog-nav)) { grid-template-columns: minmax(0, 860px) !important; }
+.post-layout:not(:has(.blog-nav)) { grid-template-columns: minmax(0, 1040px) !important; justify-content: center; }
+.post-layout.list:not(:has(.blog-nav)) { grid-template-columns: minmax(0, 1290px) !important; }

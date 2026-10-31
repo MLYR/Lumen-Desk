@@ -1,5 +1,9 @@
+---
+interface Props { wide?: boolean; }
+const { wide = false } = Astro.props;
+---
 <footer>
-  <div class="wrap">
+  <div class:list={["wrap", { "wrap-blog": wide }]}>
     <span>© 2026 zreo · 沪ICP备 XXXXXXXX 号 · 沪公网安备 XXXXXXXXXXXXXX 号</span>
     <a class="login-link" href="/console" title="控制台登录">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>控制台</a>

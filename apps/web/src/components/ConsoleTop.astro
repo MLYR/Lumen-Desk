@@ -1,6 +1,6 @@
 ---
 // 三个控制台页面（/console、/console/write、/console/settings）共用的顶栏。
-// 右侧是头像菜单：设置、写文章、退出登录。脚本在 scripts/console/topbar.ts。
+// 右侧是头像菜单：设置、退出登录。写文章入口在控制台「博客」卡片上。脚本在 scripts/console/topbar.ts。
 import ThemeSwitch from "./ThemeSwitch.astro";
 import "../styles/topbar.css";
 interface Props { current: "home" | "write" | "settings"; wide?: boolean; }
@@ -12,9 +12,6 @@ const { current, wide = false } = Astro.props;
     <span class="private" title="这个页面需要登录"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="lbl">仅自己可见</span></span>
     <nav class="nav" aria-label="导航">
       <a href="/console" aria-current={current === "home" ? "page" : undefined}>控制台</a>
-      <a href="/">公开主页</a>
-      <a href="/blog/">博客</a>
-      <a href="/#lab">试验场</a>
     </nav>
     <div class="top-right">
       <slot name="tools" />
@@ -23,7 +20,6 @@ const { current, wide = false } = Astro.props;
         <button class="avatar-btn" id="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="avatar-menu" aria-label="账号菜单"><img id="avatar-img" alt="" width="32" height="32" hidden><span id="avatar-initial" aria-hidden="true">Z</span></button>
         <div class="avatar-menu" id="avatar-menu" role="menu" aria-label="账号" hidden>
           <a role="menuitem" tabindex="-1" href="/console/settings" aria-current={current === "settings" ? "page" : undefined}>设置</a>
-          <a role="menuitem" tabindex="-1" href="/console/write" aria-current={current === "write" ? "page" : undefined}>写文章</a>
           <button role="menuitem" tabindex="-1" id="logout" type="button">退出登录</button>
         </div>
       </div>

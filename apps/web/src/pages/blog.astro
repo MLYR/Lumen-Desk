@@ -8,8 +8,8 @@ import "../styles/blog.css";
 ---
 <Layout title="{{LD_TITLE}}" description="{{LD_DESCRIPTION}}" analytics>
   <script is:inline>document.documentElement.classList.add("js")</script>
-  <Header current="blog" />
-  <main class="wrap blog-main">
+  <Header current="blog" wide />
+  <main class="wrap wrap-blog blog-main">
     <search class="blog-search">
       <label class="blog-search-box">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -19,7 +19,7 @@ import "../styles/blog.css";
     </search>
     <Fragment set:html="{{LD_CONTENT}}" />
   </main>
-  <Footer />
+  <Footer wide />
 </Layout>
 
 <script>

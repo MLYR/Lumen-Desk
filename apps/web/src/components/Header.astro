@@ -1,10 +1,10 @@
 ---
 import ThemeSwitch from "./ThemeSwitch.astro";
-interface Props { current?: "home" | "blog"; }
-const { current = "home" } = Astro.props;
+interface Props { current?: "home" | "blog"; wide?: boolean; }
+const { current = "home", wide = false } = Astro.props;
 ---
 <header class="top">
-  <div class="wrap">
+  <div class:list={["wrap", { "wrap-blog": wide }]}>
     <a class="brand" href="/"><span class="brand-mark">z</span>zreo</a>
     <nav class="nav" aria-label="主导航">
       <a href="/" aria-current={current === "home" ? "page" : undefined}>主页</a>

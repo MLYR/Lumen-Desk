@@ -97,7 +97,7 @@
 
 - 样式写在 `blog.css`，脚本放 `src/scripts/blog-reader.ts`，在外壳 `blog.astro` 里加载。
 - **布局**：
-  - ≥ 1200px：三栏 `240px | minmax(0, 68ch) | 200px`，左右两栏 `position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow: auto`。
+  - ≥ 1200px：三栏 `240px | minmax(0, 1040px) | 200px`（2026-10-31 由 68ch 加宽到 1040px，博客页外框 `.wrap-blog` 1680px），左右两栏 `position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow: auto`。
   - 900–1199px：两栏，左边是导航，右侧目录隐藏，用正文顶部的 `.toc-inline`。
   - < 900px：一栏，`.blog-nav` 变成从左边滑出的抽屉，正文顶部放一个「文章列表」按钮打开它；遮罩、Esc 和点链接都能关闭抽屉，焦点锁定在抽屉里。
   - `.toc-inline` 只在 < 1200px 时显示。

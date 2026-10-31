@@ -1,11 +1,15 @@
 ---
 // 主页简历卡片：精简版，运行时请求 /api/resume 渲染（最近两段经历 + 技能）。没有旧的占位数据。
+// 「编辑简历」只在已登录时出现：用 /api/auth/check（204 = 已登录）判断，访客看不到这个入口。
 ---
 <section class="grid" id="resume">
   <article class="card first last">
     <div class="card-head">
       <h2 class="card-title"><span class="dot"></span>简历</h2>
-      <a class="card-meta more" href="/resume/">查看完整简历 →</a>
+      <span class="card-actions">
+        <a class="card-meta more" id="resume-edit" href="/console/resume" hidden>编辑简历</a>
+        <a class="card-meta more" href="/resume/">查看完整简历 →</a>
+      </span>
     </div>
     <div class="resume" id="home-resume"><p class="resume-empty">加载中…</p></div>
   </article>
@@ -14,6 +18,10 @@
 <script>
   import { renderCompact, type PResume } from "../scripts/resume-render";
   const box = document.getElementById("home-resume")!;
+  // 已登录才显示「编辑简历」。check 只返回状态码，不带任何数据；失败一律当成未登录。
+  fetch("/api/auth/check", { credentials: "same-origin", cache: "no-store" })
+    .then((r) => { if (r.status === 204) document.getElementById("resume-edit")!.hidden = false; })
+    .catch(() => {});
   const empty = () => { box.replaceChildren(); const p = document.createElement("p"); p.className = "resume-empty"; p.textContent = "简历整理中"; box.append(p); };
   (async () => {
     try {
@@ -32,6 +40,8 @@
 </script>
 
 <style is:global>
+.card-actions { display: inline-flex; align-items: baseline; gap: 16px; flex-wrap: wrap; justify-content: flex-end; }
+.card-actions [hidden] { display: none; }
 .resume { display: grid; gap: 28px; }
 @media (min-width: 900px) { .resume { grid-template-columns: 1fr 1fr; gap: 48px; } }
 .resume h3 { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 12px; letter-spacing: .04em; }

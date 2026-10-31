@@ -52,6 +52,11 @@ export function renderResume(r: PResume, root: HTMLElement) {
     }
     sec.append(tl); root.append(sec);
   }
+  if (r.skills.length) {
+    const sec = section("专业技能"), dl = h("dl", "rs-skills");
+    for (const s of r.skills) { const row = h("div"); row.append(h("dt", "", s.label), h("dd", "", s.text)); dl.append(row); }
+    sec.append(dl); root.append(sec);
+  }
   if (r.projects.length) {
     const sec = section("项目经历"), g = h("div", "rs-projects");
     for (const p of r.projects) {
@@ -63,11 +68,6 @@ export function renderResume(r: PResume, root: HTMLElement) {
       c.append(bullets(p.bullets)); g.append(c);
     }
     sec.append(g); root.append(sec);
-  }
-  if (r.skills.length) {
-    const sec = section("专业技能"), dl = h("dl", "rs-skills");
-    for (const s of r.skills) { const row = h("div"); row.append(h("dt", "", s.label), h("dd", "", s.text)); dl.append(row); }
-    sec.append(dl); root.append(sec);
   }
 }
 function section(title: string) { const s = h("section", "rs-sec"); s.append(h("h2", "rs-h", title)); return s; }

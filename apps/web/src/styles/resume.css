@@ -1,9 +1,9 @@
 /* 简历页 /resume/ 与控制台预览。两套主题 + 打印（A4 白底黑字）。 */
 .rs-main { padding-top: 24px; padding-bottom: 32px; }
-.rs-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 860px; margin: 0 auto 8px; }
+.rs-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 1080px; margin: 0 auto 8px; }
 .rs-back { font: 13px var(--mono); color: var(--muted); }
 .rs-back:hover { color: var(--accent); }
-.rs { max-width: 860px; margin: 0 auto; padding: 8px 0 0; min-width: 0; overflow-wrap: anywhere; }
+.rs { max-width: 1080px; margin: 0 auto; padding: 8px 0 0; min-width: 0; overflow-wrap: anywhere; }
 [data-theme="blueprint"] .rs { padding: 28px 28px 32px; border: 1px solid var(--soft-line); background: var(--card); position: relative; }
 [data-theme="blueprint"] .rs::before, [data-theme="blueprint"] .rs::after { content: ""; position: absolute; width: 9px; height: 9px; border: 0 solid var(--accent); pointer-events: none; }
 [data-theme="blueprint"] .rs::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
@@ -41,7 +41,6 @@
 [data-theme="paper"] .rs-bl li::before { border-radius: 50%; }
 
 .rs-projects { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-@media (min-width: 760px) { .rs-projects { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .rs-proj { padding: 16px; border: 1px solid var(--soft-line); min-width: 0; }
 [data-theme="paper"] .rs-proj { border-width: 2px 0 0; border-color: var(--line); padding: 14px 0 0; }
 .rs-pname { font-size: 16px; line-height: 1.4; }

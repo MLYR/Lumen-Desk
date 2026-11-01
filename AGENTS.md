@@ -13,8 +13,15 @@
 
 - `apps/web`：Astro 7 静态站。页面在 `src/pages`，组件在 `src/components`，控制台逻辑在 `src/scripts/console/main.ts`，主题在 `src/styles/theme.css` 和 `src/scripts/theme.js`。
 - `apps/api`：Hono + `node:sqlite`，TypeScript ESM，`tsc` 编译到 `dist/`。路由全在 `src/app.ts`；认证在 `src/auth/`；AIHOT 在 `src/sources/aihot.ts`；CLI 在 `src/cli/`。
-- `deploy/`：Caddyfile、docker-compose.yml、`.env.example`。
+- `deploy/`：Caddyfile、docker-compose.yml、`.env.example`。**只是模板**，本机真正跑着的部署在 `~/lumen-desk/`（`.env`、`data/lumen.db`、`web/` 都在那里）。
 - `design-demos/`：已定稿的 HTML 原型，是视觉的参照，不要在这里开发新功能。
+
+### 本机部署（不看这条会把网站弄坏）
+
+- 真实数据和配置只在 `~/lumen-desk/`：`data/lumen.db`（简历、书签、文章、TOTP 密钥）、`data/uploads`、`web/{public,private,shell}`、`.env`（含 `SECRET_KEY`）。
+- **不要在仓库的 `deploy/` 里 `docker compose up`**。同一台机器上 compose 项目名都叫 `lumen-desk`，从仓库目录启动会接管现有容器，并把挂载换成仓库里的空目录：数据库变空 → 简历页显示「简历整理中」、TOTP 密钥丢失 → 验证码永远不对。2026-11-01 就这么坏过一次。
+- 更新网页：在仓库 `pnpm --filter web build`，然后 `rsync -a --delete` 把 `apps/web/dist`、`dist-private`、`dist-shell` 同步进 `~/lumen-desk/web/{public,private,shell}`，再 `cd ~/lumen-desk && docker compose up -d`（API 代码变了先 `docker compose build api`）。
+- 怀疑数据没了先看 `docker inspect lumen-desk-api-1 --format '{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}'`，挂载必须指向 `/Users/zreo/lumen-desk/data`。
 
 ## 命令
 

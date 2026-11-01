@@ -6,7 +6,7 @@
 
 - **阶段**：P1 完成；P2 博客代码完成（在线写、导入 .md、图片上传）；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
-- **本机部署**：`~/lumen-desk/`，5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、绑定 Google Authenticator。
+- **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、简历 3 个项目 9 条技能、2 篇文章、绑定 Google Authenticator。
 - **服务器**：未部署。
 - **备案**：未提交。
 
@@ -142,7 +142,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
-| 2026-10-30 | 方案和原型定稿；建仓库并推送 |
+| 2026-11-01 | 修事故：上一轮从仓库 `deploy/` 里启动了 compose（项目名同为 `lumen-desk`），容器挂载被换成仓库里的空目录，数据库变空。现象是 `/resume/` 一直「简历整理中」、控制台输对验证码也进不去。已改回在 `~/lumen-desk/` 启动（挂载 `~/lumen-desk/data`），重建 API 镜像，重新同步网页；数据、登录、打码全部正常。仓库 `deploy/` 里的 `web/`、`data/`、改坏的 `.env` 已挪到 `/tmp/lumen-desk-repo-deploy-leftovers/`，`.gitignore` 加 `deploy/web/`，AGENTS.md 加了「本机部署」一节 || 2026-10-30 | 方案和原型定稿；建仓库并推送 |
 | 2026-10-30 | P1 MVP 完成，本机 Docker 部署；安全审查修复 5 项 |
 | 2026-10-30 | 新增 ROADMAP.md、PROGRESS.md、README.md、AGENTS.md |
 | 2026-10-30 | 用户确认：自动部署用 GitHub Actions；要 Umami 和 Uptime Kuma |

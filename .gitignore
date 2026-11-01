@@ -11,6 +11,9 @@ design-demos/shots/navigator-*.png
 design-demos/shots/bm-filter.png
 dist/
 .astro/
+# 构建产物和运行时数据只放在部署目录（~/lumen-desk），仓库里的 deploy/ 只是模板
+deploy/web/
+.env.bak*
 *.db
 *.sqlite
 data/

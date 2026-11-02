@@ -143,6 +143,7 @@
 | 日期 | 内容 |
 | --- | --- |
 | 2026-11-01 | 修事故：上一轮从仓库 `deploy/` 里启动了 compose（项目名同为 `lumen-desk`），容器挂载被换成仓库里的空目录，数据库变空。现象是 `/resume/` 一直「简历整理中」、控制台输对验证码也进不去。已改回在 `~/lumen-desk/` 启动（挂载 `~/lumen-desk/data`），重建 API 镜像，重新同步网页；数据、登录、打码全部正常。仓库 `deploy/` 里的 `web/`、`data/`、改坏的 `.env` 已挪到 `/tmp/lumen-desk-repo-deploy-leftovers/`，`.gitignore` 加 `deploy/web/`，AGENTS.md 加了「本机部署」一节 |
+| 2026-11-01 | 控制台「博客」卡片改为读真实数据（`/api/private/posts`，最近 3 篇，带已发布/草稿和日期），去掉 3 条写死的占位标题；新脚本 `src/scripts/console/blog-card.ts`，空列表和读不到时给中文提示 |
 | 2026-11-01 | 博客顶栏不再跟着正文的 1680px 宽框变宽，改成和其它页一致的 `.wrap`（1200px）；正文与页脚仍为全宽。`Header.astro` 去掉 `wide` 参数，页脚保留 |
 | 2026-10-30 | 方案和原型定稿；建仓库并推送 |
 | 2026-10-30 | P1 MVP 完成，本机 Docker 部署；安全审查修复 5 项 |

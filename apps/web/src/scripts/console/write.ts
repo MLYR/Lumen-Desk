@@ -449,8 +449,21 @@ window.addEventListener("drop", (e) => {
   void openMdFiles(files.filter((f) => !IMG_RE.test(f.type)));
 });
 
+/* ---------- 从地址栏 ?id= 打开文章（控制台博客卡片里的草稿链接） ---------- */
+/** 必须在分类加载完之后调用：fill() 靠 cats 才能选中文章原来的分类，否则保存时会把它清空。 */
+async function openFromQuery() {
+  const raw = new URLSearchParams(location.search).get("id");
+  if (!raw || !/^\d+$/.test(raw)) return;
+  try {
+    fill(await api<Post>(`/api/private/posts/${Number(raw)}`));
+  } catch (e) {
+    setMsg("打开文章失败：" + explain(e), "err");
+  }
+}
+
 /* ---------- 启动 ---------- */
+const categoriesReady = loadCategories().then(() => { if (currentId === null && !dirty) setCategory(null); });
 fill(null);
 void loadList();
-void loadCategories().then(() => { if (currentId === null && !dirty) setCategory(null); });
 void loadVocab();
+void categoriesReady.then(openFromQuery);

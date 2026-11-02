@@ -100,6 +100,8 @@ HTML 页面 `Cache-Control: public, max-age=60`。
 
 图片处理：`sharp` 转 WebP，最长边 ≤ 1600 px，quality 从 80 往下试直到 ≤ 150 KB（最低 50）；去掉 EXIF；文件名是内容哈希，重复上传返回同一个 URL。写到 `DATA_DIR/uploads/`。
 
+控制台页面：「`/console`」的博客卡片取 `GET /api/private/posts` 的前 3 条，标题可点：已发布 → `/blog/<slug>/`（新标签页），草稿 → `/console/write?id=<id>`（同一标签页）。编辑器启动时按 `?id=` 载入该文章，且等分类加载完再填，否则保存时会把原来的分类清空。
+
 ## 4. 部署相关
 
 - api 新环境变量：`SHELL_DIR`（默认见上）。uploads 目录固定为 `DATA_DIR/uploads`。

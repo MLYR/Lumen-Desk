@@ -1,8 +1,9 @@
 // 控制台「博客」卡片：最近 3 篇文章（标题、发布状态、日期）。数据来自私有接口，全部用 textContent 写入。
-type Status = "draft" | "published";
-type Item = { title?: unknown; status?: unknown; publishedAt?: unknown; updatedAt?: unknown };
+// 标题可点：已发布的打开公开文章页（新标签页），草稿打开控制台编辑器（同一个标签页）。
+type Item = { id?: unknown; slug?: unknown; title?: unknown; status?: unknown; publishedAt?: unknown; updatedAt?: unknown };
 
 const list = document.getElementById("blogPosts");
+const SLUG_RE = /^[a-z0-9-]{1,80}$/;
 
 function fmtDay(iso: unknown): string {
   if (typeof iso !== "string" || !iso) return "";
@@ -20,6 +21,13 @@ function empty(text: string) {
   list.replaceChildren(li);
 }
 
+/** 已发布 → /blog/<slug>/；草稿 → /console/write?id=<id>；拿不到可用的目标时返回 null（纯文本）。 */
+function target(x: Item): { href: string; blank: boolean } | null {
+  if (x.status === "published" && typeof x.slug === "string" && SLUG_RE.test(x.slug)) return { href: `/blog/${x.slug}/`, blank: true };
+  if (typeof x.id === "number" && Number.isInteger(x.id) && x.id > 0) return { href: `/console/write?id=${x.id}`, blank: false };
+  return null;
+}
+
 export async function startBlogCard(): Promise<void> {
   if (!list) return;
   try {
@@ -33,7 +41,16 @@ export async function startBlogCard(): Promise<void> {
     // 接口已按 updated_at 倒序，取前 3 篇。
     for (const x of items.slice(0, 3)) {
       const li = document.createElement("li");
-      const t = document.createElement("span"); t.className = "t"; t.textContent = (x.title as string) || "（无标题）"; t.title = t.textContent;
+      const text = (x.title as string) || "（无标题）";
+      const go = target(x);
+      const t: HTMLElement = document.createElement(go ? "a" : "span");
+      t.className = "t";
+      t.textContent = text;
+      t.title = text;
+      if (go && t instanceof HTMLAnchorElement) {
+        t.href = go.href;
+        if (go.blank) { t.target = "_blank"; t.rel = "noopener"; }
+      }
       const d = document.createElement("span"); d.className = "d";
       const day = fmtDay(x.publishedAt ?? x.updatedAt);
       d.textContent = [x.status === "published" ? "已发布" : "草稿", day].filter(Boolean).join(" · ");

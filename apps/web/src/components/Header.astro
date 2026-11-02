@@ -1,10 +1,11 @@
 ---
 import ThemeSwitch from "./ThemeSwitch.astro";
-interface Props { current?: "home" | "blog" | "resume"; wide?: boolean; }
-const { current = "home", wide = false } = Astro.props;
+// 顶栏宽度固定用 .wrap（1200px），和主页、简历页一致；博客正文的宽框不带动顶栏。
+interface Props { current?: "home" | "blog" | "resume"; }
+const { current = "home" } = Astro.props;
 ---
 <header class="top">
-  <div class:list={["wrap", { "wrap-blog": wide }]}>
+  <div class="wrap">
     <a class="brand" href="/"><span class="brand-mark">z</span>zreo</a>
     <nav class="nav" aria-label="主导航">
       <a href="/" aria-current={current === "home" ? "page" : undefined}>主页</a>

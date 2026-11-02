@@ -62,7 +62,8 @@ a.tag:hover { color: var(--accent); border-color: var(--accent); }
 [data-theme="blueprint"] .shiki, [data-theme="blueprint"] .shiki span { color: var(--shiki-dark); background-color: var(--shiki-dark-bg); }
 
 /* 博客外壳：搜索 */
-/* 博客页（顶栏、正文、页脚）比全站的 1200px 更宽：左 240 + 正文 1040 + 右 200 + 间距 80 + 内边距 48 */
+/* 博客的正文框和页脚比全站的 1200px 更宽：左 240 + 正文 1040 + 右 200 + 间距 80 + 内边距 48。
+   顶栏不跟着变宽，仍用 .wrap（1200px），和主页、简历页一致。 */
 .wrap.wrap-blog { max-width: 1680px; }
 .blog-main { padding-bottom: 24px; }
 .blog-search { max-width: 1290px; margin: 32px auto 0; }

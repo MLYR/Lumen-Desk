@@ -1,0 +1,31 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import ToolGrid from "../../components/ToolGrid.astro";
+import "../../styles/tools.css";
+---
+<Layout
+  title="工具箱 · 拾光台"
+  description="zreo 的工具箱：浏览器里直接可用的小工具，图片压缩、格式转换与文件处理，打开即用，文件不上传。"
+  analytics
+>
+  <Header current="tools" />
+  <main class="wrap tb-main">
+    <header class="tb-hero">
+      <div class="tb-copy">
+        <p class="tb-eyebrow"><span class="tb-mark"></span>TOOLBOX / 工具箱</p>
+        <h1>工具箱</h1>
+        <p class="tb-lead">把日常会用到的小工具收在一处。每个工具独立成页，打开即用；数据留在浏览器里，不经过服务器。</p>
+      </div>
+      <dl class="tb-stats">
+        <div><dt>工具</dt><dd>01</dd></div>
+        <div><dt>运行方式</dt><dd>浏览器本地</dd></div>
+        <div><dt>打开方式</dt><dd>新标签页</dd></div>
+      </dl>
+    </header>
+
+    <ToolGrid />
+  </main>
+  <Footer />
+</Layout>

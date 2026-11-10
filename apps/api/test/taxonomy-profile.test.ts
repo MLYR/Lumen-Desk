@@ -259,6 +259,8 @@ describe('taxonomy: public views never leak drafts', () => {
     const sm = await (await app.request('/sitemap.xml')).text();
     expect(sm).toContain('<loc>https://blog.test/lab/</loc>');
     expect(sm).toContain('<loc>https://blog.test/lab/end-of-time/</loc>');
+    expect(sm).toContain('<loc>https://blog.test/tools/</loc>');
+    expect(sm).toContain('<loc>https://blog.test/tools/image-compressor/</loc>');
     expect(sm).toContain('<loc>https://blog.test/blog/category/frontend/</loc>');
     expect(sm).not.toContain('/blog/category/devops/');
 

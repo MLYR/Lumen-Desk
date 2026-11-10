@@ -23,7 +23,7 @@
 | P2.9 服务器状态卡 | 完成 | `docs/contracts/server-status.md` |
 | P2.10 简历 | 完成 | `docs/contracts/resume.md`；简历内容只在服务器数据库 |
 | P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
-| P3 试验场 | 1 / 6（+ 静态列表页） | P3-6《时间的尽头》完成；`/lab/` 列表页静态版完成；内容模型和流场页未做 |
+| P3 试验场 | 2 / 7（含工具箱） | P3-6《时间的尽头》、P3-7 工具箱完成；`/lab/` 列表页静态版完成；内容模型和流场页未做 |
 | P4 增强 | 2 / 7 | Umami、Uptime Kuma 已部署到本机；其余待定 |
 
 ## 2. 已完成
@@ -44,6 +44,15 @@
 - **资源**：Three.js 0.187 本地打包，无 CDN、无外部字体、无新环境变量。实验页单页 JS 617 KB、gzip 159 KB，HTML/CSS 合计 gzip 约 8 KB，低于 P3-4 的 1 MB；首页新增的只是卡片标记和懒加载海报。
 - **验证**：`pnpm test`（153 个）和 `pnpm build`；Chrome + CDP 在真实 Metal GPU 下确认 60 FPS，并在 1440×813、375×812 下检查渲染、拖动、滚轮/双指缩放、轻点/点击坍缩、暂停、复位和 `prefers-reduced-motion`；WebGL 不可用时显示降级页；TypeScript 单文件 strict 检查通过。
 - **本机部署**：已把 `apps/web/dist/`、`dist-private/`、`dist-shell/` 同步到 `~/lumen-desk/web/{public,private,shell}`，`http://localhost/lab/`、`/lab/end-of-time/` 返回 200，首页主打卡片和海报正常；已重启 API，博客顶栏已刷新到 `/lab/`。API 没重建，所以线上 `/sitemap.xml` 暂时还没有实验室条目。
+
+### P3-7 工具箱（2026-11-10）
+
+- 新增公开页 `/tools/`，顶部导航在「试验场」后加「工具箱」；工具卡片用 `target="_blank"` 在新标签页打开。页面结构、两套主题和 375 宽度样式都在 `ToolGrid.astro`、`tools.css`。
+- 首个工具是用户提供的 `image-compressor-pyodide.html`：放在 `apps/web/public/tools/image-compressor/index.html`，去掉 Google Fonts 和 CDN 引用，Pyodide 0.26.4、Pillow 10.2.0、JSZip 3.10.1 放进同目录 `vendor/`，由本站提供并长期缓存。来源和许可见 `vendor/README.md`。
+- 工具需要 WebAssembly 和 `blob:` 图片，Caddy 只对 `/tools/image-compressor/*` 放宽 CSP（`wasm-unsafe-eval`、`img-src blob:`），其他页面保持原策略。
+- 已在 `apps/api/src/blog/pages.ts` 把 `/tools/`、`/tools/image-compressor/` 加入 sitemap，测试同步更新。
+- 验证：`pnpm test`（153 个）和 `pnpm build` 通过；本机 Docker 上 `/tools/`、工具页和 vendor wasm 返回 200，CSP 头正确；Chrome 在 1440 和真实 375 视口、两套主题下无横向溢出；工具页 Pyodide + Pillow 初始化到可用界面。实际压缩未做上传回归（Chrome 扩展未开启文件 URL 权限），压缩逻辑保持原页面不变。
+- 已同步 `dist`、`dist-private`、`dist-shell` 到 `~/lumen-desk`，重建 API 镜像并重启 Caddy/API。
 
 ### P2.9–P2.11 服务器状态卡、简历、重新绑定验证器（2026-10-31，Orca 协同）
 
@@ -159,6 +168,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-10 | P3-7 工具箱：新增 `/tools/` 聚合页和顶部「工具箱」导航，图片压缩工具（Pyodide/Pillow/JSZip 本地化）在新标签页打开；加入 sitemap，已同步本机 Docker |
 | 2026-11-10 | 修复写文章页标签自动补全只显示 8 个的问题：取消截断，改成网格展示全部标签，并在回到页面/聚焦时刷新标签和分类词表 |
 | 2026-11-10 | 试验场侧栏改为「当前实验 / 技术栈 / 交互」，移除流场、WebGPU、WASM 三个未实现卡片；页面只保留《时间的尽头》 |
 | 2026-11-10 | 简历页和试验场列表页移除页头「返回主页」入口；简历页保留打印按钮，试验场页头横栏整体移除 |

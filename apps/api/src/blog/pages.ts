@@ -287,6 +287,8 @@ export function sitemap(siteUrl: string, posts: ListRow[], categorySlugs: string
     `  <url><loc>${escapeXml(`${siteUrl}/blog/`)}</loc></url>`,
     `  <url><loc>${escapeXml(`${siteUrl}/lab/`)}</loc></url>`,
     `  <url><loc>${escapeXml(`${siteUrl}/lab/end-of-time/`)}</loc></url>`,
+    `  <url><loc>${escapeXml(`${siteUrl}/tools/`)}</loc></url>`,
+    `  <url><loc>${escapeXml(`${siteUrl}/tools/image-compressor/`)}</loc></url>`,
     ...(includeResume ? [`  <url><loc>${escapeXml(`${siteUrl}/resume/`)}</loc></url>`] : []),
     ...categorySlugs.map((s) => `  <url><loc>${escapeXml(`${siteUrl}${catHref(s)}`)}</loc></url>`),
     ...posts.map((r) => `  <url><loc>${escapeXml(`${siteUrl}${postHref(r.slug)}`)}</loc><lastmod>${r.updated_at.slice(0, 10)}</lastmod></url>`),

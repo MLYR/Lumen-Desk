@@ -1,8 +1,6 @@
 /* 简历页 /resume/ 与控制台预览。两套主题 + 打印（A4 白底黑字）。 */
 .rs-main { padding-top: 24px; padding-bottom: 32px; }
-.rs-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 1080px; margin: 0 auto 8px; }
-.rs-back { font: 13px var(--mono); color: var(--muted); }
-.rs-back:hover { color: var(--accent); }
+.rs-bar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; max-width: 1080px; margin: 0 auto 8px; }
 .rs { max-width: 1080px; margin: 0 auto; padding: 8px 0 0; min-width: 0; overflow-wrap: anywhere; }
 [data-theme="blueprint"] .rs { padding: 28px 28px 32px; border: 1px solid var(--soft-line); background: var(--card); position: relative; }
 [data-theme="blueprint"] .rs::before, [data-theme="blueprint"] .rs::after { content: ""; position: absolute; width: 9px; height: 9px; border: 0 solid var(--accent); pointer-events: none; }

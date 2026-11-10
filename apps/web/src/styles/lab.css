@@ -1,0 +1,106 @@
+/* 试验场列表页 /lab/。卡片网格样式在 LabGrid.astro，这里只放页面头部。 */
+.lb-main { padding-top: 28px; padding-bottom: 8px; }
+
+.lb-hero {
+  display: grid;
+  gap: 28px;
+  padding: 52px 0 0;
+}
+.lb-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .22em;
+  color: var(--accent);
+}
+.lb-mark {
+  width: 26px;
+  height: 1px;
+  background: var(--accent);
+}
+.lb-hero h1 {
+  margin-top: 18px;
+  font-family: var(--display);
+  font-weight: var(--display-weight);
+  font-size: clamp(64px, 10vw, 120px);
+  line-height: .9;
+  letter-spacing: -.06em;
+}
+[data-theme="blueprint"] .lb-hero h1 {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: clamp(54px, 8vw, 96px);
+  letter-spacing: -.03em;
+}
+.lb-lead {
+  max-width: 36em;
+  margin-top: 22px;
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--muted);
+}
+
+.lb-stats {
+  display: grid;
+  align-self: end;
+  border-top: 1px solid var(--soft-line);
+}
+.lb-stats div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--soft-line);
+}
+.lb-stats dt {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.lb-stats dd {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-grid {
+  margin-top: 44px;
+  padding-bottom: 16px;
+}
+
+@media (min-width: 900px) {
+  .lb-hero {
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr);
+    align-items: end;
+    gap: 64px;
+    padding-top: 64px;
+  }
+}
+
+@media (max-width: 760px) {
+  .lb-main { padding-top: 20px; }
+  .lb-hero { padding-top: 36px; gap: 24px; }
+  .lb-hero h1 { font-size: clamp(56px, 18vw, 84px); }
+  [data-theme="blueprint"] .lb-hero h1 { font-size: clamp(50px, 15vw, 76px); }
+  .lb-lead { margin-top: 16px; font-size: 14px; }
+  .lb-stats {
+    grid-template-columns: 1fr;
+    border-bottom: 0;
+  }
+  .lb-stats div {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--soft-line);
+  }
+  .lb-stats div + div {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .lb-stats div:last-child { border-bottom: 0; }
+  .lb-grid { margin-top: 30px; }
+}

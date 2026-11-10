@@ -1,0 +1,40 @@
+<div class="labs">
+  <a class="lab lab-feature" href="/lab/end-of-time/">
+    <div class="pv feature-pv">
+      <img src="/lab/end-of-time-poster.webp" alt="黑色海面上悬浮的破碎天文钟，金色刻度环环绕着一颗黑色太阳" width="1440" height="720" loading="lazy" decoding="async">
+    </div>
+    <div class="body">
+      <div class="kicker">THREE.JS · 交互 3D</div>
+      <div class="nm">时间的尽头</div>
+      <div class="ds">一座停在时间尽头的天文钟，一片正在熄灭的星海。拖动、靠近，或让时间坍缩。</div>
+      <div class="st"><span>WebGL · 已完成</span><span class="go">进入实验 →</span></div>
+    </div>
+  </a>
+</div>
+
+<style is:global>
+.labs { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 600px) { .labs { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 900px) { .labs { grid-template-columns: repeat(3, 1fr); } }
+.lab { display: block; border: 1px solid var(--soft-line); min-width: 0; }
+a.lab:hover { border-color: var(--accent); }
+.lab .pv { height: 160px; display: block; width: 100%; border-bottom: 1px solid var(--soft-line); }
+.lab-feature { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, .85fr); }
+.lab-feature .pv { height: 100%; min-height: 290px; border-bottom: 0; border-right: 1px solid var(--soft-line); overflow: hidden; }
+.lab-feature .pv img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .8s cubic-bezier(.16, 1, .3, 1); }
+a.lab-feature:hover .pv img { transform: scale(1.025); }
+.lab-feature .body { padding: 32px; display: flex; flex-direction: column; justify-content: center; }
+.lab-feature .kicker { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; color: var(--muted); margin-bottom: 10px; }
+.lab-feature .nm { font-size: 28px; font-weight: 700; letter-spacing: -.01em; }
+[data-theme="blueprint"] .lab-feature .nm { font-family: var(--mono); font-weight: 500; letter-spacing: .02em; }
+.lab-feature .ds { font-size: 14px; max-width: 30em; line-height: 1.7; }
+.lab-feature .st { display: flex; justify-content: space-between; gap: 12px; padding-top: 18px; margin-top: 18px; border-top: 1px solid var(--soft-line); }
+.lab-feature .go { color: var(--fg); }
+a.lab-feature:hover .go { color: var(--accent); }
+@media (max-width: 760px) {
+  .lab-feature { grid-template-columns: 1fr; }
+  .lab-feature .pv { min-height: 0; height: 190px; border-right: 0; border-bottom: 1px solid var(--soft-line); }
+  .lab-feature .body { padding: 20px; }
+  .lab-feature .nm { font-size: 23px; }
+}
+</style>

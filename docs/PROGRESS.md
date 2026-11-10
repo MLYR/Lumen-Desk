@@ -1,10 +1,10 @@
 # 项目进度
 
-更新日期：2026-10-30。任务编号对应 `ROADMAP.md`。完成或变更任务时更新本文。
+更新日期：2026-11-10。任务编号对应 `ROADMAP.md`。完成或变更任务时更新本文。
 
 ## 1. 当前状态
 
-- **阶段**：P1 完成；P2 博客代码完成（在线写、导入 .md、图片上传）；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
+- **阶段**：P1 完成；P2 博客代码完成（在线写、导入 .md、图片上传）；P3 试验场新增 `/lab/` 列表页和《时间的尽头》Three.js 实验页；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
 - **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、简历 3 个项目 9 条技能、2 篇文章、绑定 Google Authenticator。
 - **服务器**：未部署。
@@ -23,10 +23,27 @@
 | P2.9 服务器状态卡 | 完成 | `docs/contracts/server-status.md` |
 | P2.10 简历 | 完成 | `docs/contracts/resume.md`；简历内容只在服务器数据库 |
 | P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
-| P3 试验场 | 0 / 5 | 主页上有一个流场粒子预览 |
+| P3 试验场 | 1 / 6（+ 静态列表页） | P3-6《时间的尽头》完成；`/lab/` 列表页静态版完成；内容模型和流场页未做 |
 | P4 增强 | 2 / 7 | Umami、Uptime Kuma 已部署到本机；其余待定 |
 
 ## 2. 已完成
+
+### P3-2 试验场列表页（2026-11-10）
+
+- 新增公开页 `/lab/`：巨型标题、实验统计和卡片墙；顶部导航「试验场」从 `/#lab` 改为 `/lab/`，当前页有 `aria-current`。
+- 首页试验场卡片增加「全部实验 →」，控制台的试验场卡片和《时间的尽头》返回链接统一指向 `/lab/`。
+- 卡片由 `LabGrid.astro` 维护，只保留已完成的 `/lab/end-of-time/`；未实现的流场、WebGPU、WASM 卡片已移除。侧栏改为「当前实验 / 技术栈 / 交互」。
+- 仍是静态卡片，P3-1 内容模型（`src/content/lab/*.md`）未做。
+- 已同步 `apps/web/dist/`、`dist-private/`、`dist-shell/` 到 `~/lumen-desk/web/{public,private,shell}`；`http://localhost/lab/` 返回 200。已重启 API，博客页顶栏已刷新到 `/lab/`；`/sitemap.xml` 的 `/lab/` 条目仍在旧镜像里，需重建 API 才会出现。
+
+### P3-6 时间的尽头（2026-11-10）
+
+- **页面**：新增公开页 `/lab/end-of-time/`，并加入 `/sitemap.xml`。Three.js 场景由程序化几何和着色器组成：四层青铜刻度环、罗马数字幽灵表盘、断裂表针、黑色太阳与吸积漩涡、280 片玻璃碎片、7200 个向心粒子、星空、海面时间涟漪，以及泛光、胶片颗粒、边缘色差后处理。
+- **交互**：拖动环视、滚轮/双指缩放、点击/轻点画面或空格让时间坍缩（粒子加速、表针旋转、海面冲击波、泛光闪动）；镜头靠近时标题自动退场；方向键环视、`+`/`-` 缩放、`P` 暂停、`R` 复位。系统开启“减少动态”时默认暂停，点击播放或坍缩后才开始运动。
+- **首页**：`LabList.astro` 改为“主打卡片 + 三个小卡片”，主打卡片链接到实验页。海报 `apps/web/public/lab/end-of-time-poster.webp` 为 1440×720、65 KB，`loading="lazy"`，不进首屏。
+- **资源**：Three.js 0.187 本地打包，无 CDN、无外部字体、无新环境变量。实验页单页 JS 617 KB、gzip 159 KB，HTML/CSS 合计 gzip 约 8 KB，低于 P3-4 的 1 MB；首页新增的只是卡片标记和懒加载海报。
+- **验证**：`pnpm test`（153 个）和 `pnpm build`；Chrome + CDP 在真实 Metal GPU 下确认 60 FPS，并在 1440×813、375×812 下检查渲染、拖动、滚轮/双指缩放、轻点/点击坍缩、暂停、复位和 `prefers-reduced-motion`；WebGL 不可用时显示降级页；TypeScript 单文件 strict 检查通过。
+- **本机部署**：已把 `apps/web/dist/`、`dist-private/`、`dist-shell/` 同步到 `~/lumen-desk/web/{public,private,shell}`，`http://localhost/lab/`、`/lab/end-of-time/` 返回 200，首页主打卡片和海报正常；已重启 API，博客顶栏已刷新到 `/lab/`。API 没重建，所以线上 `/sitemap.xml` 暂时还没有实验室条目。
 
 ### P2.9–P2.11 服务器状态卡、简历、重新绑定验证器（2026-10-31，Orca 协同）
 
@@ -142,6 +159,10 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-10 | 试验场侧栏改为「当前实验 / 技术栈 / 交互」，移除流场、WebGPU、WASM 三个未实现卡片；页面只保留《时间的尽头》 |
+| 2026-11-10 | 简历页和试验场列表页移除页头「返回主页」入口；简历页保留打印按钮，试验场页头横栏整体移除 |
+| 2026-11-10 | P3-2 静态列表页：新增 `/lab/`，顶部「试验场」导航、首页入口、控制台和实验页返回链接统一到 `/lab/`；已同步本机 Docker 并重启 API，博客顶栏已刷新；sitemap 新条目待 API 重建 |
+| 2026-11-10 | P3-6 完成：新增 Three.js 交互实验《时间的尽头》和首页主打卡片；实验页约 167 KB gzip，移动端可双指缩放，减少动态时默认暂停；已同步到本机 Docker 的 80 端口 |
 | 2026-11-01 | 修事故：上一轮从仓库 `deploy/` 里启动了 compose（项目名同为 `lumen-desk`），容器挂载被换成仓库里的空目录，数据库变空。现象是 `/resume/` 一直「简历整理中」、控制台输对验证码也进不去。已改回在 `~/lumen-desk/` 启动（挂载 `~/lumen-desk/data`），重建 API 镜像，重新同步网页；数据、登录、打码全部正常。仓库 `deploy/` 里的 `web/`、`data/`、改坏的 `.env` 已挪到 `/tmp/lumen-desk-repo-deploy-leftovers/`，`.gitignore` 加 `deploy/web/`，AGENTS.md 加了「本机部署」一节 |
 | 2026-11-01 | 控制台博客卡片的标题改成链接：已发布开公开文章页（新标签页），草稿开 `/console/write?id=<id>` 编辑器；write 页支持 `?id=` 且等分类加载完再填 |
 | 2026-11-01 | 控制台「博客」卡片改为读真实数据（`/api/private/posts`，最近 3 篇，带已发布/草稿和日期），去掉 3 条写死的占位标题；新脚本 `src/scripts/console/blog-card.ts`，空列表和读不到时给中文提示 |

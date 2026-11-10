@@ -1,0 +1,990 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+<Layout
+  title="时间的尽头 · 试验场 · zreo"
+  description="一件用 Three.js 与程序化着色器构建的交互式作品：一座停在时间尽头的天文钟，和一片正在熄灭的星海。"
+  analytics
+>
+  <div class="eot" id="eot" data-state="stable" data-view="far">
+    <div class="eot-underlay" aria-hidden="true"></div>
+    <canvas
+      class="eot-canvas"
+      id="eot-canvas"
+      role="img"
+      aria-label="悬浮在黑色海面上的破碎天文钟，中心是一颗黑色太阳，金色刻度环与玻璃碎片缓慢旋转，粒子向奇点坠落。"
+    ></canvas>
+
+    <div class="eot-flash" aria-hidden="true"></div>
+    <div class="eot-scrim eot-scrim-top" aria-hidden="true"></div>
+    <div class="eot-scrim eot-scrim-bottom" aria-hidden="true"></div>
+
+    <span class="eot-corner c1" aria-hidden="true"></span>
+    <span class="eot-corner c2" aria-hidden="true"></span>
+    <span class="eot-corner c3" aria-hidden="true"></span>
+    <span class="eot-corner c4" aria-hidden="true"></span>
+
+    <header class="eot-top">
+      <a class="eot-brand" href="/" aria-label="回到主页">
+        <span class="eot-mark">z</span>
+        <span>zreo</span>
+      </a>
+      <nav class="eot-crumb" aria-label="当前位置">
+        <a href="/lab/">试验场</a>
+        <span aria-hidden="true">/</span>
+        <span>03</span>
+      </nav>
+      <div class="eot-top-right">
+        <span class="eot-live"><i></i><span id="eot-live-label">LIVE</span></span>
+        <span class="eot-engine">THREE.JS · WEBGL2</span>
+      </div>
+    </header>
+
+    <aside class="eot-rail" aria-hidden="true">CHRONAL OBSERVATION — 03</aside>
+
+    <section class="eot-title" aria-labelledby="eot-heading">
+      <p class="eot-eyebrow"><span></span>EXPERIMENT 03 / CHRONAL OBSERVATORY</p>
+      <h1 id="eot-heading">时间的尽头</h1>
+      <p class="eot-en">THE END OF TIME</p>
+      <p class="eot-desc">最后一枚秒针停摆之后，光仍在向引力井坠落。这里收藏着一颗正在熄灭的钟，以及所有来不及发生的事。</p>
+      <p class="eot-hint" id="eot-hint">拖动环视 · 滚轮推近 · 点击画面让时间坍缩</p>
+    </section>
+
+    <div class="eot-bottom">
+      <div class="eot-metrics" aria-label="观测数据">
+        <div class="eot-metric">
+          <span class="k">时间流速</span>
+          <span class="v" id="eot-dilation">×1.00</span>
+        </div>
+        <div class="eot-metric">
+          <span class="k">观测距离</span>
+          <span class="v"><span id="eot-distance">96.0</span><small> AU</small></span>
+        </div>
+        <div class="eot-metric">
+          <span class="k">视界状态</span>
+          <span class="v v-state"><i></i><span id="eot-state">稳定</span></span>
+        </div>
+        <div class="eot-metric">
+          <span class="k">演算帧率</span>
+          <span class="v"><span id="eot-fps">60</span><small> FPS</small></span>
+        </div>
+      </div>
+
+      <div class="eot-controls">
+        <div class="eot-mini">
+          <button class="eot-icon-btn" id="eot-pause" type="button" aria-pressed="false" aria-label="暂停时间" title="暂停时间（P）">
+            <svg class="ico-pause" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4.5 3.2v9.6M11.5 3.2v9.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <svg class="ico-play" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M5.2 3.4 12.4 8l-7.2 4.6V3.4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button class="eot-icon-btn" id="eot-reset" type="button" aria-label="复位视角" title="复位视角（R）">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M13 7.9A5 5 0 1 1 8.1 3H11M11 3 8.7 5.1 11 7.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <button class="eot-collapse" id="eot-collapse" type="button" aria-label="让时间坍缩">
+          <span class="eot-orbit" aria-hidden="true"></span>
+          <span class="eot-orbit eot-orbit-b" aria-hidden="true"></span>
+          <span class="eot-collapse-core" aria-hidden="true"></span>
+          <span class="eot-collapse-text" aria-hidden="true">坍缩</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="eot-loading" id="eot-loading" role="status">
+      <div class="eot-loader" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <p>正在校准视界</p>
+      <span class="eot-loading-line" aria-hidden="true"></span>
+    </div>
+
+    <div class="eot-fallback" id="eot-fallback" hidden>
+      <div class="eot-fallback-mark" aria-hidden="true"></div>
+      <p class="eot-fallback-kicker">SIGNAL LOST</p>
+      <h2>视界没有回应</h2>
+      <p id="eot-fallback-text">这台设备没有可用的 WebGL2 上下文。</p>
+      <a href="/lab/">返回试验场</a>
+    </div>
+
+    <noscript>
+      <div class="eot-fallback">
+        <div class="eot-fallback-mark" aria-hidden="true"></div>
+        <p class="eot-fallback-kicker">SCRIPT REQUIRED</p>
+        <h2>时间的尽头</h2>
+        <p>这个实验需要 JavaScript 和 WebGL2。请换一个开启硬件加速的浏览器再打开。</p>
+        <a href="/lab/">返回试验场</a>
+      </div>
+    </noscript>
+  </div>
+</Layout>
+
+<script>
+  import "../../scripts/lab/end-of-time";
+</script>
+
+<style is:global>
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: #02040a;
+  }
+</style>
+
+<style>
+  .eot {
+    --gold: #d9b477;
+    --gold-bright: #f2d6a4;
+    --ink: #e9eef7;
+    --muted: #8193a9;
+    --hairline: rgba(188, 209, 235, 0.16);
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    isolation: isolate;
+    color: var(--ink);
+    background: #02040a;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .eot-underlay {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 62% 44%, rgba(19, 54, 83, 0.5), transparent 34%),
+      radial-gradient(circle at 50% 112%, rgba(76, 35, 12, 0.28), transparent 42%),
+      radial-gradient(circle at 62% 44%, #07111e 0, #02040a 54%, #010205 100%);
+  }
+
+  .eot-canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 1.8s ease;
+  }
+
+  .is-ready .eot-canvas {
+    opacity: 1;
+  }
+
+  .is-broken .eot-canvas {
+    opacity: 0;
+  }
+
+  .is-dragging .eot-canvas {
+    cursor: grabbing;
+  }
+
+  .eot-flash {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background: radial-gradient(circle at 60% 48%, rgba(255, 214, 158, 0.55), rgba(255, 138, 55, 0.12) 24%, transparent 56%);
+    opacity: 0;
+    mix-blend-mode: screen;
+  }
+
+  .is-collapsing .eot-flash {
+    animation: eot-flash 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes eot-flash {
+    0% { opacity: 0; }
+    12% { opacity: 0.85; }
+    100% { opacity: 0; }
+  }
+
+  .eot-scrim {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .eot-scrim-top {
+    top: 0;
+    height: 170px;
+    background: linear-gradient(180deg, rgba(1, 3, 8, 0.78), transparent);
+  }
+
+  .eot-scrim-bottom {
+    bottom: 0;
+    height: 260px;
+    background: linear-gradient(0deg, rgba(1, 3, 8, 0.9), rgba(1, 3, 8, 0.36) 52%, transparent);
+  }
+
+  .eot-corner {
+    position: absolute;
+    z-index: 8;
+    width: 18px;
+    height: 18px;
+    border-color: rgba(224, 188, 126, 0.38);
+    border-style: solid;
+    pointer-events: none;
+  }
+
+  .eot-corner.c1 { top: 18px; left: 18px; border-width: 1px 0 0 1px; }
+  .eot-corner.c2 { top: 18px; right: 18px; border-width: 1px 1px 0 0; }
+  .eot-corner.c3 { bottom: 18px; left: 18px; border-width: 0 0 1px 1px; }
+  .eot-corner.c4 { bottom: 18px; right: 18px; border-width: 0 1px 1px 0; }
+
+  .eot-top {
+    position: absolute;
+    z-index: 10;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 30px 34px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 1.2s ease 0.45s, transform 1.2s ease 0.45s;
+  }
+
+  .is-ready .eot-top {
+    opacity: 1;
+    transform: none;
+  }
+
+  .eot-brand,
+  .eot-crumb a {
+    pointer-events: auto;
+  }
+
+  .eot-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+  }
+
+  .eot-mark {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    background: var(--gold);
+    color: #0a0b0d;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .eot-crumb {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+  }
+
+  .eot-crumb a:hover {
+    color: var(--gold-bright);
+  }
+
+  .eot-crumb span:last-child {
+    color: rgba(217, 180, 119, 0.75);
+  }
+
+  .eot-top-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: rgba(192, 208, 228, 0.52);
+  }
+
+  .eot-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .eot-live i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #7bd8b0;
+    box-shadow: 0 0 8px #7bd8b0;
+    animation: eot-pulse 2.8s ease-in-out infinite;
+  }
+
+  .is-paused .eot-live i {
+    background: #c49a5f;
+    box-shadow: 0 0 8px rgba(196, 154, 95, 0.8);
+    animation: none;
+  }
+
+  [data-state="collapse"] .eot-live i {
+    background: #ff9b55;
+    box-shadow: 0 0 12px #ff8a45;
+    animation-duration: 0.55s;
+  }
+
+  @keyframes eot-pulse {
+    0%, 100% { opacity: 0.45; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+
+  .eot-engine {
+    padding-left: 18px;
+    border-left: 1px solid var(--hairline);
+  }
+
+  .eot-rail {
+    position: absolute;
+    z-index: 8;
+    top: 50%;
+    right: 20px;
+    transform: translateY(-50%);
+    writing-mode: vertical-rl;
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.42em;
+    color: rgba(193, 208, 228, 0.28);
+    pointer-events: none;
+  }
+
+  .eot-title {
+    position: absolute;
+    z-index: 9;
+    left: 46px;
+    bottom: 144px;
+    max-width: min(520px, 42vw);
+    padding-left: 24px;
+    border-left: 1px solid rgba(217, 180, 119, 0.38);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .is-ready .eot-title {
+    opacity: 1;
+    transform: none;
+  }
+
+  .eot[data-view="close"] .eot-title {
+    opacity: 0.12;
+    transform: translateY(12px);
+  }
+
+  .eot-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.24em;
+    color: rgba(217, 180, 119, 0.82);
+    white-space: nowrap;
+  }
+
+  .eot-eyebrow span {
+    width: 26px;
+    height: 1px;
+    background: rgba(217, 180, 119, 0.6);
+  }
+
+  .eot-title h1 {
+    margin: 18px 0 0 -5px;
+    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", "Times New Roman", serif;
+    font-size: clamp(52px, 6.2vw, 88px);
+    font-weight: 300;
+    line-height: 0.98;
+    letter-spacing: 0.075em;
+    color: #f3e9d4;
+    text-shadow: 0 4px 54px rgba(0, 0, 0, 0.62), 0 0 26px rgba(255, 196, 109, 0.08);
+    white-space: nowrap;
+  }
+
+  .is-ready .eot-title h1 {
+    animation: eot-title-in 2.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes eot-title-in {
+    0% { letter-spacing: 0.14em; opacity: 0; filter: blur(7px); }
+    100% { letter-spacing: 0.075em; opacity: 1; filter: blur(0); }
+  }
+
+  .eot-en {
+    margin-top: 17px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.54em;
+    color: rgba(217, 180, 119, 0.7);
+  }
+
+  .eot-desc {
+    max-width: 31em;
+    margin-top: 20px;
+    font-size: 12.5px;
+    line-height: 2;
+    letter-spacing: 0.03em;
+    color: rgba(204, 218, 237, 0.62);
+  }
+
+  .eot-hint {
+    margin-top: 24px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    color: rgba(159, 177, 199, 0.52);
+  }
+
+  .eot-bottom {
+    position: absolute;
+    z-index: 10;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    padding: 0 36px 28px 46px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 1.2s ease 1s, transform 1.2s ease 1s;
+  }
+
+  .is-ready .eot-bottom {
+    opacity: 1;
+    transform: none;
+  }
+
+  .eot-metrics {
+    display: flex;
+    gap: 30px;
+    padding-top: 11px;
+    border-top: 1px solid var(--hairline);
+    min-width: 400px;
+  }
+
+  .eot-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .eot-metric .k {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    color: rgba(142, 160, 182, 0.62);
+  }
+
+  .eot-metric .v {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: rgba(228, 236, 247, 0.9);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .eot-metric small {
+    font-size: 8px;
+    color: rgba(142, 160, 182, 0.6);
+  }
+
+  .v-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .v-state i {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #7bd8b0;
+    box-shadow: 0 0 7px rgba(123, 216, 176, 0.9);
+  }
+
+  [data-state="paused"] .v-state i {
+    background: #c49a5f;
+    box-shadow: 0 0 7px rgba(196, 154, 95, 0.8);
+  }
+
+  [data-state="collapse"] .v-state i {
+    background: #ff9b55;
+    box-shadow: 0 0 9px #ff8a45;
+  }
+
+  .eot-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    pointer-events: auto;
+  }
+
+  .eot-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+
+  .eot-icon-btn {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(199, 216, 238, 0.18);
+    background: rgba(7, 14, 24, 0.46);
+    color: rgba(219, 229, 243, 0.72);
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: color 0.25s, border-color 0.25s, background 0.25s;
+  }
+
+  .eot-icon-btn:hover {
+    color: var(--gold-bright);
+    border-color: rgba(217, 180, 119, 0.55);
+    background: rgba(30, 23, 13, 0.5);
+  }
+
+  .eot-icon-btn .ico-play {
+    display: none;
+  }
+
+  .is-paused .eot-icon-btn .ico-pause {
+    display: none;
+  }
+
+  .is-paused .eot-icon-btn .ico-play {
+    display: block;
+  }
+
+  .eot-collapse {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 94px;
+    height: 94px;
+    padding: 0;
+    border: 1px solid rgba(217, 180, 119, 0.35);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, rgba(13, 16, 20, 0.9) 0 26%, rgba(4, 7, 11, 0.64) 27% 100%);
+    color: var(--gold-bright);
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: inset 0 0 40px rgba(255, 154, 69, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.4);
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+  }
+
+  .eot-collapse:hover {
+    border-color: rgba(242, 211, 160, 0.85);
+    box-shadow: inset 0 0 48px rgba(255, 154, 69, 0.12), 0 0 32px rgba(255, 154, 69, 0.12);
+    transform: scale(1.02);
+  }
+
+  .eot-collapse:active {
+    transform: scale(0.97);
+  }
+
+  .eot-orbit {
+    position: absolute;
+    inset: 8px;
+    border: 1px solid rgba(217, 180, 119, 0.25);
+    border-right-color: rgba(242, 211, 160, 0.8);
+    border-radius: 50%;
+    animation: eot-orbit 18s linear infinite;
+  }
+
+  .eot-orbit-b {
+    inset: 19px;
+    border-color: rgba(142, 168, 200, 0.2);
+    border-left-color: rgba(191, 219, 250, 0.7);
+    animation-duration: 11s;
+    animation-direction: reverse;
+  }
+
+  @keyframes eot-orbit {
+    to { transform: rotate(360deg); }
+  }
+
+  .eot-collapse-core {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #010204;
+    box-shadow: 0 0 0 1px rgba(242, 211, 160, 0.75), 0 0 16px rgba(255, 154, 69, 0.55);
+    transition: box-shadow 0.3s, transform 0.3s;
+  }
+
+  .eot-collapse:hover .eot-collapse-core {
+    transform: scale(1.35);
+    box-shadow: 0 0 0 1px #f2d3a0, 0 0 26px rgba(255, 154, 69, 0.8);
+  }
+
+  .eot-collapse-text {
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.24em;
+    color: rgba(217, 180, 119, 0.66);
+    white-space: nowrap;
+  }
+
+  .eot-loading {
+    position: absolute;
+    z-index: 30;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    background: radial-gradient(circle at 62% 44%, #06101c 0, #02040a 52%, #010205 100%);
+    transition: opacity 1s ease, visibility 1s;
+  }
+
+  .is-ready .eot-loading,
+  .is-broken .eot-loading {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .eot-loader {
+    position: relative;
+    width: 58px;
+    height: 58px;
+  }
+
+  .eot-loader span {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(217, 180, 119, 0.22);
+    border-radius: 50%;
+  }
+
+  .eot-loader span:nth-child(1) {
+    border-top-color: rgba(242, 211, 160, 0.9);
+    animation: eot-orbit 2.6s linear infinite;
+  }
+
+  .eot-loader span:nth-child(2) {
+    inset: 10px;
+    border-left-color: rgba(150, 188, 230, 0.8);
+    animation: eot-orbit 3.8s linear reverse infinite;
+  }
+
+  .eot-loader span:nth-child(3) {
+    inset: 24px;
+    background: #02040a;
+    box-shadow: 0 0 14px rgba(255, 154, 69, 0.4);
+    animation: eot-pulse 2s ease-in-out infinite;
+  }
+
+  .eot-loading p {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.36em;
+    color: rgba(199, 212, 230, 0.62);
+  }
+
+  .eot-loading-line {
+    width: 112px;
+    height: 1px;
+    overflow: hidden;
+    background: rgba(160, 180, 205, 0.14);
+  }
+
+  .eot-loading-line::after {
+    content: "";
+    display: block;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(242, 211, 160, 0.85), transparent);
+    animation: eot-scan 1.6s ease-in-out infinite;
+  }
+
+  @keyframes eot-scan {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(320%); }
+  }
+
+  .eot-fallback {
+    position: absolute;
+    z-index: 40;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 12px;
+    padding: 32px;
+    text-align: center;
+    background: radial-gradient(circle at 50% 40%, #0a1624 0, #02040a 58%);
+  }
+
+  .eot-fallback[hidden] {
+    display: none;
+  }
+
+  .eot-fallback-mark {
+    width: 74px;
+    height: 74px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(217, 180, 119, 0.28);
+    border-radius: 50%;
+    box-shadow: inset 0 0 30px rgba(255, 154, 69, 0.1);
+  }
+
+  .eot-fallback-kicker {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.32em;
+    color: rgba(217, 180, 119, 0.7);
+  }
+
+  .eot-fallback h2 {
+    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+    font-size: 34px;
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    color: #f0e4cd;
+  }
+
+  .eot-fallback p:not(.eot-fallback-kicker) {
+    max-width: 32em;
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--muted);
+  }
+
+  .eot-fallback a {
+    margin-top: 14px;
+    padding: 9px 16px;
+    border: 1px solid rgba(217, 180, 119, 0.4);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gold-bright);
+  }
+
+  .eot-fallback a:hover {
+    border-color: var(--gold-bright);
+    background: rgba(217, 180, 119, 0.08);
+  }
+
+  @media (max-width: 900px) {
+    .eot-title {
+      left: 28px;
+      bottom: 130px;
+      max-width: 46vw;
+      padding-left: 18px;
+    }
+    .eot-bottom {
+      padding-left: 30px;
+      padding-right: 28px;
+    }
+    .eot-metrics {
+      min-width: 0;
+      gap: 22px;
+    }
+    .eot-rail {
+      display: none;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .eot-top {
+      padding: calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) 18px calc(18px + env(safe-area-inset-left));
+      gap: 14px;
+    }
+    .eot-engine {
+      display: none;
+    }
+    .eot-top-right {
+      gap: 0;
+    }
+    .eot-title {
+      top: calc(74px + env(safe-area-inset-top));
+      bottom: auto;
+      left: calc(18px + env(safe-area-inset-left));
+      right: calc(18px + env(safe-area-inset-right));
+      max-width: none;
+      padding-left: 14px;
+    }
+    .eot-title h1 {
+      margin-top: 14px;
+      font-size: clamp(42px, 13.5vw, 66px);
+      letter-spacing: 0.06em;
+    }
+    .eot-eyebrow {
+      font-size: 8px;
+      letter-spacing: 0.16em;
+    }
+    .eot-eyebrow span {
+      width: 18px;
+    }
+    .eot-en {
+      margin-top: 12px;
+      font-size: 8px;
+      letter-spacing: 0.38em;
+    }
+    .eot-desc,
+    .eot-hint {
+      display: none;
+    }
+    .eot-bottom {
+      align-items: flex-end;
+      padding: 0 calc(18px + env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+      gap: 12px;
+    }
+    .eot-metrics {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 9px 18px;
+      border-top: 0;
+      padding: 0 0 2px;
+    }
+    .eot-metric:nth-child(2),
+    .eot-metric:nth-child(4) {
+      display: none;
+    }
+    .eot-metric .k {
+      font-size: 7px;
+    }
+    .eot-metric .v {
+      font-size: 11px;
+    }
+    .eot-mini {
+      display: flex;
+      flex-direction: row;
+      gap: 6px;
+      padding-bottom: 4px;
+    }
+    .eot-icon-btn {
+      width: 34px;
+      height: 34px;
+    }
+    .eot-controls {
+      padding-bottom: 4px;
+    }
+    .eot-collapse {
+      width: 70px;
+      height: 70px;
+    }
+    .eot-collapse-text {
+      bottom: -18px;
+      font-size: 8px;
+    }
+    .eot-orbit {
+      inset: 6px;
+    }
+    .eot-orbit-b {
+      inset: 15px;
+    }
+    .eot-scrim-bottom {
+      height: 220px;
+    }
+    .eot-corner {
+      width: 12px;
+      height: 12px;
+    }
+    .eot-corner.c1 { top: 12px; left: 12px; }
+    .eot-corner.c2 { top: 12px; right: 12px; }
+    .eot-corner.c3 { bottom: 12px; left: 12px; }
+    .eot-corner.c4 { bottom: 12px; right: 12px; }
+  }
+
+  @media (max-height: 620px) and (min-width: 701px) {
+    .eot-title {
+      bottom: 108px;
+    }
+    .eot-title h1 {
+      font-size: clamp(46px, 5.4vw, 74px);
+    }
+    .eot-desc,
+    .eot-hint {
+      display: none;
+    }
+    .eot-bottom {
+      padding-bottom: 18px;
+    }
+    .eot-collapse {
+      width: 76px;
+      height: 76px;
+    }
+    .eot-collapse-text {
+      display: none;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .eot-bottom {
+      gap: 8px;
+    }
+    .eot-icon-btn {
+      width: 30px;
+      height: 30px;
+    }
+    .eot-collapse {
+      width: 62px;
+      height: 62px;
+    }
+    .eot-collapse-text {
+      display: none;
+    }
+    .eot-metric .v {
+      font-size: 10px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .eot-canvas,
+    .eot-top,
+    .eot-title,
+    .eot-bottom,
+    .eot-loading {
+      transition-duration: 0.01ms !important;
+    }
+    .eot-loader span,
+    .eot-live i,
+    .eot-orbit,
+    .eot-loading-line::after,
+    .is-ready .eot-title h1 {
+      animation: none !important;
+    }
+    .eot-loader span:nth-child(3) {
+      opacity: 0.8;
+    }
+    .is-collapsing .eot-flash {
+      animation-duration: 1.4s;
+    }
+  }
+</style>

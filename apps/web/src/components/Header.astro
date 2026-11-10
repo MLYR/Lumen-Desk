@@ -1,7 +1,7 @@
 ---
 import ThemeSwitch from "./ThemeSwitch.astro";
 // 顶栏宽度固定用 .wrap（1200px），和主页、简历页一致；博客正文的宽框不带动顶栏。
-interface Props { current?: "home" | "blog" | "resume"; }
+interface Props { current?: "home" | "blog" | "resume" | "lab"; }
 const { current = "home" } = Astro.props;
 ---
 <header class="top">
@@ -11,7 +11,7 @@ const { current = "home" } = Astro.props;
       <a href="/" aria-current={current === "home" ? "page" : undefined}>主页</a>
       <a href="/resume/" aria-current={current === "resume" ? "page" : undefined}>简历</a>
       <a href="/blog/" aria-current={current === "blog" ? "page" : undefined}>博客</a>
-      <a href="/#lab">试验场</a>
+      <a href="/lab/" aria-current={current === "lab" ? "page" : undefined}>试验场</a>
     </nav>
     <div class="top-right">
       <ThemeSwitch />

@@ -119,8 +119,10 @@ async function loadCategories() {
   try {
     const d = await api<{ items: Cat[] }>("/api/private/categories");
     cats = Array.isArray(d.items) ? d.items : [];
-  } catch { cats = []; }
-  renderCategoryOptions();
+    renderCategoryOptions();
+  } catch {
+    if (!cats.length) renderCategoryOptions();
+  }
 }
 function renderCategoryOptions(selected?: string) {
   const keep = selected ?? fCat.value;
@@ -173,7 +175,14 @@ async function loadVocab() {
   try {
     const d = await api<{ items: { name: string }[] }>("/api/private/tags");
     vocab = (Array.isArray(d.items) ? d.items : []).map((x) => String(x.name));
-  } catch { vocab = []; }
+  } catch {
+    // 刷新失败时保留上一次的词表，不影响正在编辑的文章
+  }
+}
+/** 标签和分类可能在另一个标签页改过；回到编辑器时重新取一次，避免用旧词表。 */
+function refreshTaxonomy() {
+  void loadCategories();
+  void loadVocab();
 }
 function renderChips() {
   chipsEl.replaceChildren();
@@ -203,7 +212,7 @@ let sugg: string[] = [], suggIdx = -1;
 function closeSuggest() { suggestEl.hidden = true; suggestEl.replaceChildren(); sugg = []; suggIdx = -1; fTags.setAttribute("aria-expanded", "false"); fTags.removeAttribute("aria-activedescendant"); }
 function renderSuggest() {
   const q = fTags.value.trim().toLowerCase();
-  sugg = vocab.filter((n) => !tags.some((t) => t.toLowerCase() === n.toLowerCase()) && (!q || n.toLowerCase().includes(q))).slice(0, 8);
+  sugg = vocab.filter((n) => !tags.some((t) => t.toLowerCase() === n.toLowerCase()) && (!q || n.toLowerCase().includes(q)));
   suggestEl.replaceChildren();
   if (!sugg.length) { closeSuggest(); return; }
   sugg.forEach((n, i) => {
@@ -214,13 +223,14 @@ function renderSuggest() {
   });
   suggestEl.hidden = false; fTags.setAttribute("aria-expanded", "true");
   if (suggIdx >= 0) fTags.setAttribute("aria-activedescendant", "tag-opt-" + suggIdx); else fTags.removeAttribute("aria-activedescendant");
+  if (suggIdx >= 0) (suggestEl.children[suggIdx] as HTMLElement | undefined)?.scrollIntoView({ block: "nearest" });
 }
 fTags.addEventListener("input", () => {
   const v = fTags.value;
   if (/[,，]/.test(v)) { const parts = v.split(/[,，]/); const rest = parts.pop() ?? ""; parts.forEach((p) => addTag(p)); fTags.value = rest; }
   suggIdx = -1; renderSuggest();
 });
-fTags.addEventListener("focus", () => { renderSuggest(); });
+fTags.addEventListener("focus", () => { void loadVocab().then(() => { if (document.activeElement === fTags) renderSuggest(); }); });
 fTags.addEventListener("blur", () => { setTimeout(closeSuggest, 120); const v = fTags.value.trim(); if (v) { addTag(v); fTags.value = ""; } });
 fTags.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown") { e.preventDefault(); if (suggestEl.hidden) renderSuggest(); if (sugg.length) { suggIdx = (suggIdx + 1) % sugg.length; renderSuggest(); } }
@@ -234,6 +244,10 @@ fTags.addEventListener("keydown", (e) => {
   else if (e.key === "Backspace" && !fTags.value && tags.length) { tags.pop(); renderChips(); setDirty(true); }
 });
 tagBox.addEventListener("click", (e) => { if (e.target === tagBox || e.target === chipsEl) fTags.focus(); });
+
+const catSelectWrap = fCat.closest(".ui-select");
+catSelectWrap?.addEventListener("pointerdown", refreshTaxonomy, { capture: true });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshTaxonomy(); });
 
 /* ---------- 打开已有文章（下拉框） ---------- */
 // 标题来自数据库，只用 textContent 写入，不拼 HTML。

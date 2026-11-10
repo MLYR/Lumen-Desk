@@ -18,3 +18,4 @@ deploy/web/
 *.sqlite
 data/
 .idea/
+.archify/

@@ -97,9 +97,10 @@
 
 - 样式写在 `blog.css`，脚本放 `src/scripts/blog-reader.ts`，在外壳 `blog.astro` 里加载。
 - **布局**：
-  - ≥ 1200px：三栏 `240px | minmax(0, 1040px) | 200px`（2026-10-31 由 68ch 加宽到 1040px，博客页外框 `.wrap-blog` 1680px），左右两栏 `position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow: auto`。
-  - 顶栏（和页脚以外的主导航）固定用 `.wrap`（1200px），不跟正文的 1680px 框变宽；2026-11-01 之前顶栏跟着变宽，和主页、简历页不一致。
-  - 900–1199px：两栏，左边是导航，右侧目录隐藏，用正文顶部的 `.toc-inline`。
+  - 博客主体 `.wrap-blog` 占视口 90%，左右各留 5% 空白；上限仍是 1680px。内边距改为 0，保证 5% 是真正的页面留白。
+  - ≥ 1200px：三栏 `240px | minmax(0, 1fr) | 200px`。左栏固定 240px，正文吃掉剩余宽度；没有 `.post-toc` 时退化成 `240px | minmax(0, 1fr)`，正文占掉右栏，左栏位置和宽度不变。左右两栏 `position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow: auto`。
+  - 顶栏（和页脚以外的主导航）固定用 `.wrap`（1200px），不跟博客主体变宽；2026-11-01 之前顶栏跟着变宽，和主页、简历页不一致。
+  - 900–1199px：两栏，左边是导航，右侧目录隐藏，用正文顶部的 `.toc-inline`；正文填满剩余宽度。
   - < 900px：一栏，`.blog-nav` 变成从左边滑出的抽屉，正文顶部放一个「文章列表」按钮打开它；遮罩、Esc 和点链接都能关闭抽屉，焦点锁定在抽屉里。
   - `.toc-inline` 只在 < 1200px 时显示。
 - **目录高亮**：用 IntersectionObserver 监听正文 h2、h3，当前一节的链接加 `aria-current="true"`（两套主题各自的样式：蓝图是左边琥珀色竖线，白纸是朱红色文字加粗）。点击目录平滑滚动，`prefers-reduced-motion` 时直接跳。地址栏用 `history.replaceState` 更新 hash。目录过长时让当前项保持在可视区域里。

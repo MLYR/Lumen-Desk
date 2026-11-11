@@ -35,6 +35,7 @@
 - 三条构建期断言：控制台 HTML 里不许再有 `/_astro/`、引用的每个 `_assets` 文件必须存在、公开产物（js/css/html/json）里出现 `/api/private` 就直接构建失败。以后谁再往公开页面里 import 私有接口，`pnpm build` 会先拦住。
 - Caddyfile 没改：`@console path /console /console/*` 本来就覆盖子路径，`root /srv/private` 加路径 `/console/_assets/x` 正好落在 `dist-private/console/_assets/x`，而且同样在 forward_auth 后面。
 - 验证：`pnpm build` 通过，`grep -r "api/private" apps/web/dist` 无结果。用 headless Chrome 从 `dist-private` 起四个控制台页面（主页、写文章、设置、简历），7–9 个资源全部 200/304，没有任何发往 `/_astro/` 的请求，页面正常起来（两套主题截图、375 宽 `scrollWidth` 等于视口）。把仓库里的 Caddyfile 挂到临时容器上访问新产物：`/console/_assets/*`、`/Console/*`、`//console/*` 一律 302 到 `/login`，`..%2f` 穿越 404，公开的 `/_astro/Layout.css` 仍 200。
+
 ### 五张卡一起上线本机 Docker（2026-11-11）
 
 - 升级前数据库备份到 `~/lumen-desk/data/pre-p157.db`（`sqlite3 .backup`，2.1 MB）。把 `dist`、`dist-private`、`dist-shell` 分别 rsync 到 `~/lumen-desk/web/{public,private,shell}`，`docker compose build api` 后 `up -d`。
@@ -57,7 +58,6 @@
 - 新页面 `/lab/flow-field/`：粒子数 120–2000、速度 0.2–3×、拖尾三根滑杆，暂停/播放和复位按钮，空格暂停、R 复位；`prefers-reduced-motion` 打开时默认暂停并显示「播放」，页面开着时系统切成减少动态会立刻停下。375 宽滑杆占满一行，画布不设 `touch-action: none`，不挡页面滚动和双指缩放。
 - 实验元数据写在 `src/content/lab/flow-field.md`：`/lab/` 上主打卡片还是《时间的尽头》，流场作为第二张小卡（没有封面，走文字卡）。
 - 验证：`pnpm build` 通过。体积守门：`/lab/flow-field/` 首屏 6.6 KB gzip（HTML 4.0 / CSS 1.9 / JS 0.7），`/lab/` 5.3 KB 且不加载实验脚本。Chrome headless + CDP 在 1440×900 和 375×812、两套主题下实测：画布 2300×1042 有内容、61 FPS、三根滑杆的读数和画面同步变、暂停后逐像素不变、空格恢复、R 复位、减少动态时画面有内容且不动、两套主题 `scrollWidth` 都等于视口宽度。控制台演示卡单独用探针页验证：600×130 画布画出 11441 个非背景像素。页面自身没有脚本报错（本地静态服务器只有一条 favicon 404，仓库里本来没有 favicon）。
-- 本机 Docker 未同步。
 
 ### P3-1 试验场内容模型（2026-11-11）
 
@@ -66,7 +66,6 @@
 - `LabGrid.astro` 改成接 props，不再写死卡片：featured 走大卡，其余走三列小卡，没封面只显示文字，一个实验都没有时给一句提示。`/lab/` 的统计栏也改成从数据取（当前实验 / 技术栈 / 实验数）。
 - sitemap 不再手写：新增构建端点 `src/pages/lab-index.json.ts`，把 `/lab/` 和每个实验路由写成 `dist/lab-index.json`，`split-private.mjs` 搬进 `dist-shell` 并断言清单里每条路由都有对应页面；api 新增 `loadLabRoutes()` 读它（只收 `/lab(/<slug>)*/` 形状，清单坏了回落到只写 `/lab/`），`sitemap()` 多一个参数。
 - 验证：加一个 md 加一个 .astro，`pnpm build` 后 `/lab/` 卡片、首页试验场模块、`dist-shell/lab-index.json`、`/sitemap.xml` 四处一起出现；临时起了 api（3999 端口，`SHELL_DIR` 指向构建产物）确认 sitemap 里三条 lab 条目都在。只加 md 不加页面时构建失败并指出缺哪个页面；删掉文件后四处一起消失。`pnpm test` 157 个、`pnpm build` 通过，体积守门 8 个页面全在预算内。
-- 本机 Docker 还没同步，和 P3-3 一起发。
 
 ### P3-4 首屏与实验页体积守门（2026-11-11）
 

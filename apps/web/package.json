@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && node scripts/split-private.mjs",
+    "build": "astro build && node scripts/split-private.mjs && node scripts/check-size.mjs",
     "preview": "astro preview",
     "astro": "astro"
   },

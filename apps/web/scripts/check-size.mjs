@@ -17,7 +17,7 @@ const SHELL_DIR = resolve(root, "dist-shell");
 
 const KB = 1024;
 const PAGE_BUDGET = 200 * KB; // 普通公开页首屏
-const HEAVY_BUDGET = 1024 * KB; // 实验页、工具页
+const HEAVY_BUDGET = 2048 * KB; // 实验页、工具页
 
 // 运行时才由 api / Caddy 提供的路径，构建产物里没有，也不计入体积。
 const RUNTIME_PREFIXES = ["/u/", "/api/", "/uploads/"];

@@ -68,7 +68,7 @@
 
 ### P3-4 首屏与实验页体积守门（2026-11-11）
 
-- 新增 `apps/web/scripts/check-size.mjs`，接在 `astro build && split-private` 之后，`pnpm build` 最后一步跑。对每个公开页把首屏静态引用（HTML 本身、CSS、JS、非懒加载的本地图片）按 gzip 6 级压一遍，按路由对照预算，超了退出码 1。预算写在脚本的 `RULES` 里：普通页 200 KB，`/lab/*/`、`/tools/*/` 1 MB。
+- 新增 `apps/web/scripts/check-size.mjs`，接在 `astro build && split-private` 之后，`pnpm build` 最后一步跑。对每个公开页把首屏静态引用（HTML 本身、CSS、JS、非懒加载的本地图片）按 gzip 6 级压一遍，按路由对照预算，超了退出码 1。预算写在脚本的 `RULES` 里：普通页 200 KB，`/lab/*/`、`/tools/*/` 2 MB（2026-11-11 从 1 MB 调上来，用户看过实测数据后决定放宽）。
 - 新增页面忘了定预算直接红（拿 `/foo/` 试过）。`/lab/`、`/tools/` 带 forbid 列表：只要列表页引用了实验或工具的脚本就算违规，靠这条守住「列表页不加载任何实验脚本」。
 - 实测（gzip）：`/` 10.3 KB、`/blog/` 9.2 KB（api 渲染的外壳）、`/lab/` 5.0 KB、`/login/` 4.6 KB、`/resume/` 5.6 KB、`/tools/` 6.2 KB、`/lab/end-of-time/` 163.1 KB（JS 占 155.1）、`/tools/image-compressor/` 47.4 KB。全部在预算内。
 - 图片压缩工具那 16 MB 的 Pyodide 运行时（`pyodide.asm.js` 等）是点了压缩才取的，不计入首屏；工具页首屏算的是 HTML + jszip + pyodide.js 外壳。
@@ -231,6 +231,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-11 | 实验页和工具页的预算从 1 MB 抬到 2 MB（压缩后）：当前最重的《时间的尽头》163 KB，只占 8%；抬完手机首次打开最坏约多等 2 秒 |
 | 2026-11-11 | 删掉流场实验页（用户觉得不好看）：`/lab/flow-field/` 和它的内容文件一起移除，`/lab/` 回到一张卡片，sitemap 少一条；`flowfield.ts` 的控制器重写保留给控制台演示卡用 |
 | 2026-11-11 | 体积守门、内容模型、流场页、控制台脚本私有化、定时备份五张卡一起发到本机 Docker：升级前库备份 `pre-p157.db`，重建 api 镜像，80 端口全绿，重启后立刻落下第一份 94 KB 定时备份 |
 | 2026-11-11 | P4-7 控制台脚本私有化：控制台 JS/CSS 进 `dist-private/console/_assets`（17 个），公开 `_astro` 从 22 个减到 13 个，`grep api/private apps/web/dist` 无结果；构建期断言公开产物不许出现 `/api/private` |

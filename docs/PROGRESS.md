@@ -4,7 +4,7 @@
 
 ## 1. 当前状态
 
-- **阶段**：P1 完成；P2 博客代码完成（在线写、导入 .md、图片上传）；P3 试验场新增 `/lab/` 列表页和《时间的尽头》Three.js 实验页；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
+- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场新增 `/lab/` 列表页和《时间的尽头》Three.js 实验页；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
 - **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、简历 3 个项目 9 条技能、2 篇文章、绑定 Google Authenticator。
 - **服务器**：未部署。
@@ -23,10 +23,20 @@
 | P2.9 服务器状态卡 | 完成 | `docs/contracts/server-status.md` |
 | P2.10 简历 | 完成 | `docs/contracts/resume.md`；简历内容只在服务器数据库 |
 | P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
+| P2.12 整站数据备份 | 完成 | `docs/contracts/backup.md`；控制台导出/导入 ZIP，不含验证器和会话 |
 | P3 试验场 | 2 / 7（含工具箱） | P3-6《时间的尽头》、P3-7 工具箱完成；`/lab/` 列表页静态版完成；内容模型和流场页未做 |
 | P4 增强 | 2 / 7 | Umami、Uptime Kuma 已部署到本机；其余待定 |
 
 ## 2. 已完成
+
+### P2.12 整站数据备份（2026-11-10）
+
+- 新增 `GET /api/private/backup/export` 和 `POST /api/private/backup/import`：导出 `manifest.json`、`content.json` 和 `uploads/`，覆盖文章（含草稿）、分类、标签词表、书签树、简历、个人资料、上传图片；不包含 TOTP、恢复码、会话、限流、AIHOT 缓存和书签快照。
+- 导入先完成全量校验和文章重渲染，再写图片，最后在一个事务里替换数据并重建 FTS；失败不会改动数据库。书签导入前尽力保存快照。
+- 控制台设置页新增「数据备份」分区：下载 ZIP、选择文件、覆盖确认、导入后刷新；文件包含简历原文，页面提示未加密。
+- Caddy 为 `/api/private/backup/import` 单独设置 41 MiB 请求体上限，避免被其他私有接口的 3 MiB 规则拦截。
+- 验证：`pnpm test`（156 个）和 `pnpm build` 通过；在临时 API + Astro dev 上用真实浏览器登录，完成导出、选择备份、确认导入、刷新和移动端布局检查；`apps/api/test/backup.test.ts` 覆盖往返、鉴权、坏 ZIP/字段和失败不改数据。
+- 已同步 `apps/web/dist/`、`dist-private/`、`dist-shell/` 到 `~/lumen-desk/web/{public,private,shell}`，重建 API 镜像并重启 Caddy；80 端口 `/api/private/backup/export` 未登录返回 401，4 MiB 导入请求通过 Caddy 到达会话检查（401），Caddy 配置校验通过。
 
 ### P3-2 试验场列表页（2026-11-10）
 
@@ -161,7 +171,7 @@
 
 ### 还要确认
 
-8. **数据备份**：暂定。博客上线后文章存在数据库里，到时必须做（P1.5-7）。
+8. **数据备份**：已做控制台整站导出/导入（P2.12）；每天定时打包和异地保留仍未做（P1.5-7）。
 10. **P4 其余增强项**：AIHOT 今日日报、天气、GitHub 热力图、控制台编辑书签待定。
 
 ## 5. 下一步
@@ -175,6 +185,8 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-11 | 设置页移除「编辑简历」侧栏入口和个人资料区链接，简历编辑仍从控制台简历卡进入 |
+| 2026-11-10 | P2.12 整站数据备份：控制台导出/导入文章、分类标签、书签、简历、个人资料和上传图片；导入不触碰验证器、恢复码和会话 |
 | 2026-11-10 | 博客布局：主体左右留 5%，左栏固定 240px，正文自适应；无目录时正文占掉右栏，列表页同步收窄 |
 | 2026-11-10 | P3-7 工具箱：新增 `/tools/` 聚合页和顶部「工具箱」导航，图片压缩工具（Pyodide/Pillow/JSZip 本地化）在新标签页打开；加入 sitemap，已同步本机 Docker |
 | 2026-11-10 | 修复写文章页标签自动补全只显示 8 个的问题：取消截断，改成网格展示全部标签，并在回到页面/聚焦时刷新标签和分类词表 |

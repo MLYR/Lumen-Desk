@@ -1,6 +1,6 @@
 // 设置页 /console/settings。原生 TS。接口约定见 docs/contracts/taxonomy-profile.md。
 // 所有用户文本只用 textContent 写入，不拼 HTML。
-import { $, api, ApiError, explain, initialOf, jsonInit, safeAvatar } from "./common";
+import { $, api, apiRaw, ApiError, explain, initialOf, jsonInit, safeAvatar } from "./common";
 import { setProfileCache, type Fact, type Link, type Profile } from "./topbar";
 import { renderIntro } from "../intro-render";
 import { confirmDialog } from "../ui/dialog";
@@ -37,7 +37,7 @@ const btn = (text: string, onClick: () => void, label?: string, cls = "btn sm") 
 };
 
 /* ---------- 分区切换（URL hash 记住） ---------- */
-const SECTIONS = ["profile", "taxonomy", "security"] as const;
+const SECTIONS = ["profile", "taxonomy", "backup", "security"] as const;
 type Sec = (typeof SECTIONS)[number];
 let current: Sec = "profile";
 function showSection(s: Sec, updateHash = true) {
@@ -260,6 +260,87 @@ $("tag-add").addEventListener("submit", async (e) => {
   const name = $<HTMLInputElement>("tag-name");
   if (!name.value.trim()) { setMsg("请填写标签名称", "err"); return; }
   try { await api("/api/private/tags", jsonInit("POST", { name: name.value.trim() })); name.value = ""; setMsg("已添加标签", "ok"); await loadTaxonomy(); } catch (err) { fail("添加失败", err); }
+});
+
+/* ---------- 数据备份 ---------- */
+const backupFileInput = $<HTMLInputElement>("bk-file");
+const backupImport = $<HTMLButtonElement>("bk-import");
+let backupFile: File | null = null;
+
+const sizeText = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+function setBackupFile(file: File | null) {
+  backupFile = file;
+  backupImport.disabled = !file;
+  $("bk-file-name").textContent = file ? `${file.name} · ${sizeText(file.size)}` : "未选择文件";
+}
+function backupError(prefix: string, e: unknown) {
+  const detail = e instanceof ApiError && e.detail ? e.detail : explain(e);
+  setMsg(`${prefix}：${detail}`, "err");
+}
+
+$("bk-download").addEventListener("click", async () => {
+  const b = $<HTMLButtonElement>("bk-download");
+  b.disabled = true;
+  $("bk-export-state").textContent = "正在打包…";
+  setMsg("正在打包…", "ok");
+  try {
+    const res = await apiRaw("/api/private/backup/export");
+    const blob = await res.blob();
+    const disposition = res.headers.get("content-disposition") ?? "";
+    const name = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "lumen-desk-backup.zip";
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name; a.rel = "noopener";
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    $("bk-export-state").textContent = `已下载 ${name}（${sizeText(blob.size)}）`;
+    setMsg("备份已开始下载", "ok");
+  } catch (e) {
+    $("bk-export-state").textContent = "打包失败，请重试";
+    backupError("备份失败", e);
+  } finally {
+    b.disabled = false;
+  }
+});
+
+$("bk-pick").addEventListener("click", () => backupFileInput.click());
+backupFileInput.addEventListener("change", () => {
+  const f = backupFileInput.files?.[0] ?? null;
+  backupFileInput.value = "";
+  if (!f) return;
+  if (!/\.zip$/i.test(f.name)) { setMsg("请选择 .zip 备份文件", "err"); setBackupFile(null); return; }
+  if (f.size > 40 * 1024 * 1024) { setMsg("备份超过 40 MB", "err"); setBackupFile(null); return; }
+  setBackupFile(f);
+  setMsg(`已选择 ${f.name}`, "ok");
+});
+
+backupImport.addEventListener("click", async () => {
+  if (!backupFile) return;
+  const ok = await confirmDialog({
+    title: "导入备份并覆盖当前内容？",
+    body: `文件：${backupFile.name}\n当前站点的文章、分类、标签、书签、简历、个人资料和上传图片会以备份里的内容为准。\n\n验证器、恢复码和登录状态不会改变。`,
+    confirmText: "覆盖导入",
+    danger: true,
+  });
+  if (!ok) return;
+  backupImport.disabled = true;
+  backupImport.textContent = "导入中…";
+  setMsg("正在导入并重建文章…", "ok");
+  try {
+    const fd = new FormData();
+    fd.append("file", backupFile, backupFile.name);
+    const r = await api<{ posts: number; categories: number; tags: number; folders: number; bookmarks: number; uploads: number }>(
+      "/api/private/backup/import",
+      { method: "POST", body: fd },
+    );
+    setMsg(`已恢复 ${r.posts} 篇文章、${r.categories} 个分类、${r.tags} 个标签、${r.bookmarks} 条书签和 ${r.uploads} 张图片，页面即将刷新`, "ok");
+    pfDirty = false;
+    setTimeout(() => location.reload(), 1200);
+  } catch (e) {
+    backupError("导入失败", e);
+    backupImport.disabled = false;
+    backupImport.textContent = "导入并覆盖";
+  }
 });
 
 /* ---------- 账号安全 ---------- */

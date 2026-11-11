@@ -20,6 +20,7 @@
 | P2.9 服务器状态卡 | 当前运行环境的真实配置与用量，本机标注 Docker 虚拟机 | 完成 | P1 |
 | P2.10 简历 | `/resume/` 页面、控制台编辑、服务端打码与总开关、额外隐藏词 | 完成 | P2.5 |
 | P2.11 重新绑定验证器 | 登录后扫码换绑 Google Authenticator，密钥加密存数据库 | 完成 | P1 |
+| P2.12 整站数据备份 | 控制台导出/导入文章、分类标签、书签、简历、个人资料和上传图片；不包含验证器和会话 | 完成 | P2.5、P2.8、P2.10 |
 | P3 试验场 | `/lab` 列表和单个实验页 | 进行中（2 / 7，列表页静态版已完成） | P2 的内容结构（可并行） |
 | P4 增强 | 统计、状态页、日报、天气等 | 未开始 | ❓ 逐项确认要不要 |
 
@@ -60,7 +61,7 @@
 | P1.5-4 | Cookie 改用 `__Host-` 前缀 | `sessions.ts` 改名为 `__Host-ld_session`，浏览器会拒绝不带 `Secure` 的写入，配错时能立刻发现。只能在 HTTPS 上线时一起改 | 测试更新；HTTPS 下能登录 |
 | P1.5-5 ✅ | 加 CSP 头 | Caddyfile 加 `Content-Security-Policy`：`default-src 'self'; script-src 'self' 'sha256-…'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`。Astro 的内联主题脚本要算 hash，或者改成外链脚本 | 三个页面在浏览器控制台没有 CSP 报错 |
 | P1.5-6 ✅ | Actions 固定到 commit SHA | `deploy.yml` 里 `actions/*`、`pnpm/action-setup` 改成完整 SHA，注释写版本号 | workflow 通过 |
-| P1.5-7 | 数据备份（暂缓） | 每天用 SQLite 在线备份把 `data/` 打包加密，保留 14 天。不用 COS 的话，目标可以是腾讯云轻量自动快照，或 rsync 回本机。博客上线后数据库里有文章，必须做 | 能从备份恢复出可登录的实例 |
+| P1.5-7 | 定时数据备份（暂缓） | 控制台整站导出/导入已完成（P2.12）；每天自动打包、加密、保留 14 天和异地保留仍未做。不用 COS 的话，目标可以是腾讯云轻量自动快照，或 rsync 回本机 | 能从自动备份恢复出可登录的实例 |
 | P1.5-8 ✅ | 日志轮转 | compose 里给两个服务加 `logging: max-size: 10m, max-file: 3` | `docker inspect` 能看到配置 |
 | P1.5-9 | 页脚备案号 | 拿到号后填到 `Footer.astro`，ICP 链接到 `beian.miit.gov.cn` | 页面显示正确 |
 | P1.5-10 ✅ | 服务器状态显示真实数据（见 P2.9） | Linux 上容器读到的负载、内存（已改用 MemAvailable）、开机时长就是宿主机的值，`/data` 挂在宿主磁盘上，磁盘也是真实的。部署到服务器后对照 `free -h`、`df -h` 核对。每月流量包用量要调腾讯云 API（需要只读子账号密钥），单独做 | 控制台数字和 `free`、`df` 一致 |

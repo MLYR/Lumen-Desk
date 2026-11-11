@@ -191,6 +191,18 @@ export function importTree(db: DB, tree: ParsedFolder[], mode: 'replace' | 'merg
   });
 }
 
+/**
+ * Replaces the whole bookmark tree without opening a transaction.
+ * The caller owns the transaction and must validate the tree (depth, item count, field limits).
+ */
+export function replaceTreeInTx(db: DB, tree: ParsedFolder[], nowMs: number): { folders: number; links: number } {
+  if (treeDepth(tree) > MAX_DEPTH) throw new InputError(`文件夹最多 ${MAX_DEPTH} 层`);
+  const counts = countTree(tree);
+  clearAll(db);
+  insertForest(db, tree, null, nowMs);
+  return counts;
+}
+
 // ---------- migration from bookmarks.json ----------
 
 type LegacyNode = { name?: unknown; children?: unknown; links?: unknown };

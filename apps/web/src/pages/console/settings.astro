@@ -15,8 +15,8 @@ import "../../styles/settings.css";
   <nav class="st-nav" role="tablist" aria-label="设置分区" aria-orientation="vertical">
     <button type="button" role="tab" id="tab-profile" data-s="profile" aria-controls="sec-profile" aria-selected="true">个人资料</button>
     <button type="button" role="tab" id="tab-taxonomy" data-s="taxonomy" aria-controls="sec-taxonomy" aria-selected="false" tabindex="-1">分类和标签</button>
+    <button type="button" role="tab" id="tab-backup" data-s="backup" aria-controls="sec-backup" aria-selected="false" tabindex="-1">数据备份</button>
     <button type="button" role="tab" id="tab-security" data-s="security" aria-controls="sec-security" aria-selected="false" tabindex="-1">账号安全</button>
-    <a class="st-nav-link" href="/console/resume">编辑简历 →</a>
   </nav>
 
   <div class="st-body">
@@ -28,7 +28,6 @@ import "../../styles/settings.css";
         <form class="pf-form" id="pf-form" autocomplete="off" novalidate>
           <h1 class="st-h">个人资料</h1>
           <p class="st-sub">同步到公开主页的简介、控制台的简介卡和右上角头像。</p>
-          <p class="st-sub"><a class="st-link" href="/console/resume">编辑简历 →</a> 简历内容、哪些信息对访客打码、预览访客看到的样子，都在单独的页面里。</p>
           <div class="pf-avatar-row">
             <span class="pf-avatar" id="pfa"><img id="pfa-img" alt="" hidden><span id="pfa-ini">Z</span></span>
             <div class="pf-avatar-btns">
@@ -91,6 +90,32 @@ import "../../styles/settings.css";
           </form>
         </div>
       </div>
+    </section>
+
+    <!-- 数据备份 -->
+    <section class="st-sec" id="sec-backup" role="tabpanel" aria-labelledby="tab-backup" hidden>
+      <h1 class="st-h">数据备份</h1>
+      <p class="st-sub">把文章、简历、书签、分类和标签、个人资料以及上传的图片打包成一个 ZIP。换服务器时，在新站点的控制台导入同一个文件即可。</p>
+      <div class="bk-grid">
+        <div class="bk-card">
+          <h2 class="st-h2">导出</h2>
+          <p class="st-sub">包含全部动态内容，不包含验证器、恢复码和登录状态。</p>
+          <div class="st-actions"><button class="btn primary" type="button" id="bk-download">下载全部数据 (.zip)</button></div>
+          <p class="st-hint" id="bk-export-state">内容越多，打包需要的时间越长。</p>
+        </div>
+        <div class="bk-card">
+          <h2 class="st-h2">导入</h2>
+          <p class="st-sub">用备份替换当前站点的全部动态内容。验证器、恢复码和登录状态不会被改动。</p>
+          <input type="file" id="bk-file" accept=".zip,application/zip" hidden>
+          <div class="st-actions">
+            <button class="btn" type="button" id="bk-pick">选择备份 .zip</button>
+            <button class="btn danger" type="button" id="bk-import" disabled>导入并覆盖</button>
+          </div>
+          <p class="st-hint" id="bk-file-name">未选择文件</p>
+          <p class="st-hint">最大 40 MB。导入完成后页面会刷新。</p>
+        </div>
+      </div>
+      <p class="bk-note">备份是站点内容，不是数据库文件，包含简历原文和个人资料。文件没有加密，请只放在自己信任的地方。导入前建议先下载一次当前数据，留一份可回退的副本。</p>
     </section>
 
     <!-- 账号安全 -->

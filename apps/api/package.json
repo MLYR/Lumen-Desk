@@ -13,7 +13,8 @@
     "init-totp": "tsx --env-file-if-exists=.env src/cli/init-totp.ts",
     "revoke-sessions": "tsx --env-file-if-exists=.env src/cli/revoke-sessions.ts",
     "import-bookmarks": "tsx --env-file-if-exists=.env src/cli/import-bookmarks.ts",
-    "unlock-logins": "tsx --env-file-if-exists=.env src/cli/unlock-logins.ts"
+    "unlock-logins": "tsx --env-file-if-exists=.env src/cli/unlock-logins.ts",
+    "backup": "tsx --env-file-if-exists=.env src/cli/backup.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5",

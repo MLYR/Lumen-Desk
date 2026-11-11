@@ -204,6 +204,27 @@ docker compose run --rm api node dist/cli/revoke-sessions.js
 docker compose run --rm api node dist/cli/unlock-logins.js
 ```
 
+## 定时备份与恢复
+
+api 每天 03:35 在进程里做一份全量备份（和「设置 → 数据备份 → 下载」是同一种 ZIP），写到 `BACKUP_DIR`，默认 `/data/backups`，也就是宿主机的 `~/lumen-desk/data/backups`。保留 `BACKUP_KEEP` 份（默认 14），超出的从最旧的删。启动时如果目录里超过 24 小时没有能读的备份，会先补一份。
+
+备份里**不含**验证器密钥、恢复码和会话：恢复出来的实例内容齐全，但登录仍然要用手机上的验证码。
+
+```bash
+cd /opt/lumen-desk
+
+# 现在做一份（顺手清旧的）
+docker compose run --rm api node dist/cli/backup.js run
+
+# 看看目录里有什么，坏包会标出来
+docker compose run --rm api node dist/cli/backup.js list
+
+# 用指定备份覆盖当前数据（会确认一次）
+docker compose run --rm api node dist/cli/backup.js restore /data/backups/lumen-desk-backup-202611111135.zip --yes
+```
+
+坏包会被跳过并记一行 `[backup] 跳过坏备份 …`，不会因为一份文件坏了就中断备份；新备份先写临时文件再改名，中途失败不会覆盖上一份好的。
+
 ## 开启自动部署（GitHub Actions）
 
 开启后，每次推送到 `main` 分支，GitHub 会自己测试、构建，然后通过 SSH 把文件传到服务器并重启服务，最后访问一次 `/api/healthz` 确认服务正常。

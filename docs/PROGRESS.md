@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | P0 准备 | 1 / 5 | 服务器和域名已有；备案未提交；COS 已取消 |
 | P1 MVP | 9 / 9 | 全部完成 |
-| P1.5 上线加固 | 3 / 10 | CSP、Actions 固定 SHA、日志轮转已完成；其余要等服务器和备案 |
+| P1.5 上线加固 | 4 / 10 | CSP、Actions 固定 SHA、日志轮转、定时备份（本机部分）已完成；其余要等服务器和备案 |
 | P2 博客 | 10 / 11 | 只差第一篇文章（P2-11，用户写） |
 | P2.5 分类、标签、设置 | 8 / 8 | 完成，见 `docs/contracts/taxonomy-profile.md` |
 | P2.6 基础 UI 组件 | 完成 | 见 `docs/contracts/ui-components.md` |
@@ -25,9 +25,26 @@
 | P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
 | P2.12 整站数据备份 | 完成 | `docs/contracts/backup.md`；控制台导出/导入 ZIP，不含验证器和会话 |
 | P3 试验场 | 6 / 7（含工具箱） | P3-1 内容模型、P3-2 列表页、P3-3 流场页、P3-4 体积守门、P3-6《时间的尽头》、P3-7 工具箱完成；只剩 P3-5 后续实验（按兴趣排期） |
-| P4 增强 | 3 / 7 | Umami、Uptime Kuma 已部署到本机；P4-6 控制台编辑书签由 P2.8 交付；其余待定 |
+| P4 增强 | 4 / 7 | Umami、Uptime Kuma 已部署到本机；P4-6 控制台编辑书签由 P2.8 交付；P4-7 控制台脚本私有化完成；其余待定 |
 
 ## 2. 已完成
+
+### P4-7 控制台脚本私有化（2026-11-11）
+
+- `scripts/split-private.mjs` 在搬控制台目录时顺手把 JS/CSS 也搬过去：HTML 里的 `/_astro/` 改写成 `/console/_assets/`，再把引用闭包（包括 chunk 之间的相对 `import`）复制进 `dist-private/console/_assets/`——这次 17 个文件。公开 `dist/_astro` 里只留公开页面（含 api 渲染的博客外壳）用得到的，从 22 个降到 13 个。
+- 三条构建期断言：控制台 HTML 里不许再有 `/_astro/`、引用的每个 `_assets` 文件必须存在、公开产物（js/css/html/json）里出现 `/api/private` 就直接构建失败。以后谁再往公开页面里 import 私有接口，`pnpm build` 会先拦住。
+- Caddyfile 没改：`@console path /console /console/*` 本来就覆盖子路径，`root /srv/private` 加路径 `/console/_assets/x` 正好落在 `dist-private/console/_assets/x`，而且同样在 forward_auth 后面。
+- 验证：`pnpm build` 通过，`grep -r "api/private" apps/web/dist` 无结果。用 headless Chrome 从 `dist-private` 起四个控制台页面（主页、写文章、设置、简历），7–9 个资源全部 200/304，没有任何发往 `/_astro/` 的请求，页面正常起来（两套主题截图、375 宽 `scrollWidth` 等于视口）。把仓库里的 Caddyfile 挂到临时容器上访问新产物：`/console/_assets/*`、`/Console/*`、`//console/*` 一律 302 到 `/login`，`..%2f` 穿越 404，公开的 `/_astro/Layout.css` 仍 200。
+- 没有动本机 Docker。
+
+### P1.5-7 定时全量备份（本机部分，2026-11-11）
+
+- 新增 `apps/api/src/backups.ts`：复用 P2.12 的导出/导入，只多出落盘、保留策略、坏包检测和恢复。`runBackup()` 先写 `.tmp` 再改名，写完立刻验一遍，验不过就删掉、旧备份一份不动；`pruneBackups()` 只删 `lumen-desk-backup-<12 位时间>.zip` 这种自己写的文件名，目录里别人的文件不碰；`latestUsableBackup()` 从新到旧找第一个能读的，坏包打一行警告跳过。
+- api 进程里每天 03:35（容器时区）做一次，保留 `BACKUP_KEEP` 份（默认 14）。启动时如果目录里超过 24 小时没有能读的备份，先补一份——机器宕几天回来不会一直没有备份。默认目录 `DATA_DIR/backups`，容器里是 `/data/backups`，就是宿主机 `~/lumen-desk/data/backups`，不用改 compose 挂载。
+- 新 CLI `apps/api/src/cli/backup.ts`（`pnpm --filter api backup`，容器里 `node dist/cli/backup.js`）：`run` 做一份、`list` 列出来并标坏包、`restore <文件> --yes` 覆盖现有内容（不带 `--yes` 只提示不动手）。`deploy/README.md` 加了「定时备份与恢复」一节。
+- 新环境变量 `BACKUP_DIR`、`BACKUP_KEEP`，已加进 `apps/api/.env.example`、`deploy/.env.example` 和 `src/config.ts`。
+- 验证：`apps/api/test/backup-schedule.test.ts` 4 个用例（落盘后可读、清单数量对得上、保留 14 份删最旧且不碰别人的文件、最新一份坏掉时回退到上一份并告警、恢复到空实例后文章和 `/blog/<slug>/` 都在且未登录仍然 401）。`pnpm test` 161 个、`pnpm build` 通过。CLI 冒烟：空数据目录 `run` → `list` → 不带 `--yes` 的 `restore` 退出码 2 → 带 `--yes` 恢复成功；起一次 api 确认启动补做会写出一份并打日志。
+- 异地保留还没做，等服务器定目标（腾讯云轻量自动快照，或 rsync 回本机）。
 
 ### P3-3 流场粒子实验页（2026-11-11）
 
@@ -211,6 +228,8 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-11 | P4-7 控制台脚本私有化：控制台 JS/CSS 进 `dist-private/console/_assets`（17 个），公开 `_astro` 从 22 个减到 13 个，`grep api/private apps/web/dist` 无结果；构建期断言公开产物不许出现 `/api/private` |
+| 2026-11-11 | P1.5-7 定时备份本机部分：api 每天 03:35 做全量备份、保留 14 份、坏包跳过、启动补做；新增 `backup` CLI（run/list/restore）和 `BACKUP_DIR`、`BACKUP_KEEP` 两个环境变量；异地保留等服务器 |
 | 2026-11-11 | P3-3 流场实验页：`flowfield.ts` 重写成带参数面板的控制器，新增 `/lab/flow-field/`（粒子数、速度、拖尾可调，暂停/复位，空格和 R，减少动态时默认暂停）；控制台演示卡共用同一份模块；首屏 6.6 KB gzip |
 | 2026-11-11 | P3-1 试验场内容模型：一个实验一个 md 驱动 `/lab/` 卡片、首页模块和 sitemap；`LabGrid` 改成接 props，sitemap 的实验条目改为读构建产出的清单，缺页面的实验会让构建失败 |
 | 2026-11-11 | P3-4 体积守门：`apps/web/scripts/check-size.mjs` 接进构建，按路由量首屏 gzip，普通页 200 KB、实验和工具页 1 MB，未定预算的新页面和列表页引用实验脚本都会红；实测 8 个页面全部在预算内，最高 `/lab/end-of-time/` 163.1 KB |

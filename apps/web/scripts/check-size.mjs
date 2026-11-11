@@ -29,7 +29,7 @@ const RULES = [
   { route: "/login/", budget: PAGE_BUDGET },
   { route: "/resume/", budget: PAGE_BUDGET },
   { route: "/blog/", budget: PAGE_BUDGET, file: join(SHELL_DIR, "blog.html") },
-  { route: "/lab/", budget: PAGE_BUDGET, forbid: ["end-of-time", "flow-field"] },
+  { route: "/lab/", budget: PAGE_BUDGET, forbid: ["end-of-time"] },
   { route: "/tools/", budget: PAGE_BUDGET, forbid: ["image-compressor"] },
   { route: "/lab/*/", budget: HEAVY_BUDGET },
   { route: "/tools/*/", budget: HEAVY_BUDGET },

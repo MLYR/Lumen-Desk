@@ -4,7 +4,7 @@
 
 ## 1. 当前状态
 
-- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场有内容模型、`/lab/` 列表页、《时间的尽头》Three.js 实验页和《流场》可调参数实验页；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
+- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场有内容模型、`/lab/` 列表页和《时间的尽头》Three.js 实验页（流场那一版已删）；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
 - **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、简历 3 个项目 9 条技能、2 篇文章、绑定 Google Authenticator。
 - **服务器**：未部署。
@@ -24,7 +24,7 @@
 | P2.10 简历 | 完成 | `docs/contracts/resume.md`；简历内容只在服务器数据库 |
 | P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
 | P2.12 整站数据备份 | 完成 | `docs/contracts/backup.md`；控制台导出/导入 ZIP，不含验证器和会话 |
-| P3 试验场 | 6 / 7（含工具箱） | P3-1 内容模型、P3-2 列表页、P3-3 流场页、P3-4 体积守门、P3-6《时间的尽头》、P3-7 工具箱完成；只剩 P3-5 后续实验（按兴趣排期） |
+| P3 试验场 | 5 / 7（含工具箱） | P3-1 内容模型、P3-2 列表页、P3-4 体积守门、P3-6《时间的尽头》、P3-7 工具箱完成；P3-3 流场页做过一版，用户看过觉得不好看，已删除；只剩 P3-5 后续实验（按兴趣排期） |
 | P4 增强 | 4 / 7 | Umami、Uptime Kuma 已部署到本机；P4-6 控制台编辑书签由 P2.8 交付；P4-7 控制台脚本私有化完成；其余待定 |
 
 ## 2. 已完成
@@ -36,12 +36,18 @@
 - Caddyfile 没改：`@console path /console /console/*` 本来就覆盖子路径，`root /srv/private` 加路径 `/console/_assets/x` 正好落在 `dist-private/console/_assets/x`，而且同样在 forward_auth 后面。
 - 验证：`pnpm build` 通过，`grep -r "api/private" apps/web/dist` 无结果。用 headless Chrome 从 `dist-private` 起四个控制台页面（主页、写文章、设置、简历），7–9 个资源全部 200/304，没有任何发往 `/_astro/` 的请求，页面正常起来（两套主题截图、375 宽 `scrollWidth` 等于视口）。把仓库里的 Caddyfile 挂到临时容器上访问新产物：`/console/_assets/*`、`/Console/*`、`//console/*` 一律 302 到 `/login`，`..%2f` 穿越 404，公开的 `/_astro/Layout.css` 仍 200。
 
+### P3-3 流场粒子实验页：做了又删（2026-11-11）
+
+- 做了一版 `/lab/flow-field/`：Canvas 2D 粒子跟着正弦/余弦速度场走，粒子数、速度、拖尾三根滑杆，暂停/复位，空格和 R，减少动态时默认暂停。`flowfield.ts` 重写成控制器（`setOptions / pause / play / toggle / reset / destroy`），这次重写保留：控制台那张演示卡还在用它，DPR 封顶、主题变了才重读颜色、切标签页停帧这些改动对演示卡同样有用。
+- 用户看完觉得不好看，当天删掉：页面和 `src/content/lab/flow-field.md` 都移除，`/lab/` 回到一张主打卡片，sitemap 清单同步少一条，`check-size` 里 `/lab/` 的 forbid 列表也去掉了 flow-field。
+- 内容模型没受影响：删一个实验仍然是删一个 md 加一个页面，四处一起消失。
+
 ### 五张卡一起上线本机 Docker（2026-11-11）
 
 - 升级前数据库备份到 `~/lumen-desk/data/pre-p157.db`（`sqlite3 .backup`，2.1 MB）。把 `dist`、`dist-private`、`dist-shell` 分别 rsync 到 `~/lumen-desk/web/{public,private,shell}`，`docker compose build api` 后 `up -d`。
 - 80 端口核对：`/`、`/lab/`、`/lab/flow-field/`、`/lab/end-of-time/`、`/tools/`、`/resume/`、`/blog/` 全 200，`/login` 308 跳目录；`/sitemap.xml` 有三条试验场条目（含 flow-field）；`/console` 和 `/console/_assets/Layout.aVWhidn6.css` 未登录 302；旧公开 chunk `/_astro/console.astro_*.js` 变 404，`/_astro/Layout.aVWhidn6.css` 仍 200。
 - api 重启后启动补做立刻写了一份真备份：`/data/backups/lumen-desk-backup-202611111144.zip`，94 KB，文章 11、书签 296。以后每天 03:35 自动做，保留 14 份。
-- 用 headless Chrome 走 Caddy 复测流场页：画布 2300×790 有内容、1440 宽无横向溢出、`/lab/` 卡片两张。唯一的 404 是 `/favicon.ico`（仓库里本来没有 favicon）。
+- 用 headless Chrome 走 Caddy 复测了（当时的）流场页：画布有内容、1440 宽无横向溢出、`/lab/` 卡片两张。唯一的 404 是 `/favicon.ico`（仓库里本来没有 favicon）。
 
 ### P1.5-7 定时全量备份（本机部分，2026-11-11）
 
@@ -51,13 +57,6 @@
 - 新环境变量 `BACKUP_DIR`、`BACKUP_KEEP`，已加进 `apps/api/.env.example`、`deploy/.env.example` 和 `src/config.ts`。
 - 验证：`apps/api/test/backup-schedule.test.ts` 4 个用例（落盘后可读、清单数量对得上、保留 14 份删最旧且不碰别人的文件、最新一份坏掉时回退到上一份并告警、恢复到空实例后文章和 `/blog/<slug>/` 都在且未登录仍然 401）。`pnpm test` 161 个、`pnpm build` 通过。CLI 冒烟：空数据目录 `run` → `list` → 不带 `--yes` 的 `restore` 退出码 2 → 带 `--yes` 恢复成功；起一次 api 确认启动补做会写出一份并打日志。
 - 异地保留还没做，等服务器定目标（腾讯云轻量自动快照，或 rsync 回本机）。
-
-### P3-3 流场粒子实验页（2026-11-11）
-
-- `apps/web/src/scripts/flowfield.ts` 重写成控制器：`startFlowField(canvas, { count, speed, trail, paused })` 返回 `setOptions / pause / play / toggle / reset / destroy / isPaused`，老的 `startFlowField(canvas, 240)` 照样能用——控制台那张演示卡和实验页共用同一份模块。DPR 封顶 2；颜色只在主题变化时读一次（原来每帧都 `getComputedStyle`）；ResizeObserver 跟着容器改尺寸；标签页切走就停帧；暂停时先跑 160 帧把形状定下来，不会停成一片空白。
-- 新页面 `/lab/flow-field/`：粒子数 120–2000、速度 0.2–3×、拖尾三根滑杆，暂停/播放和复位按钮，空格暂停、R 复位；`prefers-reduced-motion` 打开时默认暂停并显示「播放」，页面开着时系统切成减少动态会立刻停下。375 宽滑杆占满一行，画布不设 `touch-action: none`，不挡页面滚动和双指缩放。
-- 实验元数据写在 `src/content/lab/flow-field.md`：`/lab/` 上主打卡片还是《时间的尽头》，流场作为第二张小卡（没有封面，走文字卡）。
-- 验证：`pnpm build` 通过。体积守门：`/lab/flow-field/` 首屏 6.6 KB gzip（HTML 4.0 / CSS 1.9 / JS 0.7），`/lab/` 5.3 KB 且不加载实验脚本。Chrome headless + CDP 在 1440×900 和 375×812、两套主题下实测：画布 2300×1042 有内容、61 FPS、三根滑杆的读数和画面同步变、暂停后逐像素不变、空格恢复、R 复位、减少动态时画面有内容且不动、两套主题 `scrollWidth` 都等于视口宽度。控制台演示卡单独用探针页验证：600×130 画布画出 11441 个非背景像素。页面自身没有脚本报错（本地静态服务器只有一条 favicon 404，仓库里本来没有 favicon）。
 
 ### P3-1 试验场内容模型（2026-11-11）
 
@@ -218,13 +217,13 @@
 
 ### 还要确认
 
-8. **数据备份**：已做控制台整站导出/导入（P2.12）；每天定时打包和异地保留仍未做（P1.5-7）。
+8. **数据备份**：控制台导出/导入（P2.12）和本机每天定时备份（P1.5-7）都已做；异地保留还没做，等服务器定目标。
 10. **P4 其余增强项**：AIHOT 今日日报、天气、GitHub 热力图、控制台编辑书签待定。
 
 ## 5. 下一步
 
 1. 你侧：提交 ICP 备案（P0-1）、初始化服务器（P0-3）、给域名（P0-4）、主页内容（P0-6）、第一篇文章（P2-11）。
-2. 开发队列，顺序和验收见 `ROADMAP.md`「任务卡（2026-11-11 排期）」：P3-1 试验场内容模型 → P3-3 流场粒子实验页（等 P3-1）；P3-4 体积守门、P4-7 控制台脚本私有化、P1.5-7 定时备份（本机部分）可并行。
+2. 2026-11-11 这一批（体积守门、内容模型、流场页、控制台脚本私有化、定时备份）都已完成并上线本机 Docker；流场页做完被否，已删除，`ROADMAP.md` 里标成已放弃。
 3. P1.5 剩下的 6 条（P1.5-1/2/3/4/9 和 P1.5-7 的异地部分）等服务器和备案。
 4. P4-3 AIHOT 日报、P4-4 天气、P4-5 GitHub 热力图还要你确认要不要。
 
@@ -232,6 +231,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-11 | 删掉流场实验页（用户觉得不好看）：`/lab/flow-field/` 和它的内容文件一起移除，`/lab/` 回到一张卡片，sitemap 少一条；`flowfield.ts` 的控制器重写保留给控制台演示卡用 |
 | 2026-11-11 | 体积守门、内容模型、流场页、控制台脚本私有化、定时备份五张卡一起发到本机 Docker：升级前库备份 `pre-p157.db`，重建 api 镜像，80 端口全绿，重启后立刻落下第一份 94 KB 定时备份 |
 | 2026-11-11 | P4-7 控制台脚本私有化：控制台 JS/CSS 进 `dist-private/console/_assets`（17 个），公开 `_astro` 从 22 个减到 13 个，`grep api/private apps/web/dist` 无结果；构建期断言公开产物不许出现 `/api/private` |
 | 2026-11-11 | P1.5-7 定时备份本机部分：api 每天 03:35 做全量备份、保留 14 份、坏包跳过、启动补做；新增 `backup` CLI（run/list/restore）和 `BACKUP_DIR`、`BACKUP_KEEP` 两个环境变量；异地保留等服务器 |

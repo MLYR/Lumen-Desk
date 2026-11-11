@@ -3,7 +3,11 @@ import Layout from "../../layouts/Layout.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import LabGrid from "../../components/LabGrid.astro";
+import { featuredOf, labItems } from "../../lib/lab";
 import "../../styles/lab.css";
+
+const items = await labItems();
+const featured = featuredOf(items);
 ---
 <Layout
   title="试验场 · 拾光台"
@@ -19,14 +23,14 @@ import "../../styles/lab.css";
         <p class="lb-lead">把想法做成能跑的东西。Three.js、程序化着色器，以及一些还没成形的实验。每个实验一个页面，做出来再放上来。</p>
       </div>
       <dl class="lb-stats">
-        <div><dt>当前实验</dt><dd>时间的尽头</dd></div>
-        <div><dt>技术栈</dt><dd>Three.js / WebGL2</dd></div>
-        <div><dt>交互</dt><dd>拖动 · 缩放 · 坍缩</dd></div>
+        <div><dt>当前实验</dt><dd>{featured?.name ?? "还在做"}</dd></div>
+        <div><dt>技术栈</dt><dd>{featured?.kicker ?? "—"}</dd></div>
+        <div><dt>实验数</dt><dd>{items.length} 个</dd></div>
       </dl>
     </header>
 
     <div class="lb-grid">
-      <LabGrid />
+      <LabGrid items={items} />
     </div>
   </main>
   <Footer />

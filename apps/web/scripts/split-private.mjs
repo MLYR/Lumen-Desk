@@ -34,6 +34,13 @@ mkdirSync(shellDir, { recursive: true });
 renameSync(blogSrc, shellDest);
 rmSync(blogSrcDir, { recursive: true, force: true });
 
+// --- 试验场清单 dist/lab-index.json -> dist-shell/lab-index.json ---
+// api 读这份清单生成 /sitemap.xml 里的实验条目，所以它不进公开目录。
+const labIndexSrc = resolve(root, "dist/lab-index.json");
+const labIndexDest = resolve(shellDir, "lab-index.json");
+if (!existsSync(labIndexSrc)) fail("dist/lab-index.json 不存在，astro build 是否成功？");
+renameSync(labIndexSrc, labIndexDest);
+
 // --- 断言 ---
 // 1. dist/ 只含公开文件
 if (existsSync(consoleSrc)) fail("dist/console 仍然存在");
@@ -57,6 +64,16 @@ for (const [name, re] of checks) {
 }
 if (!shell.includes('id="blog-search"') || !shell.includes('id="blog-search-results"')) fail("dist-shell/blog.html 缺少搜索框或结果容器");
 
+// 3b. 试验场清单：公开目录不留，dist-shell 里是合法 JSON，至少含 /lab/
+if (existsSync(labIndexSrc)) fail("dist/lab-index.json 仍然存在，不该出现在公开目录");
+const labIndex = JSON.parse(readFileSync(labIndexDest, "utf8"));
+if (!Array.isArray(labIndex.routes) || labIndex.routes[0] !== "/lab/") fail("dist-shell/lab-index.json 的 routes 必须以 /lab/ 开头");
+for (const r of labIndex.routes) {
+  if (typeof r !== "string" || !/^\/lab(\/[^/]+)*\/$/.test(r)) fail(`dist-shell/lab-index.json 里有不合法的路由：${r}`);
+  // 卡片指向的页面必须真存在，否则 /lab/ 上会挂一条 404 链接
+  if (!existsSync(resolve(root, "dist", r.slice(1), "index.html"))) fail(`试验场清单里的 ${r} 没有对应页面，给它建一个 .astro`);
+}
+
 // 4. 登录页和控制台永远不含统计脚本
 for (const f of [resolve(privateDir, "console/index.html"), resolve(privateDir, "console/write/index.html"), resolve(privateDir, "console/settings/index.html"), resolve(privateDir, "console/resume/index.html"), resolve(root, "dist/login/index.html")]) {
   if (readFileSync(f, "utf8").includes("data-website-id")) fail(`${f} 不应含 Umami 脚本`);
@@ -64,3 +81,4 @@ for (const f of [resolve(privateDir, "console/index.html"), resolve(privateDir, 
 
 console.log("split-private: dist/console -> dist-private/console OK");
 console.log("split-private: dist/blog/index.html -> dist-shell/blog.html OK");
+console.log("split-private: dist/lab-index.json -> dist-shell/lab-index.json OK");

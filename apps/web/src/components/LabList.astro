@@ -1,5 +1,8 @@
 ---
 import LabGrid from "./LabGrid.astro";
+import { homeLabItems, labItems } from "../lib/lab";
+
+const items = homeLabItems(await labItems());
 ---
 <section class="grid" id="lab">
   <article class="card first last">
@@ -7,6 +10,6 @@ import LabGrid from "./LabGrid.astro";
       <h2 class="card-title"><span class="dot"></span>试验场</h2>
       <a class="card-meta more" href="/lab/">全部实验 →</a>
     </div>
-    <LabGrid />
+    <LabGrid items={items} />
   </article>
 </section>

@@ -37,6 +37,29 @@ export function loadShell(shellDir: string): string {
   return FALLBACK_SHELL;
 }
 
+/** 试验场路由前缀的白名单：只接受 /lab/ 或 /lab/<slug>/ 这种形状。 */
+const LAB_ROUTE = /^\/lab(?:\/[^/"'<>&\s]+)*\/$/;
+
+/**
+ * Reads SHELL_DIR/lab-index.json（apps/web 构建时写出的试验场清单）并返回路由列表。
+ * 清单缺失或坏掉时只写 /lab/：sitemap 少几条比写进一条非法路径安全。
+ */
+export function loadLabRoutes(shellDir: string): string[] {
+  const file = path.join(shellDir, 'lab-index.json');
+  try {
+    const raw: unknown = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const routes = (raw as { routes?: unknown })?.routes;
+    if (Array.isArray(routes)) {
+      const clean = routes.filter((r): r is string => typeof r === 'string' && LAB_ROUTE.test(r));
+      if (clean.length > 0) return clean;
+    }
+    console.warn(`[blog] ${file} 里没有可用的试验场路由；sitemap 只写 /lab/`);
+  } catch {
+    console.warn(`[blog] ${file} not found; sitemap 只写 /lab/`);
+  }
+  return ['/lab/'];
+}
+
 /** Fills the shell. title/description are plain text (escaped here); content is trusted HTML built below. */
 export function fillShell(shell: string, title: string, description: string, content: string): string {
   // One pass over the shell only: placeholders inside user text are never re-expanded,
@@ -281,12 +304,17 @@ ${items}
 }
 
 /** includeResume=false while the résumé is shown unmasked (that page is noindex). */
-export function sitemap(siteUrl: string, posts: ListRow[], categorySlugs: string[], includeResume = true): string {
+export function sitemap(
+  siteUrl: string,
+  posts: ListRow[],
+  categorySlugs: string[],
+  includeResume = true,
+  labRoutes: string[] = ['/lab/'],
+): string {
   const urls = [
     `  <url><loc>${escapeXml(`${siteUrl}/`)}</loc></url>`,
     `  <url><loc>${escapeXml(`${siteUrl}/blog/`)}</loc></url>`,
-    `  <url><loc>${escapeXml(`${siteUrl}/lab/`)}</loc></url>`,
-    `  <url><loc>${escapeXml(`${siteUrl}/lab/end-of-time/`)}</loc></url>`,
+    ...labRoutes.map((r) => `  <url><loc>${escapeXml(`${siteUrl}${r}`)}</loc></url>`),
     `  <url><loc>${escapeXml(`${siteUrl}/tools/`)}</loc></url>`,
     `  <url><loc>${escapeXml(`${siteUrl}/tools/image-compressor/`)}</loc></url>`,
     ...(includeResume ? [`  <url><loc>${escapeXml(`${siteUrl}/resume/`)}</loc></url>`] : []),

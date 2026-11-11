@@ -24,10 +24,19 @@
 | P2.10 简历 | 完成 | `docs/contracts/resume.md`；简历内容只在服务器数据库 |
 | P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
 | P2.12 整站数据备份 | 完成 | `docs/contracts/backup.md`；控制台导出/导入 ZIP，不含验证器和会话 |
-| P3 试验场 | 3 / 7（含工具箱） | P3-6《时间的尽头》、P3-7 工具箱、P3-4 体积守门完成；`/lab/` 列表页静态版完成；内容模型和流场页已拆成任务卡，见 `ROADMAP.md` |
+| P3 试验场 | 5 / 7（含工具箱） | P3-1 内容模型、P3-2 列表页、P3-4 体积守门、P3-6《时间的尽头》、P3-7 工具箱完成；只剩流场页（P3-3）和后续实验（P3-5） |
 | P4 增强 | 3 / 7 | Umami、Uptime Kuma 已部署到本机；P4-6 控制台编辑书签由 P2.8 交付；其余待定 |
 
 ## 2. 已完成
+
+### P3-1 试验场内容模型（2026-11-11）
+
+- `src/content.config.ts` 新增 `lab` 集合（glob loader）：`name`、`summary`、`kicker`、`status`、`cover`、`coverAlt`、`featured`、`order`。一个实验一个 md 放 `src/content/lab/`，文件名就是路由 `/lab/<slug>/`。
+- `src/lib/lab.ts` 收口排序和挑选：`labItems()` 按 order 再按名字排，`featuredOf()` 挑主打卡片，`homeLabItems()` 给首页主打卡片加最多三张小卡。
+- `LabGrid.astro` 改成接 props，不再写死卡片：featured 走大卡，其余走三列小卡，没封面只显示文字，一个实验都没有时给一句提示。`/lab/` 的统计栏也改成从数据取（当前实验 / 技术栈 / 实验数）。
+- sitemap 不再手写：新增构建端点 `src/pages/lab-index.json.ts`，把 `/lab/` 和每个实验路由写成 `dist/lab-index.json`，`split-private.mjs` 搬进 `dist-shell` 并断言清单里每条路由都有对应页面；api 新增 `loadLabRoutes()` 读它（只收 `/lab(/<slug>)*/` 形状，清单坏了回落到只写 `/lab/`），`sitemap()` 多一个参数。
+- 验证：加一个 md 加一个 .astro，`pnpm build` 后 `/lab/` 卡片、首页试验场模块、`dist-shell/lab-index.json`、`/sitemap.xml` 四处一起出现；临时起了 api（3999 端口，`SHELL_DIR` 指向构建产物）确认 sitemap 里三条 lab 条目都在。只加 md 不加页面时构建失败并指出缺哪个页面；删掉文件后四处一起消失。`pnpm test` 157 个、`pnpm build` 通过，体积守门 8 个页面全在预算内。
+- 本机 Docker 还没同步，和 P3-3 一起发。
 
 ### P3-4 首屏与实验页体积守门（2026-11-11）
 
@@ -194,6 +203,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-11 | P3-1 试验场内容模型：一个实验一个 md 驱动 `/lab/` 卡片、首页模块和 sitemap；`LabGrid` 改成接 props，sitemap 的实验条目改为读构建产出的清单，缺页面的实验会让构建失败 |
 | 2026-11-11 | P3-4 体积守门：`apps/web/scripts/check-size.mjs` 接进构建，按路由量首屏 gzip，普通页 200 KB、实验和工具页 1 MB，未定预算的新页面和列表页引用实验脚本都会红；实测 8 个页面全部在预算内，最高 `/lab/end-of-time/` 163.1 KB |
 | 2026-11-11 | 把剩余能开工的活拆成 5 张任务卡写进 `ROADMAP.md`：P3-1 内容模型（含 `/lab/` 取数、首页、sitemap 自动覆盖）、P3-3 流场实验页、P3-4 体积守门、P4-7 控制台脚本私有化、P1.5-7 定时备份本机部分。P4-6 标为已完成（P2.8 早已交付），P3-5 的 WASM 压缩注明已由工具箱落地 |
 | 2026-11-11 | 设置页移除「编辑简历」侧栏入口和个人资料区链接，简历编辑仍从控制台简历卡进入 |

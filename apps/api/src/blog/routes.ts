@@ -6,7 +6,7 @@ import type { DB } from '../db.js';
 import { getSettings as getResumeSettings } from '../resume.js';
 import { ConflictError, errorResponse, InputError, limit, readJson, requireType, sameOrigin as sameOriginFor } from '../http.js';
 import { importToInput, toMarkdownFile } from './frontmatter.js';
-import { blogNav, fillShell, indexPage, listLayout, loadShell, notFoundPage, postPage, rss, SITE_NAME, sitemap, tagsPage } from './pages.js';
+import { blogNav, fillShell, indexPage, listLayout, loadLabRoutes, loadShell, notFoundPage, postPage, rss, SITE_NAME, sitemap, tagsPage } from './pages.js';
 import {
   effectiveSummary,
   getPublishedBySlug,
@@ -60,6 +60,7 @@ const MAX_IMPORT_FILES = 20;
  */
 export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
   const shell = loadShell(config.shellDir);
+  const labRoutes = loadLabRoutes(config.shellDir);
   const sameOrigin = sameOriginFor(config.siteUrl);
   const uploadsDir = path.join(config.dataDir, 'uploads');
 
@@ -173,7 +174,7 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
     c.header('Cache-Control', PUBLIC_CACHE);
     c.header('Content-Type', 'application/xml; charset=utf-8');
     const cats = listCategoriesPublic(db).filter((x) => x.count > 0).map((x) => x.slug);
-    return c.body(sitemap(config.siteUrl, listPublished(db), cats, !getResumeSettings(db).revealPublic));
+    return c.body(sitemap(config.siteUrl, listPublished(db), cats, !getResumeSettings(db).revealPublic, labRoutes));
   });
 
   // ---------- private ----------

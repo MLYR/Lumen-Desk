@@ -11,7 +11,7 @@ import { renderMarkdown } from '../src/blog/render.js';
 import { fillShell } from '../src/blog/pages.js';
 import { importToInput } from '../src/blog/frontmatter.js';
 import { makeSnippet } from '../src/blog/posts.js';
-import { authed, ORIGIN, SECRET, setup } from './helpers.js';
+import { authed, ORIGIN, SECRET, setup, SHELL_FIXTURE } from './helpers.js';
 
 describe('blog: private CRUD', () => {
   it('rejects every private blog route without a session', async () => {
@@ -279,9 +279,36 @@ describe('blog: public', () => {
     expect(sm).toContain('<loc>https://blog.test/</loc>');
     expect(sm).toContain('<loc>https://blog.test/blog/</loc>');
     expect(sm).toContain('<loc>https://blog.test/blog/pub/</loc>');
+    // 试验场条目来自构建产出的清单，不是写死的
+    expect(sm).toContain('<loc>https://blog.test/lab/</loc>');
+    expect(sm).toContain('<loc>https://blog.test/lab/end-of-time/</loc>');
     for (const body of [xml, sm]) {
       expect(body).not.toMatch(/hidden-draft|Hidden|\/login|\/console|\/api\/private/);
     }
+  });
+
+  it('sitemap 的试验场条目只认构建清单里的合法路由，清单坏了就只写 /lab/', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ld-lab-'));
+    fs.copyFileSync(path.join(SHELL_FIXTURE, 'blog.html'), path.join(dir, 'blog.html'));
+    fs.writeFileSync(
+      path.join(dir, 'lab-index.json'),
+      JSON.stringify({ routes: ['/lab/', '/lab/flow-field/', '/etc/passwd', '/lab/x"><script>/'] }),
+    );
+
+    const withIndex = setup(undefined, { SHELL_DIR: dir });
+    const sm = await (await withIndex.app.request('/sitemap.xml')).text();
+    expect(sm).toContain('<loc>https://blog.test/lab/flow-field/</loc>');
+    expect(sm).not.toContain('passwd');
+    expect(sm).not.toContain('script');
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    fs.writeFileSync(path.join(dir, 'lab-index.json'), 'not json at all');
+    const broken = setup(undefined, { SHELL_DIR: dir });
+    const fallback = await (await broken.app.request('/sitemap.xml')).text();
+    expect(fallback).toContain('<loc>https://blog.test/lab/</loc>');
+    expect(fallback).not.toContain('/lab/flow-field/');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('lab-index.json'));
+    warn.mockRestore();
   });
 
   it('search: trigram for ≥3 chars (Chinese substrings), LIKE for 2, published only', async () => {

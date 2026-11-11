@@ -4,7 +4,7 @@
 
 ## 1. 当前状态
 
-- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场新增 `/lab/` 列表页和《时间的尽头》Three.js 实验页；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
+- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场有内容模型、`/lab/` 列表页、《时间的尽头》Three.js 实验页和《流场》可调参数实验页；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
 - **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、简历 3 个项目 9 条技能、2 篇文章、绑定 Google Authenticator。
 - **服务器**：未部署。
@@ -24,10 +24,18 @@
 | P2.10 简历 | 完成 | `docs/contracts/resume.md`；简历内容只在服务器数据库 |
 | P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
 | P2.12 整站数据备份 | 完成 | `docs/contracts/backup.md`；控制台导出/导入 ZIP，不含验证器和会话 |
-| P3 试验场 | 5 / 7（含工具箱） | P3-1 内容模型、P3-2 列表页、P3-4 体积守门、P3-6《时间的尽头》、P3-7 工具箱完成；只剩流场页（P3-3）和后续实验（P3-5） |
+| P3 试验场 | 6 / 7（含工具箱） | P3-1 内容模型、P3-2 列表页、P3-3 流场页、P3-4 体积守门、P3-6《时间的尽头》、P3-7 工具箱完成；只剩 P3-5 后续实验（按兴趣排期） |
 | P4 增强 | 3 / 7 | Umami、Uptime Kuma 已部署到本机；P4-6 控制台编辑书签由 P2.8 交付；其余待定 |
 
 ## 2. 已完成
+
+### P3-3 流场粒子实验页（2026-11-11）
+
+- `apps/web/src/scripts/flowfield.ts` 重写成控制器：`startFlowField(canvas, { count, speed, trail, paused })` 返回 `setOptions / pause / play / toggle / reset / destroy / isPaused`，老的 `startFlowField(canvas, 240)` 照样能用——控制台那张演示卡和实验页共用同一份模块。DPR 封顶 2；颜色只在主题变化时读一次（原来每帧都 `getComputedStyle`）；ResizeObserver 跟着容器改尺寸；标签页切走就停帧；暂停时先跑 160 帧把形状定下来，不会停成一片空白。
+- 新页面 `/lab/flow-field/`：粒子数 120–2000、速度 0.2–3×、拖尾三根滑杆，暂停/播放和复位按钮，空格暂停、R 复位；`prefers-reduced-motion` 打开时默认暂停并显示「播放」，页面开着时系统切成减少动态会立刻停下。375 宽滑杆占满一行，画布不设 `touch-action: none`，不挡页面滚动和双指缩放。
+- 实验元数据写在 `src/content/lab/flow-field.md`：`/lab/` 上主打卡片还是《时间的尽头》，流场作为第二张小卡（没有封面，走文字卡）。
+- 验证：`pnpm build` 通过。体积守门：`/lab/flow-field/` 首屏 6.6 KB gzip（HTML 4.0 / CSS 1.9 / JS 0.7），`/lab/` 5.3 KB 且不加载实验脚本。Chrome headless + CDP 在 1440×900 和 375×812、两套主题下实测：画布 2300×1042 有内容、61 FPS、三根滑杆的读数和画面同步变、暂停后逐像素不变、空格恢复、R 复位、减少动态时画面有内容且不动、两套主题 `scrollWidth` 都等于视口宽度。控制台演示卡单独用探针页验证：600×130 画布画出 11441 个非背景像素。页面自身没有脚本报错（本地静态服务器只有一条 favicon 404，仓库里本来没有 favicon）。
+- 本机 Docker 未同步。
 
 ### P3-1 试验场内容模型（2026-11-11）
 
@@ -203,6 +211,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-11 | P3-3 流场实验页：`flowfield.ts` 重写成带参数面板的控制器，新增 `/lab/flow-field/`（粒子数、速度、拖尾可调，暂停/复位，空格和 R，减少动态时默认暂停）；控制台演示卡共用同一份模块；首屏 6.6 KB gzip |
 | 2026-11-11 | P3-1 试验场内容模型：一个实验一个 md 驱动 `/lab/` 卡片、首页模块和 sitemap；`LabGrid` 改成接 props，sitemap 的实验条目改为读构建产出的清单，缺页面的实验会让构建失败 |
 | 2026-11-11 | P3-4 体积守门：`apps/web/scripts/check-size.mjs` 接进构建，按路由量首屏 gzip，普通页 200 KB、实验和工具页 1 MB，未定预算的新页面和列表页引用实验脚本都会红；实测 8 个页面全部在预算内，最高 `/lab/end-of-time/` 163.1 KB |
 | 2026-11-11 | 把剩余能开工的活拆成 5 张任务卡写进 `ROADMAP.md`：P3-1 内容模型（含 `/lab/` 取数、首页、sitemap 自动覆盖）、P3-3 流场实验页、P3-4 体积守门、P4-7 控制台脚本私有化、P1.5-7 定时备份本机部分。P4-6 标为已完成（P2.8 早已交付），P3-5 的 WASM 压缩注明已由工具箱落地 |

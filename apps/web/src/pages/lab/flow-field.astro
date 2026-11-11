@@ -1,0 +1,315 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import "../../styles/lab.css";
+---
+<Layout
+  title="流场 · 试验场 · 拾光台"
+  description="一个可以拧参数的流场：两千颗粒子在同一张速度场里走，粒子数、速度、拖尾都能自己调。Canvas 2D，没有依赖。"
+  analytics
+>
+  <Header current="lab" />
+  <main class="wrap ff-main">
+    <header class="ff-hero">
+      <p class="lb-eyebrow"><span class="lb-mark"></span>EXPERIMENT 02 / 流场</p>
+      <h1 class="ff-title">流场</h1>
+      <p class="lb-lead">两千颗粒子跟着同一张速度场走，谁也不认识谁，但绕出了同一个漩涡。三根滑杆决定它们怎么散、怎么绕、留多长的尾巴。</p>
+    </header>
+
+    <section class="ff-stage" id="ff-stage" aria-label="流场演示">
+      <canvas
+        id="ff-canvas"
+        class="ff-canvas"
+        tabindex="0"
+        role="img"
+        aria-label="深色背景上成百上千个缓慢流动的粒子，在看不见的速度场里聚成漩涡和暗流。按空格暂停，按 R 复位。"
+      ></canvas>
+
+      <div class="ff-panel">
+        <div class="ff-controls">
+          <label class="ff-control" for="ff-count">
+            <span class="ff-label">粒子数 <output id="ff-count-out" for="ff-count">700</output></span>
+            <input id="ff-count" type="range" min="120" max="2000" step="20" value="700" />
+          </label>
+          <label class="ff-control" for="ff-speed">
+            <span class="ff-label">速度 <output id="ff-speed-out" for="ff-speed">1.0×</output></span>
+            <input id="ff-speed" type="range" min="0.2" max="3" step="0.1" value="1" />
+          </label>
+          <label class="ff-control" for="ff-trail">
+            <span class="ff-label">拖尾 <output id="ff-trail-out" for="ff-trail">中</output></span>
+            <input id="ff-trail" type="range" min="0.02" max="0.4" step="0.01" value="0.08" />
+          </label>
+        </div>
+
+        <div class="ff-actions">
+          <button class="ff-btn" id="ff-toggle" type="button" aria-pressed="false">暂停</button>
+          <button class="ff-btn" id="ff-reset" type="button">复位</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="ff-notes">
+      <div>
+        <h2>它是什么</h2>
+        <p>没有物理引擎，也没有粒子系统。每一帧对每颗粒子算一个角度——<code>sin(x·0.012+t) · cos(y·0.014−0.7t)</code>，然后沿这个角度走一小步，出界就从对面重新落进来。连续几帧不擦干净画布，尾巴就会自己叠出来。</p>
+        <p>暂停时先跑几十帧把形状定下来，所以停下来看到的不是一片空白。系统开了「减少动态」时不自动播，按播放才开始。</p>
+      </div>
+      <dl class="ff-meta">
+        <div><dt>技术栈</dt><dd>Canvas 2D</dd></div>
+        <div><dt>粒子数</dt><dd>120 – 2000</dd></div>
+        <div><dt>依赖</dt><dd>无</dd></div>
+        <div><dt>键盘</dt><dd>空格 · R</dd></div>
+      </dl>
+    </section>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  import { startFlowField } from "../../scripts/flowfield";
+
+  const canvas = document.getElementById("ff-canvas") as HTMLCanvasElement | null;
+  const stage = document.getElementById("ff-stage");
+  const count = document.getElementById("ff-count") as HTMLInputElement | null;
+  const speed = document.getElementById("ff-speed") as HTMLInputElement | null;
+  const trail = document.getElementById("ff-trail") as HTMLInputElement | null;
+  const countOut = document.getElementById("ff-count-out");
+  const speedOut = document.getElementById("ff-speed-out");
+  const trailOut = document.getElementById("ff-trail-out");
+  const toggleBtn = document.getElementById("ff-toggle") as HTMLButtonElement | null;
+  const resetBtn = document.getElementById("ff-reset") as HTMLButtonElement | null;
+
+  if (canvas && stage && count && speed && trail && countOut && speedOut && trailOut && toggleBtn && resetBtn) {
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+    const flow = startFlowField(canvas, { count: Number(count.value), paused: reduce.matches });
+
+    const trailWord = (v: number) => (v >= 0.24 ? "短" : v <= 0.05 ? "长" : "中");
+
+    const syncLabels = () => {
+      countOut.textContent = String(count.value);
+      speedOut.textContent = `${Number(speed.value).toFixed(1)}×`;
+      trailOut.textContent = trailWord(Number(trail.value));
+    };
+
+    const syncToggle = () => {
+      const paused = flow.isPaused();
+      toggleBtn.textContent = paused ? "播放" : "暂停";
+      toggleBtn.setAttribute("aria-pressed", String(paused));
+    };
+
+    count.addEventListener("input", () => {
+      flow.setOptions({ count: Number(count.value) });
+      syncLabels();
+    });
+    speed.addEventListener("input", () => {
+      flow.setOptions({ speed: Number(speed.value) });
+      syncLabels();
+    });
+    trail.addEventListener("input", () => {
+      flow.setOptions({ trail: Number(trail.value) });
+      syncLabels();
+    });
+
+    toggleBtn.addEventListener("click", () => {
+      flow.toggle();
+      syncToggle();
+    });
+    resetBtn.addEventListener("click", () => flow.reset());
+
+    stage.addEventListener("keydown", (event) => {
+      const target = event.target as HTMLElement;
+      // 滑杆和按钮自己处理空格和方向键，别抢
+      if (target instanceof HTMLInputElement || target instanceof HTMLButtonElement) return;
+      if (event.key === " ") {
+        event.preventDefault();
+        flow.toggle();
+        syncToggle();
+      } else if (event.key === "r" || event.key === "R") {
+        event.preventDefault();
+        flow.reset();
+      }
+    });
+
+    // 系统在页面开着时切换「减少动态」：开了就停下，关了不擅自开始
+    const onReduceChange = () => {
+      if (reduce.matches && !flow.isPaused()) {
+        flow.pause();
+        syncToggle();
+      }
+    };
+    if (typeof reduce.addEventListener === "function") reduce.addEventListener("change", onReduceChange);
+
+    document.addEventListener("astro:before-swap", () => flow.destroy(), { once: true });
+
+    syncLabels();
+    syncToggle();
+  }
+</script>
+
+<style>
+  .ff-main {
+    padding-top: 28px;
+    padding-bottom: 24px;
+  }
+
+  .ff-hero {
+    display: grid;
+    gap: 10px;
+    padding: 32px 0 0;
+  }
+  .ff-title {
+    margin-top: 14px;
+    font-family: var(--display);
+    font-weight: var(--display-weight);
+    font-size: clamp(52px, 8vw, 92px);
+    line-height: .92;
+    letter-spacing: -.055em;
+  }
+  [data-theme="blueprint"] .ff-title {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: clamp(48px, 7vw, 84px);
+    letter-spacing: -.02em;
+  }
+
+  .ff-stage {
+    margin-top: 26px;
+    border: 1px solid var(--soft-line);
+    background: var(--panel);
+    min-width: 0;
+  }
+  .ff-stage:focus-within {
+    border-color: var(--accent);
+  }
+
+  .ff-canvas {
+    display: block;
+    width: 100%;
+    height: clamp(280px, 44vh, 470px);
+    border-bottom: 1px solid var(--soft-line);
+    outline: none;
+    cursor: crosshair;
+  }
+
+  .ff-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 18px 32px;
+    padding: 16px 20px;
+  }
+
+  .ff-controls {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+    flex: 1 1 420px;
+    min-width: 0;
+  }
+
+  .ff-control {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+  .ff-label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .ff-label output {
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ff-control input[type="range"] {
+    width: 100%;
+    height: 20px;
+    accent-color: var(--accent);
+    background: transparent;
+  }
+
+  .ff-actions {
+    display: flex;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+  .ff-btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 16px;
+    border: 1px solid var(--soft-line);
+    background: transparent;
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .ff-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ff-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  .ff-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .ff-notes {
+    display: grid;
+    gap: 28px;
+    margin-top: 44px;
+    padding-top: 26px;
+    border-top: 1px solid var(--soft-line);
+  }
+  .ff-notes h2 {
+    font-size: 13px;
+    font-family: var(--mono);
+    letter-spacing: .01em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .ff-notes p {
+    font-size: 14px;
+    line-height: 1.85;
+    color: var(--muted);
+    max-width: 46em;
+  }
+  .ff-notes p + p { margin-top: 10px; }
+  .ff-notes code {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--fg);
+    background: var(--card-hover);
+    padding: 1px 5px;
+  }
+
+  .ff-meta {
+    display: grid;
+    align-self: start;
+    border-top: 1px solid var(--soft-line);
+  }
+  .ff-meta div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--soft-line);
+  }
+  .ff-meta dt { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .ff-meta dd { font-family: var(--mono); font-size: 13px; }
+
+  @media (min-width: 900px) {
+    .ff-notes { grid-template-columns: minmax(0, 1.5fr) minmax(240px, .5fr); gap: 64px; }
+  }
+
+  @media (max-width: 760px) {
+    .ff-main { padding-top: 20px; }
+    .ff-hero { padding-top: 32px; }
+    .ff-stage { margin-top: 24px; }
+    .ff-canvas { height: clamp(260px, 46vh, 380px); }
+    .ff-panel { padding: 14px 14px 16px; gap: 14px; }
+    .ff-controls { grid-template-columns: 1fr; gap: 10px; flex-basis: 100%; }
+    .ff-actions { width: 100%; }
+    .ff-btn { flex: 1; }
+    .ff-notes { margin-top: 30px; gap: 22px; }
+  }
+</style>

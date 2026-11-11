@@ -35,7 +35,12 @@
 - 三条构建期断言：控制台 HTML 里不许再有 `/_astro/`、引用的每个 `_assets` 文件必须存在、公开产物（js/css/html/json）里出现 `/api/private` 就直接构建失败。以后谁再往公开页面里 import 私有接口，`pnpm build` 会先拦住。
 - Caddyfile 没改：`@console path /console /console/*` 本来就覆盖子路径，`root /srv/private` 加路径 `/console/_assets/x` 正好落在 `dist-private/console/_assets/x`，而且同样在 forward_auth 后面。
 - 验证：`pnpm build` 通过，`grep -r "api/private" apps/web/dist` 无结果。用 headless Chrome 从 `dist-private` 起四个控制台页面（主页、写文章、设置、简历），7–9 个资源全部 200/304，没有任何发往 `/_astro/` 的请求，页面正常起来（两套主题截图、375 宽 `scrollWidth` 等于视口）。把仓库里的 Caddyfile 挂到临时容器上访问新产物：`/console/_assets/*`、`/Console/*`、`//console/*` 一律 302 到 `/login`，`..%2f` 穿越 404，公开的 `/_astro/Layout.css` 仍 200。
-- 没有动本机 Docker。
+### 五张卡一起上线本机 Docker（2026-11-11）
+
+- 升级前数据库备份到 `~/lumen-desk/data/pre-p157.db`（`sqlite3 .backup`，2.1 MB）。把 `dist`、`dist-private`、`dist-shell` 分别 rsync 到 `~/lumen-desk/web/{public,private,shell}`，`docker compose build api` 后 `up -d`。
+- 80 端口核对：`/`、`/lab/`、`/lab/flow-field/`、`/lab/end-of-time/`、`/tools/`、`/resume/`、`/blog/` 全 200，`/login` 308 跳目录；`/sitemap.xml` 有三条试验场条目（含 flow-field）；`/console` 和 `/console/_assets/Layout.aVWhidn6.css` 未登录 302；旧公开 chunk `/_astro/console.astro_*.js` 变 404，`/_astro/Layout.aVWhidn6.css` 仍 200。
+- api 重启后启动补做立刻写了一份真备份：`/data/backups/lumen-desk-backup-202611111144.zip`，94 KB，文章 11、书签 296。以后每天 03:35 自动做，保留 14 份。
+- 用 headless Chrome 走 Caddy 复测流场页：画布 2300×790 有内容、1440 宽无横向溢出、`/lab/` 卡片两张。唯一的 404 是 `/favicon.ico`（仓库里本来没有 favicon）。
 
 ### P1.5-7 定时全量备份（本机部分，2026-11-11）
 
@@ -228,6 +233,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-11 | 体积守门、内容模型、流场页、控制台脚本私有化、定时备份五张卡一起发到本机 Docker：升级前库备份 `pre-p157.db`，重建 api 镜像，80 端口全绿，重启后立刻落下第一份 94 KB 定时备份 |
 | 2026-11-11 | P4-7 控制台脚本私有化：控制台 JS/CSS 进 `dist-private/console/_assets`（17 个），公开 `_astro` 从 22 个减到 13 个，`grep api/private apps/web/dist` 无结果；构建期断言公开产物不许出现 `/api/private` |
 | 2026-11-11 | P1.5-7 定时备份本机部分：api 每天 03:35 做全量备份、保留 14 份、坏包跳过、启动补做；新增 `backup` CLI（run/list/restore）和 `BACKUP_DIR`、`BACKUP_KEEP` 两个环境变量；异地保留等服务器 |
 | 2026-11-11 | P3-3 流场实验页：`flowfield.ts` 重写成带参数面板的控制器，新增 `/lab/flow-field/`（粒子数、速度、拖尾可调，暂停/复位，空格和 R，减少动态时默认暂停）；控制台演示卡共用同一份模块；首屏 6.6 KB gzip |

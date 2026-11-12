@@ -231,6 +231,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-12 | Umami / Uptime Kuma 配好：Umami 建站点「拾光台」（domain `43.143.244.97`，website id `964fe566-f3d9-48c3-998d-d36c8bf8d87d`），默认 `admin/umami` 已换成随机口令（只存在服务器 `/opt/lumen-desk/admin-cred.txt`，600）；`build-web.sh` 带 `PUBLIC_UMAMI_SRC=/u/script.js` 和 `PUBLIC_UMAMI_WEBSITE_ID` 重建网页，首页出现 `/u/script.js`，`/u/script.js` 和 `/u/api/send` 均 200。Kuma 的管理员是用户自己建的 `zero`（密码我不持有），两个监控（主站 `http://caddy/`、api `http://api:3000/api/healthz`）直接写进 `kuma.db` 再重启容器，各自 3 个 heartbeat 全 `status=1` |
 | 2026-11-12 | 修 Umami 登录报 `Unexpected end of JSON input`：`:8081` 的 basic_auth 挡在 `/api/*` 前面，浏览器不会给 XHR/fetch 带 basic 凭据，`POST /api/auth/login` 拿到 Caddy 的空 body 401；改成门口只挡网页，`/api/*` 和 `/socket.io/*` 放给 Umami、Kuma 自己。`caddy validate` 通过，主站仍 200 |
 | 2026-11-12 | 首次部署到腾讯云服务器（`43.143.244.97`，Ubuntu 22.04，2 核 2G）：`/opt/lumen-desk` 下 caddy、api、umami、umami-db、uptime-kuma 五个容器全部 healthy，80 端口对外 200，`/Console` 未登录 302 到 `/login`，`/api/private/*` 401；网页用容器内 pnpm 在服务器构建（npmmirror 源），api 镜像在服务器 build；补了 2G swap；`init-totp` 已把密钥写进数据库，验证器和 10 个恢复码由用户保存 |
 | 2026-11-11 | 实验页和工具页的预算从 1 MB 抬到 2 MB（压缩后）：当前最重的《时间的尽头》163 KB，只占 8%；抬完手机首次打开最坏约多等 2 秒 |

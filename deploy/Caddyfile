@@ -182,7 +182,6 @@
 	encode zstd gzip
 	# Umami 网页登录后，调 /api/* 时浏览器脚本会自己带 Authorization: Bearer，盖掉缓存的 basic 凭据，
 	# 整站 basic_auth 会让后台页面登录后全部 401（已实测）。所以"/api/* 且带 Bearer"的请求交给 Umami 验证 token。
-	# 登录接口 /api/auth/login 不在放行范围内，必须先过 basic_auth，否则带一个假 Bearer 头就能绕过门去试默认账号。
 	# 页面和登录接口先过 basic_auth，才能拿到 token。
 	# 浏览器不会把 basic_auth 的凭据带上 XHR/fetch（登录请求就是这种），挡在 /api/* 前面会让前端
 	# 拿到 Caddy 的空 body 401，页面报 "Unexpected end of JSON input"（2026-11-12 线上踩到）。

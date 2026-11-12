@@ -231,6 +231,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-12 | 修 Umami 登录报 `Unexpected end of JSON input`：`:8081` 的 basic_auth 挡在 `/api/*` 前面，浏览器不会给 XHR/fetch 带 basic 凭据，`POST /api/auth/login` 拿到 Caddy 的空 body 401；改成门口只挡网页，`/api/*` 和 `/socket.io/*` 放给 Umami、Kuma 自己。`caddy validate` 通过，主站仍 200 |
 | 2026-11-12 | 首次部署到腾讯云服务器（`43.143.244.97`，Ubuntu 22.04，2 核 2G）：`/opt/lumen-desk` 下 caddy、api、umami、umami-db、uptime-kuma 五个容器全部 healthy，80 端口对外 200，`/Console` 未登录 302 到 `/login`，`/api/private/*` 401；网页用容器内 pnpm 在服务器构建（npmmirror 源），api 镜像在服务器 build；补了 2G swap；`init-totp` 已把密钥写进数据库，验证器和 10 个恢复码由用户保存 |
 | 2026-11-11 | 实验页和工具页的预算从 1 MB 抬到 2 MB（压缩后）：当前最重的《时间的尽头》163 KB，只占 8%；抬完手机首次打开最坏约多等 2 秒 |
 | 2026-11-11 | 删掉流场实验页（用户觉得不好看）：`/lab/flow-field/` 和它的内容文件一起移除，`/lab/` 回到一张卡片，sitemap 少一条；`flowfield.ts` 的控制器重写保留给控制台演示卡用 |

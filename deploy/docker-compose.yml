@@ -43,7 +43,9 @@ services:
   api:
     image: ${API_IMAGE:-lumen-desk-api:latest}
     build:
-      context: ..
+      # 仓库里从根目录构建（CI 镜像就是这么打的）；服务器上源码在 ./src，
+      # 由服务器 .env 里的 API_BUILD_CONTEXT=./src 覆盖，update.sh 手动构建也照旧能用。
+      context: ${API_BUILD_CONTEXT:-..}
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     env_file: .env

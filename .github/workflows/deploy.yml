@@ -146,9 +146,9 @@ jobs:
           gunzip -c lumen-desk-api.tar.gz | docker load
           rm -f lumen-desk-api.tar.gz
           # 上传目录：api 容器里的 node 用户（uid 1000）要能写，caddy 只读。
-          # 部署用户不一定是 uid 1000，所以借 api 镜像里的 root 来 chown 和 chmod，不需要 sudo。
-          mkdir -p data/uploads
-          docker run --rm --user root --entrypoint sh -v "$DEPLOY_DIR/data:/data" lumen-desk-api:latest -c 'chown 1000:1000 /data/uploads && chmod 755 /data/uploads'
+          # data/ 属于 uid 1000，部署用户写不进去，所以建目录和 chown 都借 api 镜像里的 root 做，不需要 sudo。
+          docker run --rm --user root --entrypoint sh -v "$DEPLOY_DIR/data:/data" lumen-desk-api:latest \
+            -c 'mkdir -p /data/uploads && chown 1000:1000 /data/uploads && chmod 755 /data/uploads'
           # 第三方镜像先拉好；拉失败时如果本地已有就继续用旧的。
           docker compose pull --ignore-pull-failures caddy umami umami-db uptime-kuma
           docker compose up -d --no-build --remove-orphans

@@ -7,7 +7,7 @@
 - **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场有内容模型、`/lab/` 列表页和《时间的尽头》Three.js 实验页（流场那一版已删）；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
 - **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、简历 3 个项目 9 条技能、2 篇文章、绑定 Google Authenticator。
-- **服务器**：腾讯云轻量（上海，实际 2 核 2G / 50G 盘，另加 2G swap）已部署在 `/opt/lumen-desk/`，<http://43.143.244.97> 对外 200（只开 80，443 等域名）。**已开 CI 自动部署**：push 到 `main` 后 GitHub Actions 跑测试、构建网页，rsync 静态文件和 api 源码上去（几百 KB），在服务器上 `docker compose build api` 现场打镜像，90 秒左右完成，最后做冒烟检查。源码目录 `/opt/lumen-desk/src` 不再需要手动解包，CI 每次覆盖构建需要的那几个文件；`update.sh` 保留作手动兜底。
+- **服务器**：腾讯云轻量（上海，2 核 2G / 50G 盘 / 3 Mbps，另加 2G swap）已部署在 `/opt/lumen-desk/`，<http://43.143.244.97> 对外 200（只开 80，443 等域名）。**已开 CI 自动部署**：push 到 `main` 后 GitHub Actions 跑测试、构建网页，rsync 静态文件和 api 源码上去（几百 KB），在服务器上 `docker compose build api` 现场打镜像，90 秒左右完成，最后做冒烟检查。源码目录 `/opt/lumen-desk/src` 不再需要手动解包，CI 每次覆盖构建需要的那几个文件；`update.sh` 保留作手动兜底。
 - **备案**：未提交。
 
 | 阶段 | 完成度 | 说明 |
@@ -241,6 +241,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-17 | 更正服务器规格：实际是 **2 核 2G、50G 系统盘、3 Mbps**，方案里一直写的是 4 核 4G。改了 `README.md`、`deploy/README.md`、`docs/HANDOFF.md` 和 `docs/PLAN.md` 两处（约束行 + 内存预算，注明 2G 靠 2G swap 兜、实测五容器 700 MB）；`design-demos/navigator.html` 服务器卡的示例数据同步成 2 核 / 2G / 0.7G |
 | 2026-11-17 | 开 CI 自动部署（P1.5-1、P1.5-2）：服务器建 `deploy` 用户 + 部署密钥，GitHub 配四条 secret 三个变量；镜像改成在服务器上现场构建（GitHub 到国内只有 35 KB/s，传镜像会超时）；给 `<img>` 加 `referrerpolicy="no-referrer"` 修外链图床防盗链；备份 cron 从 UTC 03:35 改成 19:35 UTC = 北京时间 03:35 |
 | 2026-11-12 | Umami / Uptime Kuma 配好：Umami 建站点「拾光台」（domain `43.143.244.97`，website id `964fe566-f3d9-48c3-998d-d36c8bf8d87d`），默认 `admin/umami` 已换成随机口令（只存在服务器 `/opt/lumen-desk/admin-cred.txt`，600）；`build-web.sh` 带 `PUBLIC_UMAMI_SRC=/u/script.js` 和 `PUBLIC_UMAMI_WEBSITE_ID` 重建网页，首页出现 `/u/script.js`，`/u/script.js` 和 `/u/api/send` 均 200。Kuma 的管理员是用户自己建的 `zero`（密码我不持有），两个监控（主站 `http://caddy/`、api `http://api:3000/api/healthz`）直接写进 `kuma.db` 再重启容器，各自 3 个 heartbeat 全 `status=1` |
 | 2026-11-12 | 修 Umami 登录报 `Unexpected end of JSON input`：`:8081` 的 basic_auth 挡在 `/api/*` 前面，浏览器不会给 XHR/fetch 带 basic 凭据，`POST /api/auth/login` 拿到 Caddy 的空 body 401；改成门口只挡网页，`/api/*` 和 `/socket.io/*` 放给 Umami、Kuma 自己。`caddy validate` 通过，主站仍 200 |

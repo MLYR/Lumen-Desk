@@ -57,6 +57,9 @@ function build(hl: Highlighter): Md {
     const token = tokens[idx]!;
     token.attrSet('loading', 'lazy');
     token.attrSet('decoding', 'async');
+    // 外链图（尤其是国内图床）常按 Referer 拦盗链：浏览器带本站地址过去就是 403，
+    // 不带 Referer 才给图。顺手也少把文章地址送给第三方。
+    token.attrSet('referrerpolicy', 'no-referrer');
     return defaultImage(tokens, idx, opts, env, self);
   };
   return m;
@@ -84,7 +87,7 @@ const SANITIZE: sanitizeHtml.IOptions = {
   ],
   allowedAttributes: {
     a: ['href', 'title', 'rel', 'target'],
-    img: ['src', 'alt', 'title', 'loading', 'decoding'],
+    img: ['src', 'alt', 'title', 'loading', 'decoding', 'referrerpolicy'],
     pre: ['class', 'style', 'tabindex'],
     h2: ['id'],
     h3: ['id'],

@@ -160,17 +160,22 @@ describe('blog: rendering', () => {
         '![img](javascript:alert(1))',
         '[ok](https://example.com) [rel](/blog/x/) [hash](#top) [mail](mailto:a@example.com)',
         '![pic](/uploads/abc.webp)',
+        '![外链](https://imgheybox.max-c.com/web/bbs/2026/05/28/cf9efad89aa87c1d1df36c422a98001f/thumb.jpeg)',
       ].join('\n\n'),
     );
     // Only real tags/attributes matter; the same characters as escaped text are harmless.
     expect(html).not.toMatch(/<script|<[a-z]+[^>]*\s(?:href|src|onerror)="?(?:x|javascript|data|\/\/)/i);
-    expect([...html.matchAll(/<(\w+)/g)].map((m) => m[1])).toEqual(['p', 'p', 'p', 'p', 'p', 'p', 'a', 'a', 'a', 'a', 'p', 'img']);
+    expect([...html.matchAll(/<(\w+)/g)].map((m) => m[1])).toEqual(['p', 'p', 'p', 'p', 'p', 'p', 'a', 'a', 'a', 'a', 'p', 'img', 'p', 'img']);
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('<a href="https://example.com" rel="noopener noreferrer" target="_blank">ok</a>');
     expect(html).toContain('<a href="/blog/x/">rel</a>');
     expect(html).toContain('<a href="#top">hash</a>');
     expect(html).toContain('<a href="mailto:a@example.com">mail</a>');
-    expect(html).toContain('<img src="/uploads/abc.webp" alt="pic" loading="lazy" decoding="async" />');
+    expect(html).toContain('<img src="/uploads/abc.webp" alt="pic" loading="lazy" decoding="async" referrerpolicy="no-referrer" />');
+    // 外链图也必须带 no-referrer，否则国内图床按 Referer 拦盗链，文章里就是空白
+    expect(html).toContain(
+      '<img src="https://imgheybox.max-c.com/web/bbs/2026/05/28/cf9efad89aa87c1d1df36c422a98001f/thumb.jpeg" alt="外链" loading="lazy" decoding="async" referrerpolicy="no-referrer" />',
+    );
   });
 
   it('highlights code with dual Shiki themes and treats unknown languages as text', async () => {

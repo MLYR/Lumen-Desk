@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import { openDb, kvGet } from '../src/db.js';
+import { openDb, kvGet, RENDER_VERSION } from '../src/db.js';
 import { blogNav } from '../src/blog/pages.js';
 import { pagerFor, rerenderPosts } from '../src/blog/posts.js';
 import { HEADING_ID_RE, renderPost, sanitizePostHtml, slugifyHeading } from '../src/blog/render.js';
@@ -90,7 +90,7 @@ describe('reader: migration re-renders old posts once', () => {
     // Search index survived the upgrade and follows the new body text.
     expect(db.prepare("SELECT rowid FROM posts_fts WHERE posts_fts MATCH '\"正文一\"'").all()).toEqual([{ rowid: 1 }]);
     db.exec("INSERT INTO posts_fts(posts_fts) VALUES ('integrity-check')");
-    expect(kvGet(db, 'render_version')).toBe('2');
+    expect(kvGet(db, 'render_version')).toBe(RENDER_VERSION);
     const one = db.prepare("SELECT html, toc FROM posts WHERE slug = 'one'").get() as Json;
     expect(one.html).toContain('<h2 id="h-安装">安装</h2>');
     expect(JSON.parse(one.toc)).toEqual([
@@ -110,7 +110,7 @@ describe('reader: migration re-renders old posts once', () => {
 
   it('a fresh database is marked current right away', () => {
     const db = openDb(':memory:');
-    expect(kvGet(db, 'render_version')).toBe('2');
+    expect(kvGet(db, 'render_version')).toBe(RENDER_VERSION);
   });
 });
 

@@ -124,7 +124,7 @@ export const BUILTIN_TAGS: readonly string[] = ['Astro', 'TypeScript', 'Node.js'
 export const tagKey = (name: string): string => name.toLowerCase();
 
 /** Bump when renderer output changes (2: heading ids + toc). */
-export const RENDER_VERSION = '2';
+export const RENDER_VERSION = '3';
 export const RENDER_VERSION_KEY = 'render_version';
 
 function hasColumn(db: DB, table: string, column: string): boolean {

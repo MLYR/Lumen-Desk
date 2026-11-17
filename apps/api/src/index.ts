@@ -31,7 +31,9 @@ void refresh();
 const aihotJob = new Cron('*/10 * * * *', { protect: true }, refresh);
 const cleanupJob = new Cron('17 * * * *', () => purgeExpiredSessions(db));
 
-// P1.5-7：每天 03:35（容器时区）做一份全量备份，保留 BACKUP_KEEP 份。
+// P1.5-7：每天北京时间 03:35 做一份全量备份，保留 BACKUP_KEEP 份。
+// 这里按 UTC 写（19:35 UTC = 03:35 次日北京时间）：api 镜像基于 alpine、不带 tzdata，
+// 设 TZ 也不生效，所以不靠容器时区，直接把时差算进 cron 表达式。
 // 启动时如果目录里超过 24 小时没有能读的备份，先补一份，免得机器宕机几天回来一直没有备份。
 const backupOnce = (reason: string): void => {
   try {
@@ -41,7 +43,7 @@ const backupOnce = (reason: string): void => {
     console.error('[backup] 失败：', err instanceof Error ? err.message : err);
   }
 };
-const backupJob = new Cron('35 3 * * *', { protect: true }, () => backupOnce('定时备份'));
+const backupJob = new Cron('35 19 * * *', { protect: true }, () => backupOnce('定时备份'));
 {
   const newest = latestUsableBackup(config.backupDir);
   const age = newest ? Date.now() - fs.statSync(newest).mtimeMs : Number.POSITIVE_INFINITY;

@@ -334,9 +334,9 @@ gh run watch
 
 ### 部署做了什么
 
-1. 在 GitHub 上跑测试，构建前端和 api 镜像。
+1. 在 GitHub 上跑测试、构建前端，再把 api 的源码和 `Caddyfile`、`docker-compose.yml` 传上去（只有几百 KB）。
 2. 用 rsync 把静态文件同步到 `web/public`、`web/private`、`web/shell`。
-3. 上传 `Caddyfile`、`docker-compose.yml` 和 api 镜像，在服务器上加载镜像。
+3. 在服务器上 `docker compose build api` 现场构建镜像。**不在 GitHub 上构建镜像**：GitHub 到国内的单向带宽只有三四十 KB/s，传一个 90 MB 的镜像 tar 要半个多小时，会撞上 30 分钟的作业上限；服务器有镜像加速（基础镜像不到 1 秒）和 pnpm 缓存（装依赖约 7 秒），现场构建整个部署 90 秒左右。
 4. 确保 `data/uploads` 存在，并且归 uid 1000（api 容器的 `node` 用户）所有。做法：用 api 镜像里的 root 执行一次 `chown 1000:1000`，不需要 `sudo`。
 5. `docker compose pull --ignore-pull-failures` 拉第三方镜像（拉失败时沿用服务器上已有的版本），再 `docker compose up -d`。
 6. 冒烟检查：在服务器上访问 `http://127.0.0.1/api/healthz`（最多重试 1 分钟），并确认 api 容器的健康状态是 `healthy`。失败则整个 workflow 变红。备案后站点地址换成域名，Caddy 对 `127.0.0.1` 的请求不再返回 api 的内容（可能是跳转或空响应），单看 `curl` 可能误判，所以另外加了容器健康状态这一项。
@@ -345,6 +345,7 @@ gh run watch
 
 - **SSH 连不上 / Host key verification failed**：`DEPLOY_HOST` 或 `DEPLOY_KNOWN_HOSTS` 不对，重新做第 4、5 步。服务器重装系统后指纹会变，也要重做。
 - **`permission denied` 访问 docker**：`deploy` 没在 `docker` 组里，重新登录一次，或重启 SSH 会话。
+- **`docker compose build` 找不到构建上下文**：服务器 `.env` 里的 `API_BUILD_CONTEXT` 要指向 `./src`（源码包解包的位置），仓库里的默认值是 `..`。
 - **拉镜像超时**：配置"Docker 镜像加速"，或在 `.env` 里用 `UMAMI_IMAGE`、`KUMA_IMAGE` 换镜像源。
 - **想暂停自动部署**：`gh variable set DEPLOY_ENABLED --body "false"`。
 

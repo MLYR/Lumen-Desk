@@ -7,14 +7,14 @@
 - **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场有内容模型、`/lab/` 列表页和《时间的尽头》Three.js 实验页（流场那一版已删）；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
 - **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、简历 3 个项目 9 条技能、2 篇文章、绑定 Google Authenticator。
-- **服务器**：腾讯云轻量（上海，实际 2 核 2G / 50G 盘，另加 2G swap）已部署在 `/opt/lumen-desk/`，<http://43.143.244.97> 对外 200（只开 80，443 等域名）。源码是 441c620 的 `git archive` 解包（`/opt/lumen-desk/src`，不是 git 仓库）；网页和 api 镜像都在服务器上构建，更新脚本 `update.sh`。
+- **服务器**：腾讯云轻量（上海，实际 2 核 2G / 50G 盘，另加 2G swap）已部署在 `/opt/lumen-desk/`，<http://43.143.244.97> 对外 200（只开 80，443 等域名）。**已开 CI 自动部署**：push 到 `main` 后 GitHub Actions 跑测试、构建网页，rsync 静态文件和 api 源码上去（几百 KB），在服务器上 `docker compose build api` 现场打镜像，90 秒左右完成，最后做冒烟检查。源码目录 `/opt/lumen-desk/src` 不再需要手动解包，CI 每次覆盖构建需要的那几个文件；`update.sh` 保留作手动兜底。
 - **备案**：未提交。
 
 | 阶段 | 完成度 | 说明 |
 | --- | --- | --- |
-| P0 准备 | 2 / 5 | 服务器和域名已有，P0-3 服务器初始化完成（五个容器跑在 `43.143.244.97`）；备案未提交；COS 已取消 |
+| P0 准备 | 2 / 5 | 服务器和域名已有，P0-3 服务器初始化完成（五个容器跑在 `43.143.244.97`，CI 可自动部署）；备案未提交；COS 已取消 |
 | P1 MVP | 9 / 9 | 全部完成 |
-| P1.5 上线加固 | 4 / 10 | CSP、Actions 固定 SHA、日志轮转、定时备份（本机部分）已完成；其余要等服务器和备案 |
+| P1.5 上线加固 | 7 / 10 | 服务器首次部署、CI 自动部署、CSP、Actions 固定 SHA、日志轮转、定时备份（本机部分）、服务器状态卡已完成；P1.5-3/4/9 要等备案和域名 |
 | P2 博客 | 10 / 11 | 只差第一篇文章（P2-11，用户写） |
 | P2.5 分类、标签、设置 | 8 / 8 | 完成，见 `docs/contracts/taxonomy-profile.md` |
 | P2.6 基础 UI 组件 | 完成 | 见 `docs/contracts/ui-components.md` |
@@ -28,6 +28,16 @@
 | P4 增强 | 4 / 7 | Umami、Uptime Kuma 已部署到本机；P4-6 控制台编辑书签由 P2.8 交付；P4-7 控制台脚本私有化完成；其余待定 |
 
 ## 2. 已完成
+
+### P1.5-1 / P1.5-2 CI 自动部署（2026-11-17）
+
+- **服务器侧**：新建 `deploy` 用户（uid 1002），加入 `docker` 组，装一把 ed25519 部署公钥；`/opt/lumen-desk` 归 `deploy`，但 `data/` 保持 `ubuntu:ubuntu`（uid 1000，和 api 容器里的 `node` 用户对齐），`admin-cred.txt`、`kuma-cred.txt` 仍是 `ubuntu`，`.env`、`umami.env` 改成 `root:deploy 640`（compose 要读、部署用户不该改）。改之前留了 `docker-compose.yml.bak-pre-cicd`、`Caddyfile.bak-pre-cicd`、`.env.bak-pre-cicd` 三个回滚点。
+- **GitHub 侧**：四条 secret（`DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_SSH_KEY`、`DEPLOY_KNOWN_HOSTS`，主机指纹 `SHA256:d0kC0grBV8OUimTj2yqqqka7PvB0+QPfCaAuW7VHW+U` 和本机 known_hosts 核对过）加三个变量（`DEPLOY_ENABLED=true`、`PUBLIC_UMAMI_SRC=/u/script.js`、`PUBLIC_UMAMI_WEBSITE_ID`）。后两个是坑：CI 现在负责构建网页，没有它们上线后统计脚本会静默消失。
+- **镜像改在服务器上构建**：第一版沿用「CI 里 build + 传 tar」，实测 GitHub 到国内单向只有 35 KB/s，88 MB 的镜像要 37 分钟，撞 30 分钟作业上限（run 43995612270 卡在传输，已取消）。改成只传构建需要的几个文件（`package.json`、`pnpm-workspace.yaml`、`pnpm-lock.yaml`、`apps/api/{package.json,tsconfig.json,src}`，几百 KB），服务器 `docker compose build api` 现场构建：基础镜像走加速 0.7 秒、pnpm 装依赖 6.6 秒、整条部署 90 秒。
+- **构建上下文**：服务器 compose 原来写死 `context: ./src`，仓库里是 `..`。改成 `${API_BUILD_CONTEXT:-..}`，服务器 `.env` 里配 `API_BUILD_CONTEXT=./src`，两边都能 build，`update.sh` 手动兜底也不坏。
+- `deploy.yml` 里 `mkdir data/uploads` 改成借 api 镜像的 root 做 `mkdir` + `chown 1000:1000`：`data/` 属于 uid 1000，部署用户写不进去，原来的写法第一次跑就会红。
+- 验证：run 43997430944 全绿——build 28 秒（测试 161 个 + 构建网页），deploy 90 秒（同步静态文件、上传源码、服务器构建镜像、`up -d`、重启 Caddy、冒烟检查）；服务器上五个容器 healthy，api 日志有 `[blog] re-rendered 11 posts`，`/blog/gpt-image2/` 的 `<img>` 全部带上 `referrerpolicy="no-referrer"`，`/console/_assets/*` 未登录 302，`/lab/` 200。
+- 顺手修 cron 时区：`35 3 * * *` 在 UTC 容器里等于北京时间 11:35，备份文件名里就是 `…111135`。api 镜像没有 tzdata、设 `TZ` 不生效，所以直接把时差写进表达式：`35 19 * * *`。
 
 ### P4-7 控制台脚本私有化（2026-11-11）
 
@@ -46,13 +56,13 @@
 
 - 升级前数据库备份到 `~/lumen-desk/data/pre-p157.db`（`sqlite3 .backup`，2.1 MB）。把 `dist`、`dist-private`、`dist-shell` 分别 rsync 到 `~/lumen-desk/web/{public,private,shell}`，`docker compose build api` 后 `up -d`。
 - 80 端口核对：`/`、`/lab/`、`/lab/flow-field/`、`/lab/end-of-time/`、`/tools/`、`/resume/`、`/blog/` 全 200，`/login` 308 跳目录；`/sitemap.xml` 有三条试验场条目（含 flow-field）；`/console` 和 `/console/_assets/Layout.aVWhidn6.css` 未登录 302；旧公开 chunk `/_astro/console.astro_*.js` 变 404，`/_astro/Layout.aVWhidn6.css` 仍 200。
-- api 重启后启动补做立刻写了一份真备份：`/data/backups/lumen-desk-backup-202611111144.zip`，94 KB，文章 11、书签 296。以后每天 03:35 自动做，保留 14 份。
+- api 重启后启动补做立刻写了一份真备份：`/data/backups/lumen-desk-backup-202611111144.zip`，94 KB，文章 11、书签 296。以后每天北京时间 03:35 自动做，保留 14 份。
 - 用 headless Chrome 走 Caddy 复测了（当时的）流场页：画布有内容、1440 宽无横向溢出、`/lab/` 卡片两张。唯一的 404 是 `/favicon.ico`（仓库里本来没有 favicon）。
 
 ### P1.5-7 定时全量备份（本机部分，2026-11-11）
 
 - 新增 `apps/api/src/backups.ts`：复用 P2.12 的导出/导入，只多出落盘、保留策略、坏包检测和恢复。`runBackup()` 先写 `.tmp` 再改名，写完立刻验一遍，验不过就删掉、旧备份一份不动；`pruneBackups()` 只删 `lumen-desk-backup-<12 位时间>.zip` 这种自己写的文件名，目录里别人的文件不碰；`latestUsableBackup()` 从新到旧找第一个能读的，坏包打一行警告跳过。
-- api 进程里每天 03:35（容器时区）做一次，保留 `BACKUP_KEEP` 份（默认 14）。启动时如果目录里超过 24 小时没有能读的备份，先补一份——机器宕几天回来不会一直没有备份。默认目录 `DATA_DIR/backups`，容器里是 `/data/backups`，就是宿主机 `~/lumen-desk/data/backups`，不用改 compose 挂载。
+- api 进程里每天北京时间 03:35 做一次（cron 按 19:35 UTC 写，因为 api 镜像基于 alpine、不带 tzdata，设 TZ 不生效），保留 `BACKUP_KEEP` 份（默认 14）。启动时如果目录里超过 24 小时没有能读的备份，先补一份——机器宕几天回来不会一直没有备份。默认目录 `DATA_DIR/backups`，容器里是 `/data/backups`，就是宿主机 `~/lumen-desk/data/backups`，不用改 compose 挂载。
 - 新 CLI `apps/api/src/cli/backup.ts`（`pnpm --filter api backup`，容器里 `node dist/cli/backup.js`）：`run` 做一份、`list` 列出来并标坏包、`restore <文件> --yes` 覆盖现有内容（不带 `--yes` 只提示不动手）。`deploy/README.md` 加了「定时备份与恢复」一节。
 - 新环境变量 `BACKUP_DIR`、`BACKUP_KEEP`，已加进 `apps/api/.env.example`、`deploy/.env.example` 和 `src/config.ts`。
 - 验证：`apps/api/test/backup-schedule.test.ts` 4 个用例（落盘后可读、清单数量对得上、保留 14 份删最旧且不碰别人的文件、最新一份坏掉时回退到上一份并告警、恢复到空实例后文章和 `/blog/<slug>/` 都在且未登录仍然 401）。`pnpm test` 161 个、`pnpm build` 通过。CLI 冒烟：空数据目录 `run` → `list` → 不带 `--yes` 的 `restore` 退出码 2 → 带 `--yes` 恢复成功；起一次 api 确认启动补做会写出一份并打日志。
@@ -231,6 +241,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-17 | 开 CI 自动部署（P1.5-1、P1.5-2）：服务器建 `deploy` 用户 + 部署密钥，GitHub 配四条 secret 三个变量；镜像改成在服务器上现场构建（GitHub 到国内只有 35 KB/s，传镜像会超时）；给 `<img>` 加 `referrerpolicy="no-referrer"` 修外链图床防盗链；备份 cron 从 UTC 03:35 改成 19:35 UTC = 北京时间 03:35 |
 | 2026-11-12 | Umami / Uptime Kuma 配好：Umami 建站点「拾光台」（domain `43.143.244.97`，website id `964fe566-f3d9-48c3-998d-d36c8bf8d87d`），默认 `admin/umami` 已换成随机口令（只存在服务器 `/opt/lumen-desk/admin-cred.txt`，600）；`build-web.sh` 带 `PUBLIC_UMAMI_SRC=/u/script.js` 和 `PUBLIC_UMAMI_WEBSITE_ID` 重建网页，首页出现 `/u/script.js`，`/u/script.js` 和 `/u/api/send` 均 200。Kuma 的管理员是用户自己建的 `zero`（密码我不持有），两个监控（主站 `http://caddy/`、api `http://api:3000/api/healthz`）直接写进 `kuma.db` 再重启容器，各自 3 个 heartbeat 全 `status=1` |
 | 2026-11-12 | 修 Umami 登录报 `Unexpected end of JSON input`：`:8081` 的 basic_auth 挡在 `/api/*` 前面，浏览器不会给 XHR/fetch 带 basic 凭据，`POST /api/auth/login` 拿到 Caddy 的空 body 401；改成门口只挡网页，`/api/*` 和 `/socket.io/*` 放给 Umami、Kuma 自己。`caddy validate` 通过，主站仍 200 |
 | 2026-11-12 | 首次部署到腾讯云服务器（`43.143.244.97`，Ubuntu 22.04，2 核 2G）：`/opt/lumen-desk` 下 caddy、api、umami、umami-db、uptime-kuma 五个容器全部 healthy，80 端口对外 200，`/Console` 未登录 302 到 `/login`，`/api/private/*` 401；网页用容器内 pnpm 在服务器构建（npmmirror 源），api 镜像在服务器 build；补了 2G swap；`init-totp` 已把密钥写进数据库，验证器和 10 个恢复码由用户保存 |

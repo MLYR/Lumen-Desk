@@ -11,7 +11,7 @@
 | --- | --- | --- | --- |
 | P0 准备 | 备案、服务器、外部服务 | 进行中 | 无 |
 | P1 MVP | 公开主页、登录、控制台、部署流水线 | 代码完成，本机 Docker 已部署 | 无 |
-| P1.5 上线加固 | 部署到腾讯云，切 HTTPS，补齐安全项 | 进行中（4 / 10：CSP、Actions 固定 SHA、日志轮转、定时备份本机部分） | 服务器初始化完成；切域名还要等 ICP 备案 |
+| P1.5 上线加固 | 部署到腾讯云，切 HTTPS，补齐安全项 | 进行中（7 / 10；剩 P1.5-3/4/9 等备案和域名） | 服务器初始化完成；切域名还要等 ICP 备案 |
 | P2 博客 | 文章存 SQLite、在线写、导入 .md、RSS、搜索 | 完成（差第一篇文章） | 无 |
 | P2.5 分类、标签、设置 | 分类和标签管理、个人资料、账号安全、控制台头像菜单 | 完成 | P2 |
 | P2.6 基础 UI 组件 | 自制下拉框、弹框、Toast、日历，替换控制台里的原生控件 | 完成 | P2.5 |
@@ -30,7 +30,7 @@
 | --- | --- | --- | --- |
 | P0-1 👤 | 提交 ICP 备案 | 腾讯云控制台「ICP 备案」，主体选个人。网站名称不能带"导航""平台"，建议"拾光台 · zreo 的个人主页"。1～3 周 | 拿到备案号 |
 | P0-2 👤 | 公安联网备案 | 网站上线后 30 天内办理 | 拿到公安备案号，页脚放两个号 |
-| P0-3 👤 | 服务器初始化 | Ubuntu 24.04；SSH 密钥登录，关密码和 root 登录，建部署用户；防火墙只开 22/80/443；2 GB swap；装 Docker 和 Compose 插件，配镜像加速 `mirror.ccs.tencentyun.com`；开自动安全更新和自动快照 | 能用密钥 SSH 登录，`docker run hello-world` 正常 |
+| P0-3 ✅ 👤 | 服务器初始化 | Ubuntu 24.04；SSH 密钥登录，关密码和 root 登录，建部署用户；防火墙只开 22/80/443；2 GB swap；装 Docker 和 Compose 插件，配镜像加速 `mirror.ccs.tencentyun.com`；开自动安全更新和自动快照 | 能用密钥 SSH 登录，`docker run hello-world` 正常 |
 | P0-4 👤 | 告知域名 | 用于 Caddy 的 `SITE_ADDRESS`、`SITE_URL` | 写进服务器 `.env` |
 | ~~P0-5~~ | ~~对象存储和 CDN~~ | 用户决定不用（2026-10-30）。图片放服务器本机，上传时压缩，见 P2-7 | — |
 | P0-6 👤 | 提供公开主页内容 | 一句话介绍、简历、头像、联系方式 | 替换 `Intro.astro`、`Resume.astro` 里的占位 |
@@ -55,8 +55,8 @@
 
 | 编号 | 任务 | 做法 | 验收 |
 | --- | --- | --- | --- |
-| P1.5-1 | 服务器首次部署 | 按 `deploy/README.md`：建 `/opt/lumen-desk`，`init-totp`，导入书签，`docker compose up -d` | 用 `http://服务器IP` 能打开主页，能登录控制台 |
-| P1.5-2 | 开启 CI 自动部署（用户已确认用 GitHub Actions） | 仓库变量 `DEPLOY_ENABLED=true`；Secrets：`DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_SSH_KEY`、`DEPLOY_KNOWN_HOSTS` | push 到 main 后服务器自动更新 |
+| P1.5-1 ✅ | 服务器首次部署 | 2026-11-12 已在腾讯云 `43.143.244.97` 完成：五个容器 healthy，`/` 200，登录和恢复码可用 | 用 `http://服务器IP` 能打开主页，能登录控制台 |
+| P1.5-2 ✅ | 开启 CI 自动部署（用户已确认用 GitHub Actions） | 2026-11-17 配好：四条 secrets + 三个变量；静态文件和 api 源码由 CI 传，镜像在服务器上 `docker compose build api` 现场构建（传 88 MB 镜像要半小时，会超时） | push 到 main 后服务器自动更新 |
 | P1.5-3 | 切域名和 HTTPS | `.env` 里 `SITE_ADDRESS=域名`、`SITE_URL=https://域名`、`COOKIE_SECURE=true`；Caddy 自动签证书 | `https://域名` 证书有效，HTTP 自动跳 HTTPS，Cookie 带 `Secure` |
 | P1.5-4 | Cookie 改用 `__Host-` 前缀 | `sessions.ts` 改名为 `__Host-ld_session`，浏览器会拒绝不带 `Secure` 的写入，配错时能立刻发现。只能在 HTTPS 上线时一起改 | 测试更新；HTTPS 下能登录 |
 | P1.5-5 ✅ | 加 CSP 头 | Caddyfile 加 `Content-Security-Policy`：`default-src 'self'; script-src 'self' 'sha256-…'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`。Astro 的内联主题脚本要算 hash，或者改成外链脚本 | 三个页面在浏览器控制台没有 CSP 报错 |

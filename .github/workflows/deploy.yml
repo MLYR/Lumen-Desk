@@ -96,11 +96,6 @@ jobs:
           name: web-shell
           path: apps/web/dist-shell/
 
-      - name: Build API image
-        run: |
-          docker build -f apps/api/Dockerfile -t lumen-desk-api:latest .
-          docker save lumen-desk-api:latest | gzip > "$RUNNER_TEMP/lumen-desk-api.tar.gz"
-
       - name: Set up SSH
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -124,17 +119,23 @@ jobs:
           rsync -az --delete -e "$RSYNC_SSH" apps/web/dist-private/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DIR/web/private/"
           rsync -az --delete -e "$RSYNC_SSH" apps/web/dist-shell/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DIR/web/shell/"
 
-      - name: Ship config and image
+      - name: Ship config and API source
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
           SCP_OPTS=(-i "$HOME/.ssh/id_deploy" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o StrictHostKeyChecking=yes)
           TARGET="$DEPLOY_USER@$DEPLOY_HOST"
+          # api 镜像在服务器上构建，不在这里打。GitHub 到国内的单向带宽只有三四十 KB/s，
+          # 传一个 90 MB 的镜像 tar 要半小时以上；而服务器的镜像加速拉基础镜像不到 1 秒，
+          # pnpm 装依赖 7 秒，现场构建整个流程反而更快。只传构建需要的那几个文件。
+          tar -czf "$RUNNER_TEMP/api-src.tar.gz" \
+            package.json pnpm-workspace.yaml pnpm-lock.yaml \
+            apps/api/package.json apps/api/tsconfig.json apps/api/src
           scp "${SCP_OPTS[@]}" deploy/Caddyfile deploy/docker-compose.yml "$TARGET:$DEPLOY_DIR/"
-          scp "${SCP_OPTS[@]}" "$RUNNER_TEMP/lumen-desk-api.tar.gz" "$TARGET:$DEPLOY_DIR/lumen-desk-api.tar.gz"
+          scp "${SCP_OPTS[@]}" "$RUNNER_TEMP/api-src.tar.gz" "$TARGET:$DEPLOY_DIR/api-src.tar.gz"
 
-      - name: Load image and restart
+      - name: Build image on the server and restart
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -143,8 +144,9 @@ jobs:
             "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<EOF
           set -euo pipefail
           cd "$DEPLOY_DIR"
-          gunzip -c lumen-desk-api.tar.gz | docker load
-          rm -f lumen-desk-api.tar.gz
+          mkdir -p src
+          tar xzf api-src.tar.gz -C src && rm -f api-src.tar.gz
+          docker compose build api
           # 上传目录：api 容器里的 node 用户（uid 1000）要能写，caddy 只读。
           # data/ 属于 uid 1000，部署用户写不进去，所以建目录和 chown 都借 api 镜像里的 root 做，不需要 sudo。
           docker run --rm --user root --entrypoint sh -v "$DEPLOY_DIR/data:/data" lumen-desk-api:latest \

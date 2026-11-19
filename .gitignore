@@ -19,3 +19,6 @@ deploy/web/
 data/
 .idea/
 .archify/
+
+# DSH 会话记录，不进仓库
+.dsh-ops/

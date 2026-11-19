@@ -241,6 +241,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-19 | 域名 HTTPS 上线：`.env` 改 `SITE_ADDRESS=mlyryyds.icu, www.mlyryyds.icu`、`SITE_URL=https://mlyryyds.icu`、`COOKIE_SECURE=true`，重启 caddy 后 Let's Encrypt 自动签发两张证书（apex + www）。验证：`https://mlyryyds.icu/` 及 `/blog/`、`/resume/`、`/lab/`、`/login/` 全 200，`/console` 302 到 `/login`，`/api/healthz` 返回 ok，`http://` 308 跳 https，不存在路径 404，`/u/script.js` 200，Umami 后台 `:8081` 错口令仍 401。页脚改成真实备案号 `陕ICP备2026034153号-1`（链到 beian.miit.gov.cn），替换原来的「沪ICP备 XXXXXXXX」占位符；公安联网备案号待下号后补。服务器操作链路从 HexHub 换成 Xterminal MCP（`xterminal_ssh_exec` / `xterminal_ssh_sudo_exec`） |
 | 2026-11-17 | 更正服务器规格：实际是 **2 核 2G、50G 系统盘、3 Mbps**，方案里一直写的是 4 核 4G。改了 `README.md`、`deploy/README.md`、`docs/HANDOFF.md` 和 `docs/PLAN.md` 两处（约束行 + 内存预算，注明 2G 靠 2G swap 兜、实测五容器 700 MB）；`design-demos/navigator.html` 服务器卡的示例数据同步成 2 核 / 2G / 0.7G |
 | 2026-11-17 | 开 CI 自动部署（P1.5-1、P1.5-2）：服务器建 `deploy` 用户 + 部署密钥，GitHub 配四条 secret 三个变量；镜像改成在服务器上现场构建（GitHub 到国内只有 35 KB/s，传镜像会超时）；给 `<img>` 加 `referrerpolicy="no-referrer"` 修外链图床防盗链；备份 cron 从 UTC 03:35 改成 19:35 UTC = 北京时间 03:35 |
 | 2026-11-12 | Umami / Uptime Kuma 配好：Umami 建站点「拾光台」（domain `43.143.244.97`，website id `964fe566-f3d9-48c3-998d-d36c8bf8d87d`），默认 `admin/umami` 已换成随机口令（只存在服务器 `/opt/lumen-desk/admin-cred.txt`，600）；`build-web.sh` 带 `PUBLIC_UMAMI_SRC=/u/script.js` 和 `PUBLIC_UMAMI_WEBSITE_ID` 重建网页，首页出现 `/u/script.js`，`/u/script.js` 和 `/u/api/send` 均 200。Kuma 的管理员是用户自己建的 `zero`（密码我不持有），两个监控（主站 `http://caddy/`、api `http://api:3000/api/healthz`）直接写进 `kuma.db` 再重启容器，各自 3 个 heartbeat 全 `status=1` |

@@ -174,7 +174,9 @@ export function registerBlog(app: Hono, { config, db, now }: BlogDeps): void {
     c.header('Cache-Control', PUBLIC_CACHE);
     c.header('Content-Type', 'application/xml; charset=utf-8');
     const cats = listCategoriesPublic(db).filter((x) => x.count > 0).map((x) => x.slug);
-    return c.body(sitemap(config.siteUrl, listPublished(db), cats, !getResumeSettings(db).revealPublic, labRoutes));
+    const dbLabs = db.prepare('SELECT slug FROM labs WHERE draft = 0 ORDER BY featured DESC, sort ASC, created_at ASC').all() as Array<{ slug: string }>;
+    const allLabRoutes = [...new Set([...labRoutes, ...dbLabs.map((r) => `/lab/${r.slug}/`)])];
+    return c.body(sitemap(config.siteUrl, listPublished(db), cats, !getResumeSettings(db).revealPublic, allLabRoutes));
   });
 
   // ---------- private ----------

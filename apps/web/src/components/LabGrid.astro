@@ -1,62 +1,17 @@
 ---
-import type { LabItem } from "../lib/lab";
-
 interface Props {
-  items: LabItem[];
+  id?: string;
+  class?: string;
+  placeholder?: string;
 }
 
-const { items } = Astro.props;
-const featured = items.find((item) => item.featured) ?? items[0];
-const rest = items.filter((item) => item !== featured);
+const { id, class: className, placeholder = "加载中…" } = Astro.props;
 ---
-{featured ? (
-  <div class="labs">
-    <a class="lab lab-feature" href={featured.href}>
-      <div class="pv feature-pv">
-        {featured.cover ? (
-          <img
-            src={featured.cover}
-            alt={featured.coverAlt ?? featured.name}
-            width="1440"
-            height="720"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : null}
-      </div>
-      <div class="body">
-        <div class="kicker">{featured.kicker}</div>
-        <div class="nm">{featured.name}</div>
-        <div class="ds">{featured.summary}</div>
-        <div class="st"><span>{featured.status}</span><span class="go">进入实验 →</span></div>
-      </div>
-    </a>
-    {rest.map((item) => (
-      <a class="lab lab-small" href={item.href}>
-        {item.cover ? (
-          <div class="pv">
-            <img
-              src={item.cover}
-              alt={item.coverAlt ?? item.name}
-              width="1440"
-              height="720"
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
-        ) : null}
-        <div class="body">
-          <div class="kicker">{item.kicker}</div>
-          <div class="nm">{item.name}</div>
-          <div class="ds">{item.summary}</div>
-          <div class="st"><span>{item.status}</span><span class="go">进入 →</span></div>
-        </div>
-      </a>
-    ))}
-  </div>
-) : (
-  <p class="lab-empty">还没有实验。做出来再放上来。</p>
-)}
+<div id={id} class={className} aria-live="polite">
+  <slot>
+    <p class="lab-empty">{placeholder}</p>
+  </slot>
+</div>
 
 <style is:global>
 .labs { display: grid; gap: 16px; grid-template-columns: 1fr; }
@@ -64,8 +19,10 @@ const rest = items.filter((item) => item !== featured);
 @media (min-width: 900px) { .labs { grid-template-columns: repeat(3, 1fr); } }
 .lab { display: block; border: 1px solid var(--soft-line); min-width: 0; }
 a.lab:hover { border-color: var(--accent); }
-.lab .pv { height: 160px; display: block; width: 100%; border-bottom: 1px solid var(--soft-line); }
+.lab .pv { position: relative; height: 160px; display: block; width: 100%; border-bottom: 1px solid var(--soft-line); overflow: hidden; }
+.lab .pv::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .lab .pv img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.lab .pv .pv-frame { position: absolute; top: 0; left: 0; width: 250%; height: 250%; border: 0; transform: scale(0.4); transform-origin: 0 0; pointer-events: none; display: block; }
 .lab-small { display: flex; flex-direction: column; }
 .lab-small .pv { height: 170px; border-bottom: 1px solid var(--soft-line); overflow: hidden; }
 .lab-small .body { padding: 20px; display: flex; flex-direction: column; flex: 1; }

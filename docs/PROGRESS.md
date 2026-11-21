@@ -1,10 +1,10 @@
 # 项目进度
 
-更新日期：2026-11-11。任务编号对应 `ROADMAP.md`。完成或变更任务时更新本文。
+更新日期：2026-11-21。任务编号对应 `ROADMAP.md`。完成或变更任务时更新本文。
 
 ## 1. 当前状态
 
-- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场有内容模型、`/lab/` 列表页和《时间的尽头》Three.js 实验页（流场那一版已删）；Umami、Uptime Kuma、自动部署配置完成；安全审查 11 项已处理。
+- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场已从构建期静态页升级为 ZIP 动态化架构（SQLite `labs` 表 + `DATA_DIR/labs/<slug>/` + 沉浸全屏 `/lab/<slug>/` + `/console/lab` 语法高亮工作台，《时间的尽头》已迁入内置种子实验）；Umami、Uptime Kuma、自动部署与域名 HTTPS 已上线；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
 - **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、简历 3 个项目 9 条技能、2 篇文章、绑定 Google Authenticator。
 - **服务器**：腾讯云轻量（上海，2 核 2G / 50G 盘 / 3 Mbps，另加 2G swap）已部署在 `/opt/lumen-desk/`，<http://43.143.244.97> 对外 200（只开 80，443 等域名）。**已开 CI 自动部署**：push 到 `main` 后 GitHub Actions 跑测试、构建网页，rsync 静态文件和 api 源码上去（几百 KB），在服务器上 `docker compose build api` 现场打镜像，90 秒左右完成，最后做冒烟检查。源码目录 `/opt/lumen-desk/src` 不再需要手动解包，CI 每次覆盖构建需要的那几个文件；`update.sh` 保留作手动兜底。
@@ -24,10 +24,17 @@
 | P2.10 简历 | 完成 | `docs/contracts/resume.md`；简历内容只在服务器数据库 |
 | P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
 | P2.12 整站数据备份 | 完成 | `docs/contracts/backup.md`；控制台导出/导入 ZIP，不含验证器和会话 |
-| P3 试验场 | 5 / 7（含工具箱） | P3-1 内容模型、P3-2 列表页、P3-4 体积守门、P3-6《时间的尽头》、P3-7 工具箱完成；P3-3 流场页做过一版，用户看过觉得不好看，已删除；只剩 P3-5 后续实验（按兴趣排期） |
+| P3 试验场 | 6 / 7（含工具箱与 ZIP 工作台） | P3-1/2/4/6/7 完成并升级为 ZIP 动态化试验场（`/console/lab` 上传/编辑/预览、《时间的尽头》迁入数据库与磁盘种子）；P3-3 流场页已删除；后续实验可直接在后台上传 ZIP 或在线新建 |
 | P4 增强 | 4 / 7 | Umami、Uptime Kuma 已部署到本机；P4-6 控制台编辑书签由 P2.8 交付；P4-7 控制台脚本私有化完成；其余待定 |
 
 ## 2. 已完成
+
+### P3 试验场 ZIP 动态化与 `/console/lab` 工作台（2026-11-21）
+
+- **后端**（`apps/api/src/lab/`、`apps/api/src/routes/lab.ts`）：新增 `labs` 表存储实验元数据（`slug`、`title`、`intro`、`stack`、`status`、`cover`、`entry`、`featured`、`draft`、`sort`），磁盘文件存 `DATA_DIR/labs/<slug>/`。复用 `fflate` 实现 ZIP 上传解压（自动剥离单层包裹目录、拦截路径穿越、24 种后缀白名单、压缩 ≤ 15 MiB / 解压 ≤ 30 MiB / 文件数 ≤ 200）、空白骨架生成、导出 `.zip` 及单文件增删改查/重命名。新增 `/lab/<slug>/` 沉浸全屏 iframe 查看器（方案 A，左上角胶囊导航）与 `/lab-files/<slug>/*` 静态资源直出（草稿仅管理员可访问）。整站备份 `backup.ts` 同步纳入 `content.labs` 与 `labs/<slug>/*`，并接入动态 `sitemap.xml`。
+- **《时间的尽头》种子迁移**（`apps/api/src/lab/seed.ts`、`apps/web/public/lab/vendor/three-eot.mjs`）：打包 Three.js 与后处理依赖到 `/lab/vendor/three-eot.mjs`，移除旧 Astro 静态页与 `src/content/lab/end-of-time.md`；API 首次启动自动将 5 个可读源码文件（`index.html`、`style.css`、`main.js`、`engine.js`、`shaders.js`）写入 `DATA_DIR/labs/end-of-time/` 并记入 `kv.labs_seeded_v1`（后台删除后重启不复活）。
+- **控制台试验场工作台**（`apps/web/src/pages/console/lab.astro`、`src/scripts/console/lab.ts`、`src/scripts/console/code-editor.ts`）：独立 `/console/lab` 页面（`ConsoleTop current="lab" wide`），支持上传/拖拽 `.zip` 新建、空白骨架新建、元数据折叠抽屉、左侧文件树、中间零依赖语法高亮代码编辑器（双层同步滚动 + 单遍分词器，支持 JS/GLSL/HTML/CSS/JSON/MD、`Tab`/`Shift+Tab`、括号自动缩进、`⌘S`/`Ctrl+S`）及右侧实时预览 iframe（含自动/手动截取 Canvas 预览生成 `cover.webp` 封面）。
+- **前台动态化与部署配置**：首页 `LabList.astro`、`/lab/` 列表页和 `/console` 试验场卡片改为客户端拉取 `/api/lab`（无封面图时自动回退为缩放版实时 iframe 预览）；`split-private.mjs` 纳入 `console/lab`；`deploy/Caddyfile` 代理 `/lab/<slug>/*` 与 `/lab-files/*` 并设置 `X-Frame-Options SAMEORIGIN` 与沙箱 CSP。新增 `apps/api/test/lab.test.ts`（9 组集成测试），全量 14 个测试文件 168 项测试与构建体积守门全部通过。
 
 ### P1.5-1 / P1.5-2 CI 自动部署（2026-11-17）
 
@@ -205,6 +212,7 @@
 | SQLite（better-sqlite3） | Node 自带 `node:sqlite` | 无原生编译依赖，镜像更简单；需要 Node ≥ 22.13，启动时会打一条 experimental 警告 |
 | 服务器状态卡显示带宽 | 显示 CPU、内存、磁盘、负载、运行时长 | 带宽没有现成数据源，见 P1.5-10 |
 | 博客用 MDX，构建期生成 | 文章存 SQLite，api 渲染 | 用户要在线写，在线写的文章进不了构建 |
+| 试验场构建期 Astro 静态页 + Content Collection | SQLite `labs` 表 + `DATA_DIR/labs/<slug>/` + 沉浸 iframe + `/console/lab` 在线编辑 | 用户希望直接上传 `.zip` 或在后台像写文章一样在线增删改实验与代码 |
 | 图片和大资源放 COS + CDN | 放服务器本机，上传时压缩 | 用户不想用对象存储 |
 
 ## 4. 决定和待确认问题
@@ -241,6 +249,7 @@
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-21 | 试验场 ZIP 动态化改造：新增 `labs` 表、`/api/lab/*`、`/lab/<slug>/` 沉浸全屏页与 `/lab-files/*` 静态服务；《时间的尽头》迁为首次启动内置种子实验（Three.js 拆至 `/lab/vendor/three-eot.mjs`）；新增 `/console/lab` 试验场工作台与零依赖语法高亮代码编辑器；整站备份与 sitemap 同步支持试验场 |
 | 2026-11-19 | 域名 HTTPS 上线：`.env` 改 `SITE_ADDRESS=mlyryyds.icu, www.mlyryyds.icu`、`SITE_URL=https://mlyryyds.icu`、`COOKIE_SECURE=true`，重启 caddy 后 Let's Encrypt 自动签发两张证书（apex + www）。验证：`https://mlyryyds.icu/` 及 `/blog/`、`/resume/`、`/lab/`、`/login/` 全 200，`/console` 302 到 `/login`，`/api/healthz` 返回 ok，`http://` 308 跳 https，不存在路径 404，`/u/script.js` 200，Umami 后台 `:8081` 错口令仍 401。页脚改成真实备案号 `陕ICP备2026034153号-1`（链到 beian.miit.gov.cn），替换原来的「沪ICP备 XXXXXXXX」占位符；公安联网备案号待下号后补。服务器操作链路从 HexHub 换成 Xterminal MCP（`xterminal_ssh_exec` / `xterminal_ssh_sudo_exec`） |
 | 2026-11-17 | 更正服务器规格：实际是 **2 核 2G、50G 系统盘、3 Mbps**，方案里一直写的是 4 核 4G。改了 `README.md`、`deploy/README.md`、`docs/HANDOFF.md` 和 `docs/PLAN.md` 两处（约束行 + 内存预算，注明 2G 靠 2G swap 兜、实测五容器 700 MB）；`design-demos/navigator.html` 服务器卡的示例数据同步成 2 核 / 2G / 0.7G |
 | 2026-11-17 | 开 CI 自动部署（P1.5-1、P1.5-2）：服务器建 `deploy` 用户 + 部署密钥，GitHub 配四条 secret 三个变量；镜像改成在服务器上现场构建（GitHub 到国内只有 35 KB/s，传镜像会超时）；给 `<img>` 加 `referrerpolicy="no-referrer"` 修外链图床防盗链；备份 cron 从 UTC 03:35 改成 19:35 UTC = 北京时间 03:35 |

@@ -6,6 +6,7 @@ import { bookmarkCmds, loadBookmarks } from "./bookmarks";
 import { startServerCard } from "./server";
 import { startResumeCard } from "./resume-card";
 import { startBlogCard } from "./blog-card";
+import { parseLabs } from "../../lib/lab";
 
 type Hot = { rank: number; title: string; sourceCount: number; url: string };
 type Cmd = { name: string; group: string; keys?: string; run: () => void };
@@ -82,6 +83,7 @@ function buildCmds() {
     ...bookmarkCmds().filter((b) => safeUrl(b.url) !== "#").map((b) => ({ name: b.name, group: b.group, keys: b.url, run: () => window.open(safeUrl(b.url), "_blank", "noopener") })),
     ...Object.entries(MODE_NAMES).map(([k, v]) => ({ name: `主题：${v}`, group: "命令", keys: "theme zhuti " + k, run: () => setMode(k) })),
     { name: "公开主页", group: "页面", run: () => { location.href = "/"; } },
+    { name: "管理试验场", group: "页面", run: () => { location.href = "/console/lab"; } },
   ];
 }
 buildCmds();
@@ -116,3 +118,23 @@ document.addEventListener("keydown", (e) => {
 
 /* 试验场：流场粒子 */
 startFlowField($<HTMLCanvasElement>("#lab-canvas"), 240);
+
+/* 试验场：从 /api/lab 加载实验快捷入口 */
+async function loadLabChips() {
+  const box = document.getElementById("labChips");
+  if (!box) return;
+  try {
+    const res = await fetch("/api/lab", { credentials: "same-origin", cache: "no-store" });
+    if (!res.ok) return;
+    const items = parseLabs(await res.json());
+    if (!items.length) return;
+    box.innerHTML =
+      items
+        .map(
+          (item) =>
+            `<a class="chip" href="/console/lab?slug=${encodeURIComponent(item.slug)}">${esc(item.title)}${item.draft ? " · 草稿" : ""}</a>`,
+        )
+        .join("") + `<a class="chip" href="/console/lab">+ 新建</a>`;
+  } catch {}
+}
+void loadLabChips();

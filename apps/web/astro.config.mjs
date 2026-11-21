@@ -7,10 +7,16 @@ export default defineConfig({
   build: { format: "directory" },
   vite: {
     server: {
-      proxy: { "/api": "http://localhost:3000" },
+      proxy: {
+        "/api": "http://localhost:3000",
+        "/lab-files": "http://localhost:3000",
+      },
     },
     preview: {
-      proxy: { "/api": "http://localhost:3000" },
+      proxy: {
+        "/api": "http://localhost:3000",
+        "/lab-files": "http://localhost:3000",
+      },
     },
   },
 });

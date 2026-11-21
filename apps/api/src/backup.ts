@@ -5,7 +5,7 @@ import type { ExportFolder } from './bookmarks/netscape.js';
 import { countTree, MAX_DEPTH, MAX_FOLDER_NAME, MAX_ITEMS, MAX_TITLE, MAX_URL, treeDepth } from './bookmarks/netscape.js';
 import { exportTree, replaceTreeInTx, saveSnapshot } from './bookmarks/store.js';
 import { htmlToText, renderPost } from './blog/render.js';
-import { parsePostInput, type PostInput, type PostRow } from './blog/posts.js';
+import { parsePostInput, SLUG_RE, type PostInput, type PostRow } from './blog/posts.js';
 import {
   CATEGORY_SLUG_RE,
   ensureTags,
@@ -14,6 +14,15 @@ import {
 } from './blog/taxonomy.js';
 import { kvSet, RENDER_VERSION, RENDER_VERSION_KEY, tagKey, tx, type DB } from './db.js';
 import { InputError } from './http.js';
+import {
+  isAllowedExt,
+  listFiles,
+  MAX_LAB_BYTES,
+  MAX_LAB_FILES,
+  MAX_LAB_ZIP_BYTES,
+  normalizeRel,
+  readFile,
+} from './lab/store.js';
 import { getProfile, parseProfile, type Profile } from './profile.js';
 import { getResume, getSettings, parseResume, parseSettings, saveResume, saveSettings } from './resume.js';
 
@@ -21,8 +30,9 @@ import { getResume, getSettings, parseResume, parseSettings, saveResume, saveSet
  * Full backup format (version 1):
  *
  *   manifest.json   format/version/counts/exportedAt
- *   content.json    posts, taxonomy, bookmark tree, profile, résumé
+ *   content.json    posts, taxonomy, bookmark tree, profile, résumé, labs
  *   uploads/<name>  images referenced by posts, profile and old avatars
+ *   labs/<slug>/*   files belonging to each lab experiment
  *
  * Deliberately excluded: TOTP secret, recovery codes, sessions, login rate limits, AIHOT cache and
  * bookmark snapshots. This is a content backup, not a copy of the SQLite file.
@@ -39,6 +49,7 @@ const MAX_UPLOAD_FILES = 500;
 const MAX_POSTS = 2000;
 const MAX_CATEGORIES = 500;
 const MAX_TAGS = 2000;
+const MAX_LABS = 500;
 const TZ_OFFSET_MS = 8 * 3600_000;
 const UPLOAD_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/;
 const UPLOAD_EXT_RE = /\.(?:webp|png|jpe?g|gif|avif)$/i;
@@ -53,6 +64,7 @@ export interface BackupCounts {
   folders: number;
   bookmarks: number;
   uploads: number;
+  labs: number;
 }
 
 export interface BuiltBackup {
@@ -71,6 +83,36 @@ interface CategoryBackup {
 interface TagBackup {
   name: string;
   sort: number;
+}
+
+interface LabBackup {
+  slug: string;
+  title: string;
+  intro: string;
+  stack: string;
+  status: string;
+  cover: string;
+  entry: string;
+  featured: boolean;
+  draft: boolean;
+  sort: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface LabBackupRow {
+  slug: string;
+  title: string;
+  intro: string;
+  stack: string;
+  status: string;
+  cover: string;
+  entry: string;
+  featured: number;
+  draft: number;
+  sort: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface PreparedPost {
@@ -267,6 +309,26 @@ export function buildBackup(db: DB, dataDir: string, nowMs: number): BuiltBackup
   const profile = getProfile(db);
   const resume = getResume(db);
   const resumeSettings = getSettings(db);
+  const labRows = db
+    .prepare(
+      'SELECT slug, title, intro, stack, status, cover, entry, featured, draft, sort, created_at, updated_at FROM labs ORDER BY sort ASC, created_at ASC',
+    )
+    .all() as unknown as LabBackupRow[];
+  if (labRows.length > MAX_LABS) throw new InputError(`实验超过 ${MAX_LABS} 个，无法打包`);
+  const labs: LabBackup[] = labRows.map((r) => ({
+    slug: r.slug,
+    title: r.title,
+    intro: r.intro,
+    stack: r.stack,
+    status: r.status,
+    cover: r.cover,
+    entry: r.entry,
+    featured: r.featured === 1,
+    draft: r.draft === 1,
+    sort: r.sort,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
 
   const uploadsDir = path.join(dataDir, 'uploads');
   const uploadEntries: Record<string, Uint8Array> = {};
@@ -291,6 +353,17 @@ export function buildBackup(db: DB, dataDir: string, nowMs: number): BuiltBackup
     throw new InputError('头像文件不在上传目录，无法打包');
   }
 
+  const labEntries: Record<string, Uint8Array> = {};
+  let labBytes = 0;
+  for (const row of labRows) {
+    for (const f of listFiles(dataDir, row.slug)) {
+      const { data } = readFile(dataDir, row.slug, f.path);
+      labBytes += data.length;
+      if (labBytes > MAX_UNCOMPRESSED_BYTES) throw new InputError('备份内容解压后超过 80 MB，无法打包');
+      labEntries[`labs/${row.slug}/${f.path}`] = new Uint8Array(data);
+    }
+  }
+
   const counts: BackupCounts = {
     posts: posts.length,
     categories: categories.length,
@@ -298,6 +371,7 @@ export function buildBackup(db: DB, dataDir: string, nowMs: number): BuiltBackup
     folders: bookmarkCounts.folders,
     bookmarks: bookmarkCounts.links,
     uploads: Object.keys(uploadEntries).length,
+    labs: labs.length,
   };
   const exportedAt = nowIso(nowMs);
   const manifest = {
@@ -315,17 +389,19 @@ export function buildBackup(db: DB, dataDir: string, nowMs: number): BuiltBackup
     profile,
     resume,
     resumeSettings,
+    labs,
   };
   const manifestBytes = strToU8(JSON.stringify(manifest, null, 2));
   const contentBytes = strToU8(JSON.stringify(content, null, 2));
   if (contentBytes.length > MAX_CONTENT_BYTES) throw new InputError('内容数据超过 32 MB，无法打包');
-  if (manifestBytes.length + contentBytes.length + uploadBytes > MAX_UNCOMPRESSED_BYTES) {
+  if (manifestBytes.length + contentBytes.length + uploadBytes + labBytes > MAX_UNCOMPRESSED_BYTES) {
     throw new InputError('备份内容解压后超过 80 MB，无法打包');
   }
   const files: Record<string, Uint8Array> = {
     'manifest.json': manifestBytes,
     'content.json': contentBytes,
     ...uploadEntries,
+    ...labEntries,
   };
   const data = zipSync(files, { level: 6 });
   if (data.length > MAX_BACKUP_BYTES) throw new InputError('备份超过 40 MB，无法下载');
@@ -390,6 +466,105 @@ async function readPosts(v: unknown, categories: CategoryBackup[], nowMs: number
   return out;
 }
 
+function boolField(v: unknown, where: string): boolean {
+  if (typeof v === 'boolean') return v;
+  if (v === 0 || v === 1) return v === 1;
+  throw new InputError(`${where} 必须是布尔值`);
+}
+
+function sortField(v: unknown, where: string): number {
+  if (v === undefined || v === null) return 0;
+  if (!Number.isInteger(v) || (v as number) < -99999 || (v as number) > 99999) {
+    throw new InputError(`${where} 必须是 -99999 到 99999 之间的整数`);
+  }
+  return v as number;
+}
+
+interface ReadLabsResult {
+  labs: LabBackup[];
+  files: Map<string, Map<string, Uint8Array>>;
+}
+
+function readLabs(v: unknown, entries: Record<string, Uint8Array>, nowMs: number): ReadLabsResult | null {
+  if (v === undefined) return null;
+  const now = nowIso(nowMs);
+  const slugs = new Set<string>();
+  const labs: LabBackup[] = [];
+
+  array(v, 'labs', MAX_LABS).forEach((raw, i) => {
+    const o = record(raw, `labs[${i}]`);
+    const slug = typeof o.slug === 'string' && SLUG_RE.test(o.slug) ? o.slug : '';
+    if (!slug) throw new InputError(`labs[${i}].slug 只能是 a-z、0-9、-，最多 80 字`);
+    if (slugs.has(slug)) throw new InputError(`实验 slug 重复：${slug}`);
+    slugs.add(slug);
+
+    const title = text(o.title, `labs[${i}].title`, 1, 120);
+    const intro = o.intro === undefined || o.intro === null ? '' : text(o.intro, `labs[${i}].intro`, 0, 600);
+    const stack = o.stack === undefined || o.stack === null ? '' : text(o.stack, `labs[${i}].stack`, 0, 120);
+    const status = o.status === undefined || o.status === null ? '' : text(o.status, `labs[${i}].status`, 0, 60);
+
+    let cover = '';
+    if (o.cover !== undefined && o.cover !== null) {
+      const rawCover = text(o.cover, `labs[${i}].cover`, 0, 300);
+      if (rawCover) {
+        if (rawCover.startsWith('/')) {
+          if (!/^\/[A-Za-z0-9._\-/]+$/.test(rawCover) || rawCover.includes('..')) {
+            throw new InputError(`labs[${i}].cover 路径不合法`);
+          }
+          cover = rawCover;
+        } else {
+          cover = normalizeRel(rawCover);
+        }
+      }
+    }
+
+    let entry = 'index.html';
+    if (o.entry !== undefined && o.entry !== null && o.entry !== '') {
+      const rawEntry = normalizeRel(text(o.entry, `labs[${i}].entry`, 1, 240));
+      if (!rawEntry.toLowerCase().endsWith('.html')) throw new InputError(`labs[${i}].entry 必须是 .html 文件`);
+      entry = rawEntry;
+    }
+
+    const featured = o.featured === undefined ? false : boolField(o.featured, `labs[${i}].featured`);
+    const draft = o.draft === undefined ? false : boolField(o.draft, `labs[${i}].draft`);
+    const sort = sortField(o.sort, `labs[${i}].sort`);
+    const createdAt = isoDateOr(o.createdAt, now);
+    const updatedAt = isoDateOr(o.updatedAt, createdAt);
+
+    labs.push({ slug, title, intro, stack, status, cover, entry, featured, draft, sort, createdAt, updatedAt });
+  });
+
+  const files = new Map<string, Map<string, Uint8Array>>();
+  const sizes = new Map<string, number>();
+  for (const [key, data] of Object.entries(entries)) {
+    if (!key.startsWith('labs/')) continue;
+    const rest = key.slice('labs/'.length);
+    if (!rest || rest.endsWith('/')) continue;
+    const slash = rest.indexOf('/');
+    if (slash <= 0) throw new InputError(`备份里的实验文件路径不合法：${key}`);
+    const slug = rest.slice(0, slash);
+    const rawRel = rest.slice(slash + 1);
+    if (!SLUG_RE.test(slug) || !slugs.has(slug)) throw new InputError(`备份里的实验文件找不到对应实验：${key}`);
+    const rel = normalizeRel(rawRel);
+    if (!isAllowedExt(rel)) throw new InputError(`备份里有不支持的实验文件类型：${key}`);
+    if (data.length > MAX_LAB_ZIP_BYTES) throw new InputError(`实验文件 ${key} 超过 15 MB`);
+
+    let perLab = files.get(slug);
+    if (!perLab) {
+      perLab = new Map<string, Uint8Array>();
+      files.set(slug, perLab);
+    }
+    if (perLab.has(rel)) throw new InputError(`备份里的实验文件重复：${key}`);
+    if (perLab.size >= MAX_LAB_FILES) throw new InputError(`实验 ${slug} 文件数超过 ${MAX_LAB_FILES}`);
+    const total = (sizes.get(slug) ?? 0) + data.length;
+    if (total > MAX_LAB_BYTES) throw new InputError(`实验 ${slug} 总大小超过 30 MB`);
+    perLab.set(rel, data);
+    sizes.set(slug, total);
+  }
+
+  return { labs, files };
+}
+
 /**
  * Restores a backup into an existing database. Renders every post before opening the transaction;
  * images are written first, then all relational/content changes commit atomically.
@@ -427,6 +602,7 @@ export async function importBackup(db: DB, dataDir: string, zip: Uint8Array, now
     ? { revealPublic: false }
     : parseSettings(content.resumeSettings);
   const posts = await readPosts(content.posts, categories, nowMs);
+  const labsPlan = readLabs(content.labs, entries, nowMs);
 
   const uploadsDir = path.join(dataDir, 'uploads');
   fs.mkdirSync(uploadsDir, { recursive: true, mode: 0o755 });
@@ -437,6 +613,20 @@ export async function importBackup(db: DB, dataDir: string, zip: Uint8Array, now
       fs.chmodSync(file, 0o644);
     } catch {
       // Best effort; the API can still read a file with the process umask.
+    }
+  }
+
+  if (labsPlan) {
+    const labsDir = path.join(dataDir, 'labs');
+    fs.rmSync(labsDir, { recursive: true, force: true });
+    for (const [slug, files] of labsPlan.files) {
+      const dir = path.join(labsDir, slug);
+      fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+      for (const [rel, data] of files) {
+        const file = path.join(dir, ...rel.split('/'));
+        fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o755 });
+        fs.writeFileSync(file, data, { mode: 0o644 });
+      }
     }
   }
 
@@ -492,6 +682,30 @@ export async function importBackup(db: DB, dataDir: string, zip: Uint8Array, now
     if (resume) saveResume(db, resume);
     else db.prepare("DELETE FROM kv WHERE key = 'resume'").run();
     saveSettings(db, resumeSettings);
+    if (labsPlan) {
+      db.exec('DELETE FROM labs;');
+      const insLab = db.prepare(
+        `INSERT INTO labs (slug, title, intro, stack, status, cover, entry, featured, draft, sort, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      );
+      for (const l of labsPlan.labs) {
+        insLab.run(
+          l.slug,
+          l.title,
+          l.intro,
+          l.stack,
+          l.status,
+          l.cover,
+          l.entry,
+          l.featured ? 1 : 0,
+          l.draft ? 1 : 0,
+          l.sort,
+          l.createdAt,
+          l.updatedAt,
+        );
+      }
+      kvSet(db, 'labs_seeded', '1');
+    }
     // These flags stop the startup migration from re-seeding deleted taxonomy or re-importing old files.
     kvSet(db, 'taxonomy_seeded', '1');
     kvSet(db, 'bookmarks_migrated', '1');
@@ -505,5 +719,6 @@ export async function importBackup(db: DB, dataDir: string, zip: Uint8Array, now
     folders: bookmarks.folders,
     bookmarks: bookmarks.links,
     uploads: uploads.size,
+    labs: labsPlan ? labsPlan.labs.length : 0,
   };
 }

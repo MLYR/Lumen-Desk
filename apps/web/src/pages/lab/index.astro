@@ -3,11 +3,7 @@ import Layout from "../../layouts/Layout.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import LabGrid from "../../components/LabGrid.astro";
-import { featuredOf, labItems } from "../../lib/lab";
 import "../../styles/lab.css";
-
-const items = await labItems();
-const featured = featuredOf(items);
 ---
 <Layout
   title="试验场 · 拾光台"
@@ -23,15 +19,36 @@ const featured = featuredOf(items);
         <p class="lb-lead">把想法做成能跑的东西。Three.js、程序化着色器，以及一些还没成形的实验。每个实验一个页面，做出来再放上来。</p>
       </div>
       <dl class="lb-stats">
-        <div><dt>当前实验</dt><dd>{featured?.name ?? "还在做"}</dd></div>
-        <div><dt>技术栈</dt><dd>{featured?.kicker ?? "—"}</dd></div>
-        <div><dt>实验数</dt><dd>{items.length} 个</dd></div>
+        <div><dt>当前实验</dt><dd id="lb-cur">—</dd></div>
+        <div><dt>技术栈</dt><dd id="lb-stack">—</dd></div>
+        <div><dt>实验数</dt><dd id="lb-count">—</dd></div>
       </dl>
     </header>
 
-    <div class="lb-grid">
-      <LabGrid items={items} />
-    </div>
+    <LabGrid id="lab-grid" class="lb-grid" />
   </main>
   <Footer />
 </Layout>
+
+<script>
+  import { featuredOf, parseLabs, renderLabGrid } from "../../lib/lab";
+
+  const cur = document.getElementById("lb-cur")!;
+  const stack = document.getElementById("lb-stack")!;
+  const count = document.getElementById("lb-count")!;
+  const grid = document.getElementById("lab-grid")!;
+  const render = (items: ReturnType<typeof parseLabs>) => {
+    const featured = featuredOf(items);
+    cur.textContent = featured?.title ?? "还在做";
+    stack.textContent = featured?.stack || "—";
+    count.textContent = `${items.length} 个`;
+    grid.innerHTML = renderLabGrid(items);
+  };
+  (async () => {
+    try {
+      const res = await fetch("/api/lab");
+      if (!res.ok) throw new Error(String(res.status));
+      render(parseLabs(await res.json()));
+    } catch { render([]); }
+  })();
+</script>

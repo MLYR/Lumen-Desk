@@ -11,6 +11,7 @@ import { registerSettings } from './routes/settings.js';
 import { registerBookmarks } from './routes/bookmarks.js';
 import { registerResume } from './routes/resume.js';
 import { registerBackup } from './routes/backup.js';
+import { registerLab } from './routes/lab.js';
 import { ServerCollector, type CollectorOptions } from './system/index.js';
 import { lockedFor, recordFailure, recordSuccess } from './auth/ratelimit.js';
 import { consumeRecoveryCode, RECOVERY_RE, normalizeRecovery } from './auth/recovery.js';
@@ -136,6 +137,7 @@ export function createApp({ config, db, now = Date.now, server: serverOpts, totp
   registerSettings(app, { config, db, now, totp, clientIp });
   registerResume(app, { config, db, now });
   registerBackup(app, { config, db, now });
+  registerLab(app, { config, db, now, isAdmin: hasSession });
 
   app.notFound((c) => c.json({ error: 'not_found' }, 404));
   app.onError((err, c) => {

@@ -110,6 +110,21 @@ CREATE TABLE IF NOT EXISTS tags (
   name TEXT NOT NULL,
   sort INTEGER NOT NULL DEFAULT 0
 );
+-- Labs: uploaded ZIP playgrounds, metadata only. Files live in DATA_DIR/labs/<slug>/.
+CREATE TABLE IF NOT EXISTS labs (
+  slug       TEXT PRIMARY KEY,
+  title      TEXT NOT NULL,
+  intro      TEXT NOT NULL DEFAULT '',
+  stack      TEXT NOT NULL DEFAULT '',
+  status     TEXT NOT NULL DEFAULT '',
+  cover      TEXT NOT NULL DEFAULT '',
+  entry      TEXT NOT NULL DEFAULT 'index.html',
+  featured   INTEGER NOT NULL DEFAULT 0,
+  draft      INTEGER NOT NULL DEFAULT 0,
+  sort       INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 `;
 
 export const BUILTIN_CATEGORIES: ReadonlyArray<{ slug: string; name: string }> = [

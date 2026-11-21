@@ -20,7 +20,7 @@ const PAGE_BUDGET = 200 * KB; // 普通公开页首屏
 const HEAVY_BUDGET = 2048 * KB; // 实验页、工具页
 
 // 运行时才由 api / Caddy 提供的路径，构建产物里没有，也不计入体积。
-const RUNTIME_PREFIXES = ["/u/", "/api/", "/uploads/"];
+const RUNTIME_PREFIXES = ["/u/", "/api/", "/uploads/", "/lab-files/"];
 
 // 路由规则：先精确匹配，再按顺序试通配（* 只匹配一段）。
 // forbid 里的字符串只要出现在该页引用的脚本或样式路径里就算违规。

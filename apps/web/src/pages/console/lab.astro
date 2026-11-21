@@ -1,0 +1,188 @@
+---
+// 私有试验场工作台 /console/lab。构建后由 scripts/split-private.mjs 移到 dist-private/console/lab/。
+// 不传 analytics：控制台永远不插统计脚本。
+import Layout from "../../layouts/Layout.astro";
+import ConsoleTop from "../../components/ConsoleTop.astro";
+import "../../styles/console.css";
+import "../../styles/ui.css";
+import "../../styles/lab-console.css";
+---
+<Layout title="试验场工作台 · 拾光台" noindex>
+<ConsoleTop current="lab" wide />
+
+<main class="wrap wide lab-ws" id="lab-ws" data-view="split" data-m-tab="code">
+  <div class="ed-toolbar" role="toolbar" aria-label="实验管理操作">
+    <div class="ed-tb-left">
+      <select id="lab-select" data-size="compact" aria-label="选择实验">
+        <option value="">选择已有实验…</option>
+      </select>
+      <button class="btn" id="zip-new-btn" type="button" title="选择 .zip 实验包自动创建并解压，也支持将 .zip 直接拖入页面">上传 ZIP 新建</button>
+      <button class="btn" id="blank-new-btn" type="button" title="生成含 index.html + style.css + main.js 的空白实验">新建空白实验</button>
+      <button class="btn" id="zip-replace-btn" type="button" hidden title="上传新的 .zip 覆盖当前实验文件">重传 ZIP</button>
+      <a class="btn" id="export-zip-link" href="#" download hidden>导出 .zip</a>
+      <input id="zip-new-input" type="file" accept=".zip,application/zip" hidden>
+      <input id="zip-replace-input" type="file" accept=".zip,application/zip" hidden>
+      <input id="asset-upload-input" type="file" multiple hidden>
+    </div>
+    <div class="ed-tb-right">
+      <span class="ed-state" id="lab-state">未选择实验</span>
+      <a class="btn" id="open-public-link" href="#" target="_blank" rel="noopener" hidden>打开实验页 ↗</a>
+      <button class="btn danger" id="delete-lab-btn" type="button" hidden>删除实验</button>
+      <button class="btn primary" id="save-lab-btn" type="button"><span id="save-lab-label">保存</span> <kbd>⌘S</kbd></button>
+    </div>
+  </div>
+
+  <div class="ed-msg" id="lab-msg" role="status" aria-live="polite"></div>
+
+  <section class="lab-meta-panel" id="lab-meta-panel" aria-label="实验元数据">
+    <div class="lab-meta-head">
+      <div class="lab-meta-title">
+        <span class="dot"></span>
+        <strong id="meta-heading">实验元数据</strong>
+        <span class="lab-meta-summary" id="meta-summary">可编辑标题、技术栈、入口文件与发布状态</span>
+      </div>
+      <button class="btn btn-xs" id="toggle-meta-btn" type="button" aria-expanded="true" aria-controls="lab-meta-form">收起元数据</button>
+    </div>
+
+    <form class="lab-meta-form" id="lab-meta-form" autocomplete="off" novalidate>
+      <div class="lab-pending-zip" id="pending-zip-banner" hidden>
+        <span id="pending-zip-text">待上传实验包：</span>
+        <button class="btn btn-xs" id="pending-zip-clear" type="button">取消选择</button>
+      </div>
+
+      <div class="lab-meta-grid">
+        <label class="fld">
+          <span>名称 (title)</span>
+          <input id="f-title" maxlength="160" placeholder="例如：星际穿越 · 卡冈图雅" required>
+        </label>
+        <label class="fld">
+          <span>标识 (slug)</span>
+          <input id="f-slug" maxlength="80" placeholder="小写字母、数字和连字符" spellcheck="false" autocapitalize="off" required>
+        </label>
+        <label class="fld">
+          <span>技术栈标签 (stack)</span>
+          <input id="f-stack" maxlength="160" placeholder="例如：THREE.JS · GLSL · 交互 3D">
+        </label>
+        <label class="fld">
+          <span>状态标签 (status)</span>
+          <input id="f-status" maxlength="80" placeholder="例如：WebGL · 已完成">
+        </label>
+        <label class="fld">
+          <span>入口文件 (entry)</span>
+          <input id="f-entry" maxlength="200" placeholder="index.html" value="index.html" spellcheck="false">
+        </label>
+        <label class="fld">
+          <span>封面路径 (cover)</span>
+          <input id="f-cover" maxlength="240" placeholder="cover.webp 或 /lab/..." spellcheck="false">
+        </label>
+        <label class="fld">
+          <span>排序权重 (sort)</span>
+          <input id="f-sort" type="number" step="1" value="10">
+        </label>
+        <label class="fld">
+          <span>发布状态</span>
+          <select id="f-draft" aria-label="发布状态">
+            <option value="false">发布（公开可见）</option>
+            <option value="true">草稿（仅后台可见）</option>
+          </select>
+        </label>
+        <div class="fld fld-check">
+          <span>首页推荐</span>
+          <label class="lab-check">
+            <input id="f-featured" type="checkbox">
+            <span>设为首页主打 (Featured)</span>
+          </label>
+        </div>
+        <label class="fld fld-intro">
+          <span>简介 (intro)</span>
+          <textarea id="f-intro" rows="2" maxlength="500" placeholder="一句话介绍这个实验的核心视觉或交互机制…"></textarea>
+        </label>
+      </div>
+    </form>
+  </section>
+
+  <div class="lab-viewbar" role="toolbar" aria-label="视图模式切换">
+    <div class="lab-view-modes" role="group" aria-label="桌面分屏模式">
+      <button type="button" class="view-btn is-active" data-v="split">分屏：代码 + 预览</button>
+      <button type="button" class="view-btn" data-v="code">仅代码</button>
+      <button type="button" class="view-btn" data-v="preview">仅预览</button>
+    </div>
+    <div class="lab-m-tabs" role="tablist" aria-label="窄屏面板切换">
+      <button type="button" role="tab" data-mt="files" aria-selected="false">文件列表</button>
+      <button type="button" role="tab" data-mt="code" aria-selected="true">代码编辑</button>
+      <button type="button" role="tab" data-mt="preview" aria-selected="false">实时预览</button>
+    </div>
+  </div>
+
+  <section class="lab-workbench" aria-label="代码与实时预览工作区">
+    <!-- 左栏：文件树 -->
+    <aside class="lab-pane lab-files" id="pane-files" aria-label="实验文件列表">
+      <div class="lab-pane-head">
+        <div class="lab-pane-title">
+          <span>文件</span>
+          <span class="lab-badge-count" id="files-count">0</span>
+        </div>
+        <div class="lab-pane-actions">
+          <button class="btn btn-xs" id="file-new-btn" type="button" title="在当前实验下新建文本文件">+ 新建文件</button>
+          <button class="btn btn-xs" id="file-upload-btn" type="button" title="上传图片、着色器、脚本等单个或多个资源">上传文件</button>
+        </div>
+      </div>
+      <ul class="lab-file-list" id="lab-file-list" role="listbox" aria-label="实验文件">
+        <li class="lab-file-empty">选择或创建实验后管理文件</li>
+      </ul>
+    </aside>
+
+    <!-- 中栏：语法高亮代码编辑区 / 资源预览 -->
+    <div class="lab-pane lab-editor-pane" id="pane-code" aria-label="代码编辑与文件操作">
+      <div class="lab-pane-head">
+        <div class="lab-pane-title">
+          <code class="lab-active-file" id="active-file-path">未打开文件</code>
+        </div>
+        <div class="lab-pane-actions" id="active-file-actions" hidden>
+          <button class="btn btn-xs" id="file-set-entry-btn" type="button" hidden title="将此 HTML 文件设为实验入口">设为入口</button>
+          <button class="btn btn-xs" id="file-set-cover-btn" type="button" hidden title="将此图片设为实验封面">设为封面</button>
+          <button class="btn btn-xs" id="file-rename-btn" type="button" title="重命名或移动当前文件">重命名</button>
+          <button class="btn btn-xs danger" id="file-delete-btn" type="button" title="删除当前文件">删除文件</button>
+        </div>
+      </div>
+      <div id="code-editor-host" class="lab-code-host"></div>
+      <div id="asset-preview-host" class="lab-asset-host" hidden></div>
+    </div>
+
+    <!-- 右栏：实时预览 iframe -->
+    <div class="lab-pane lab-preview-pane" id="pane-preview" aria-label="实验实时预览">
+      <div class="lab-pane-head">
+        <div class="lab-pane-title">
+          <span>预览</span>
+          <code class="lab-pv-url" id="preview-url-label">未加载</code>
+        </div>
+        <div class="lab-pane-actions">
+          <button class="btn btn-xs" id="capture-cover-btn" type="button" hidden title="将当前预览画面截取为实验封面图 (cover.webp)">截取封面</button>
+          <button class="btn btn-xs" id="refresh-preview-btn" type="button">刷新预览</button>
+          <a class="btn btn-xs" id="open-raw-preview-link" href="#" target="_blank" rel="noopener" hidden>纯享新窗口 ↗</a>
+        </div>
+      </div>
+      <div class="lab-iframe-wrap">
+        <iframe
+          id="lab-preview-frame"
+          title="实验实时预览"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-modals"
+          hidden
+        ></iframe>
+        <div class="lab-pv-empty" id="preview-empty">选择或创建实验后在此查看实时运行效果</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="drop" id="lab-drop" hidden>
+  <div>
+    松开以导入 .zip 实验包
+    <small id="lab-drop-sub">将自动解压并同步到试验场工作台</small>
+  </div>
+</div>
+
+<script>
+  import "../../scripts/console/lab";
+</script>
+</Layout>

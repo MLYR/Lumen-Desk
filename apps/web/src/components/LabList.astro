@@ -1,8 +1,5 @@
 ---
 import LabGrid from "./LabGrid.astro";
-import { homeLabItems, labItems } from "../lib/lab";
-
-const items = homeLabItems(await labItems());
 ---
 <section class="grid" id="lab">
   <article class="card first last">
@@ -10,6 +7,21 @@ const items = homeLabItems(await labItems());
       <h2 class="card-title"><span class="dot"></span>试验场</h2>
       <a class="card-meta more" href="/lab/">全部实验 →</a>
     </div>
-    <LabGrid items={items} />
+    <LabGrid id="home-labs" />
   </article>
 </section>
+
+<script>
+  import { homeLabItems, parseLabs, renderLabGrid } from "../lib/lab";
+
+  const box = document.getElementById("home-labs")!;
+  const empty = () => { box.innerHTML = renderLabGrid([]); };
+  (async () => {
+    try {
+      const res = await fetch("/api/lab");
+      if (!res.ok) throw new Error(String(res.status));
+      const items = homeLabItems(parseLabs(await res.json()));
+      box.innerHTML = renderLabGrid(items);
+    } catch { empty(); }
+  })();
+</script>

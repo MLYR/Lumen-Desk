@@ -9,7 +9,7 @@
 	header {
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
-		X-Frame-Options DENY
+		?X-Frame-Options DENY
 		Strict-Transport-Security "max-age=31536000"
 		# P1.5-5：script-src 暂时放行 'unsafe-inline'（Astro 内联主题脚本）。
 		# 后续把内联脚本算成 sha256 hash，再把 'unsafe-inline' 去掉。
@@ -90,6 +90,20 @@
 		}
 	}
 
+	# 试验场动态详情页（/lab/<slug>/）与实验静态资源（/lab-files/<slug>/*）由 api 提供。
+	# /lab/ 列表页、封面图和公共 vendor 脚本仍走静态目录。
+	@lab_dynamic {
+		path /lab-files/* /lab/*
+		not path /lab /lab/ /lab/index.html /lab/*.webp /lab/vendor/*
+	}
+	handle @lab_dynamic {
+		header ?X-Frame-Options SAMEORIGIN
+		header Content-Security-Policy "default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https: blob:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; media-src 'self' data: blob: https:; connect-src 'self' https: data: blob:; worker-src 'self' blob:; frame-src 'self' blob: data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'"
+		reverse_proxy api:3000 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
 	# 上传的图片：文件名是内容哈希，可以长期缓存。
 	# CSP default-src 'none' 让浏览器直接打开图片 URL 时也不会执行任何内容。
 	handle /uploads/* {
@@ -147,7 +161,12 @@
 
 	# 公开接口（AIHOT 缓存等）。覆盖客户端自带的 X-Forwarded-For。
 	handle /api/* {
-		request_body {
+		@labupload path /api/lab/*/upload /api/lab/*/file
+		request_body @labupload {
+			max_size 16MiB
+		}
+		@otherpublic not path /api/lab/*/upload /api/lab/*/file
+		request_body @otherpublic {
 			max_size 1MiB
 		}
 		reverse_proxy api:3000 {

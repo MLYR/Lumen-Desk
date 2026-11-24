@@ -4,10 +4,12 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import type { Config } from './config.js';
 import type { DB } from './db.js';
-import { getHot } from './sources/aihot.js';
+import { getDaily, getHot } from './sources/aihot.js';
+import { getGithub } from './sources/github.js';
 import { registerBlog } from './blog/routes.js';
 import { lockedResponse } from './http.js';
 import { registerSettings } from './routes/settings.js';
+import { registerWeather } from './routes/weather.js';
 import { registerBookmarks } from './routes/bookmarks.js';
 import { registerResume } from './routes/resume.js';
 import { registerBackup } from './routes/backup.js';
@@ -27,9 +29,11 @@ export interface AppDeps {
   server?: Partial<CollectorOptions>;
   /** Tests may share one store between app instances. */
   totpStore?: TotpStore;
+  /** Fetch implementation for on-demand IP geolocation, geocoding and Open-Meteo refresh. */
+  weatherFetch?: typeof fetch;
 }
 
-export function createApp({ config, db, now = Date.now, server: serverOpts, totpStore }: AppDeps): Hono {
+export function createApp({ config, db, now = Date.now, server: serverOpts, totpStore, weatherFetch }: AppDeps): Hono {
   const app = new Hono();
   const server = new ServerCollector({ db, dataDir: config.dataDir, hostRoot: config.hostRoot, siteUrl: config.siteUrl, now, ...serverOpts });
   // The live TOTP instance: read through totp.get() on every check, so a rebind applies at once.
@@ -122,6 +126,16 @@ export function createApp({ config, db, now = Date.now, server: serverOpts, totp
     return c.json(getHot(db, now()));
   });
 
+  app.get('/api/daily', (c) => {
+    c.header('Cache-Control', 'public, max-age=60');
+    return c.json(getDaily(db, now()));
+  });
+
+  app.get('/api/github', (c) => {
+    c.header('Cache-Control', 'public, max-age=300');
+    return c.json(getGithub(db, { username: config.githubUsername, token: config.githubToken }, now()));
+  });
+
   // Defense in depth: Caddy forward_auth guards these too.
   app.use('/api/private/*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
@@ -133,6 +147,7 @@ export function createApp({ config, db, now = Date.now, server: serverOpts, totp
 
   app.get('/api/private/server', async (c) => c.json(await server.collect()));
 
+  registerWeather(app, { config, db, now, clientIp, fetchFn: weatherFetch });
   registerBlog(app, { config, db, now });
   registerSettings(app, { config, db, now, totp, clientIp });
   registerResume(app, { config, db, now });

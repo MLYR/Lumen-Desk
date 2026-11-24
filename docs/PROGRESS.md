@@ -1,10 +1,10 @@
 # 项目进度
 
-更新日期：2026-11-21。任务编号对应 `ROADMAP.md`。完成或变更任务时更新本文。
+更新日期：2026-11-24。任务编号对应 `ROADMAP.md`。完成或变更任务时更新本文。
 
 ## 1. 当前状态
 
-- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场已从构建期静态页升级为 ZIP 动态化架构（SQLite `labs` 表 + `DATA_DIR/labs/<slug>/` + 沉浸全屏 `/lab/<slug>/` + `/console/lab` 语法高亮工作台，《时间的尽头》已迁入内置种子实验）；Umami、Uptime Kuma、自动部署与域名 HTTPS 已上线；安全审查 11 项已处理。
+- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场已从构建期静态页升级为 ZIP 动态化架构（SQLite `labs` 表 + `DATA_DIR/labs/<slug>/` + 沉浸全屏 `/lab/<slug>/` + `/console/lab` 语法高亮工作台，《时间的尽头》已迁入内置种子实验）；P4 增强全部完成（Umami、Uptime Kuma、书签管理、控制台脚本私有化、AIHOT 今日日报、Open-Meteo 天气小组件、GitHub 贡献热力图）；自动部署与域名 HTTPS 已上线；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
 - **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、简历 3 个项目 9 条技能、2 篇文章、绑定 Google Authenticator。
 - **服务器**：腾讯云轻量（上海，2 核 2G / 50G 盘 / 3 Mbps，另加 2G swap）已部署在 `/opt/lumen-desk/`，<http://43.143.244.97> 对外 200（只开 80，443 等域名）。**已开 CI 自动部署**：push 到 `main` 后 GitHub Actions 跑测试、构建网页，rsync 静态文件和 api 源码上去（几百 KB），在服务器上 `docker compose build api` 现场打镜像，90 秒左右完成，最后做冒烟检查。源码目录 `/opt/lumen-desk/src` 不再需要手动解包，CI 每次覆盖构建需要的那几个文件；`update.sh` 保留作手动兜底。
@@ -25,9 +25,22 @@
 | P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
 | P2.12 整站数据备份 | 完成 | `docs/contracts/backup.md`；控制台导出/导入 ZIP，不含验证器和会话 |
 | P3 试验场 | 6 / 7（含工具箱与 ZIP 工作台） | P3-1/2/4/6/7 完成并升级为 ZIP 动态化试验场（`/console/lab` 上传/编辑/预览、《时间的尽头》迁入数据库与磁盘种子）；P3-3 流场页已删除；后续实验可直接在后台上传 ZIP 或在线新建 |
-| P4 增强 | 4 / 7 | Umami、Uptime Kuma 已部署到本机；P4-6 控制台编辑书签由 P2.8 交付；P4-7 控制台脚本私有化完成；其余待定 |
+| P4 增强 | 7 / 7 | 全部完成：Umami、Uptime Kuma、书签管理（P2.8）、控制台脚本私有化、AIHOT 今日日报（P4-3）、Open-Meteo 天气小组件（P4-4）、GitHub 贡献热力图（P4-5） |
 
 ## 2. 已完成
+
+### P4-3 / P4-4 / P4-5：AIHOT 今日日报、天气小组件、GitHub 贡献热力图（2026-11-23）
+
+- **P4-3 AIHOT 今日日报**：
+  - 后端（`apps/api/src/sources/aihot.ts`、`db.ts`、`app.ts`、`index.ts`）：新增 `aihot_daily_cache` 表，启动时拉取并按 `5 * * * *` 每小时同步 `https://aihot.news/api/v1/dailies/latest`（带 `If-None-Match` ETag 304、`Accept-Encoding: gzip`、`User-Agent`、429 `Retry-After` 退避、7 天过期清理、每次 200 全量替换），公开接口 `GET /api/daily`（`Cache-Control: public, max-age=60`）；仅保留 `https://` AIHOT 链接和 `http(s)://` 原文链接。
+  - 前端（`apps/web/src/pages/console.astro`、`src/scripts/console/daily.ts`、`src/scripts/console/main.ts`、`src/styles/console.css`）：控制台「AI 热点」卡片增加顶部「今日日报」按钮和底部预览条，点击打开基于 `ui/dialog` 的摘要阅读弹框（导读、焦点精选、分区条目、快讯速览，去重并保留来源标注与 AIHOT / 原文链接）；命令面板（`⌘K`）新增「AIHOT 今日日报」命令；所有外部文本使用 `textContent`。
+- **P4-4 天气小组件（含 IP 自动定位与控制台设置）**：
+  - 后端（`apps/api/src/sources/weather.ts`、`sources/cn-cities.ts`、`routes/weather.ts`、`config.ts`、`db.ts`、`app.ts`、`index.ts`）：改用免 Key 的 Open-Meteo（`https://api.open-meteo.com/v1/forecast`），内置全国 34 个省级行政区与 487 个地市/直辖市区中心坐标表。默认按访问者真实 IP 自动识别所在省市并缓存 6 小时（公网 IPv4 走太平洋 IP 库 GB18030 解码，IPv6 / 海外回退 `ipwho.is` / `ip-api`，本机回环与内网 IP 自动查出口公网地址，离线回退环境变量 `WEATHER_*` 兜底），在 `kv.weather_settings` 中持久化定位方式（`ip` / `manual`）及自定义省市坐标；提供私有接口 `GET /api/private/weather`（未命中或超 30 分钟按需拉取并单飞去重，12 小时缓存兜底）、`GET/PUT /api/private/weather/settings`、`GET /api/private/weather/search`（本地省市检索 + Open-Meteo Geocoding 海外/区县补充）。
+  - 前端（`apps/web/src/pages/console.astro`、`src/pages/console/settings.astro`、`src/scripts/console/weather.ts`、`src/scripts/console/settings.ts`、`src/styles/console.css`、`src/styles/settings.css`）：控制台时钟下方天气栏新增可点击的「省份 城市」定位标签（直辖市自动去重，点击直达 `/console/settings#weather`）并同步更新顶部坐标行；设置页新增「天气位置」分区，支持切换「按访问 IP 自动定位 / 手动指定省市」、实时查看与重测当前 IP 识别结果、国内省市二级增强下拉（`ui/select` 可搜索）、全球/区县城市搜索及名称经纬度微调；命令面板（`⌘K`）新增「天气位置设置」快捷跳转。
+- **P4-5 GitHub 贡献热力图**：
+  - 后端（`apps/api/src/sources/github.ts`、`config.ts`、`db.ts`、`app.ts`、`index.ts`）：新增 `GITHUB_USERNAME`、`GITHUB_TOKEN` 环境变量，新增 `github_cache` 表并每 2 小时（`20 */2 * * *`）调用 GitHub GraphQL 拉取近一年 `contributionCalendar`（7 天过期、用户名切换不混用缓存、响应永不暴露 Token），公开接口 `GET /api/github`（`public, max-age=300`）；任一环境变量未配置时返回 `enabled: false` 且跳过拉取。
+  - 前端（`apps/web/src/components/GithubHeatmap.astro`、`src/scripts/github-heatmap.ts`、`src/styles/github.css`、`src/pages/index.astro`）：公开主页底部新增热力图卡片（近一年贡献总数、活跃天数、最长/当前连续天数、53 周日历格子、悬停/点击/键盘聚焦底部读数、两套主题色阶），未启用时保持 `hidden`。
+- **配置与验证**：新环境变量已同步写入 `apps/api/.env.example`、`deploy/.env.example`、`apps/api/src/config.ts`。新增 `apps/api/test/daily.test.ts`、`weather.test.ts`、`github.test.ts`；`pnpm test` 17 个文件 176 项测试通过；`pnpm build` 通过，首页首屏 gzip 合计 12.7 KB（预算 200 KB），控制台 19 个静态文件隔离进 `dist-private/console/_assets/`。已同步到本机 Docker（`~/lumen-desk`）并重建 `api`：`GET /api/daily` 成功拉取真实当日 AIHOT 日报、`weather_cache` 成功写入上海实况与 3 天预报、`GET /api/github` 未配置返回 `enabled: false`、`GET /api/private/weather` 未登录返回 401。无头 Chrome 在 `paper` / `blueprint` 两套主题与 1440 / 375 视口下核对首页热力图、控制台天气与日报弹框，均无横向溢出。
 
 ### P3 试验场 ZIP 动态化与 `/console/lab` 工作台（2026-11-21）
 
@@ -214,6 +227,7 @@
 | 博客用 MDX，构建期生成 | 文章存 SQLite，api 渲染 | 用户要在线写，在线写的文章进不了构建 |
 | 试验场构建期 Astro 静态页 + Content Collection | SQLite `labs` 表 + `DATA_DIR/labs/<slug>/` + 沉浸 iframe + `/console/lab` 在线编辑 | 用户希望直接上传 `.zip` 或在后台像写文章一样在线增删改实验与代码 |
 | 图片和大资源放 COS + CDN | 放服务器本机，上传时压缩 | 用户不想用对象存储 |
+| 天气用和风天气免费版（需 API Key，固定城市） | Open-Meteo（免 Key）+ 默认按访问 IP 自动识别省市 + `/console/settings#weather` 可改手动省市/坐标 | 无需维护 API Key，异地访问自动匹配当前省市，代理偏移时可在控制台随时固定省市 |
 
 ## 4. 决定和待确认问题
 
@@ -236,19 +250,20 @@
 ### 还要确认
 
 8. **数据备份**：控制台导出/导入（P2.12）和本机每天定时备份（P1.5-7）都已做；异地保留还没做，等服务器定目标。
-10. **P4 其余增强项**：AIHOT 今日日报、天气、GitHub 热力图、控制台编辑书签待定。
 
 ## 5. 下一步
 
 1. 你侧：提交 ICP 备案（P0-1）、给域名（P0-4）、主页内容（P0-6）、第一篇文章（P2-11）、在 8081 建 Umami 站点拿到 website id、在 8082 建 Uptime Kuma 管理员。
 2. 2026-11-11 这一批（体积守门、内容模型、流场页、控制台脚本私有化、定时备份）都已完成并上线本机 Docker；流场页做完被否，已删除，`ROADMAP.md` 里标成已放弃。
 3. P1.5 剩下的 6 条（P1.5-1/2/3/4/9 和 P1.5-7 的异地部分）等服务器和备案。
-4. P4-3 AIHOT 日报、P4-4 天气、P4-5 GitHub 热力图还要你确认要不要。
+4. P4-5 GitHub 贡献热力图代码已上线：在服务器 `.env` 填入 `GITHUB_USERNAME` 与只读 `GITHUB_TOKEN` 并重启 `api` 后公开主页即自动展示。
 
 ## 6. 变更日志
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-24 | 升级 P4-4 天气小组件：改为默认按访问 IP 自动定位所在省市（内置全国 34 省 487 地市/区坐标表，公网/内网/IPv6 多级归属地解析与 6 小时缓存），天气栏新增「省份 城市」定位标签并同步顶部坐标；`/console/settings` 新增「天气位置」分区（自动/手动切换、IP 重测、省市二级搜索下拉、全球城市搜索、坐标微调）。`pnpm test` 17 文件 177 项通过，`pnpm build` 通过，已同步至本机 Docker 并通过双主题 1440/375 视口核验 |
+| 2026-11-23 | 完成 P4 剩余三项增强（P4 全部 7/7 收官）：P4-3 AIHOT 今日日报（`/api/daily`、每小时带 ETag 同步、控制台日报条与摘要阅读弹框、`⌘K` 快捷入口）；P4-4 Open-Meteo 天气小组件（`/api/private/weather`、免 Key 实况与 3 天预报、控制台时钟下方展示）；P4-5 GitHub 贡献热力图（`/api/github`、GraphQL 缓存、公开主页底部热力图与未配置自动隐藏）。新增 3 组 vitest 集成测试（全量 17 文件 176 项通过），构建、本机 Docker 与双主题 1440/375 视口验证通过 |
 | 2026-11-21 | 试验场 ZIP 动态化改造：新增 `labs` 表、`/api/lab/*`、`/lab/<slug>/` 沉浸全屏页与 `/lab-files/*` 静态服务；《时间的尽头》迁为首次启动内置种子实验（Three.js 拆至 `/lab/vendor/three-eot.mjs`）；新增 `/console/lab` 试验场工作台与零依赖语法高亮代码编辑器；整站备份与 sitemap 同步支持试验场 |
 | 2026-11-19 | 域名 HTTPS 上线：`.env` 改 `SITE_ADDRESS=mlyryyds.icu, www.mlyryyds.icu`、`SITE_URL=https://mlyryyds.icu`、`COOKIE_SECURE=true`，重启 caddy 后 Let's Encrypt 自动签发两张证书（apex + www）。验证：`https://mlyryyds.icu/` 及 `/blog/`、`/resume/`、`/lab/`、`/login/` 全 200，`/console` 302 到 `/login`，`/api/healthz` 返回 ok，`http://` 308 跳 https，不存在路径 404，`/u/script.js` 200，Umami 后台 `:8081` 错口令仍 401。页脚改成真实备案号 `陕ICP备2026034153号-1`（链到 beian.miit.gov.cn），替换原来的「沪ICP备 XXXXXXXX」占位符；公安联网备案号待下号后补。服务器操作链路从 HexHub 换成 Xterminal MCP（`xterminal_ssh_exec` / `xterminal_ssh_sudo_exec`） |
 | 2026-11-17 | 更正服务器规格：实际是 **2 核 2G、50G 系统盘、3 Mbps**，方案里一直写的是 4 核 4G。改了 `README.md`、`deploy/README.md`、`docs/HANDOFF.md` 和 `docs/PLAN.md` 两处（约束行 + 内存预算，注明 2G 靠 2G swap 兜、实测五容器 700 MB）；`design-demos/navigator.html` 服务器卡的示例数据同步成 2 核 / 2G / 0.7G |

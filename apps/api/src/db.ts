@@ -39,6 +39,26 @@ CREATE TABLE IF NOT EXISTS aihot_cache (
   checked_at        INTEGER,
   retry_after_until INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS aihot_daily_cache (
+  id                INTEGER PRIMARY KEY CHECK (id = 1),
+  payload           TEXT,
+  etag              TEXT,
+  fetched_at        INTEGER,
+  checked_at        INTEGER,
+  retry_after_until INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS weather_cache (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),
+  location   TEXT,
+  payload    TEXT,
+  fetched_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS github_cache (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),
+  username   TEXT,
+  payload    TEXT,
+  fetched_at INTEGER
+);
 CREATE TABLE IF NOT EXISTS posts (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   slug         TEXT NOT NULL UNIQUE,

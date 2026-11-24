@@ -1,5 +1,5 @@
 ---
-// 设置页 /console/settings：个人资料、分类和标签、账号安全。
+// 设置页 /console/settings：个人资料、分类和标签、天气位置、数据备份、账号安全。
 // 构建后由 scripts/split-private.mjs 移到 dist-private/console/settings/。不传 analytics，不插 Umami。
 import Layout from "../../layouts/Layout.astro";
 import ConsoleTop from "../../components/ConsoleTop.astro";
@@ -15,6 +15,7 @@ import "../../styles/settings.css";
   <nav class="st-nav" role="tablist" aria-label="设置分区" aria-orientation="vertical">
     <button type="button" role="tab" id="tab-profile" data-s="profile" aria-controls="sec-profile" aria-selected="true">个人资料</button>
     <button type="button" role="tab" id="tab-taxonomy" data-s="taxonomy" aria-controls="sec-taxonomy" aria-selected="false" tabindex="-1">分类和标签</button>
+    <button type="button" role="tab" id="tab-weather" data-s="weather" aria-controls="sec-weather" aria-selected="false" tabindex="-1">天气位置</button>
     <button type="button" role="tab" id="tab-backup" data-s="backup" aria-controls="sec-backup" aria-selected="false" tabindex="-1">数据备份</button>
     <button type="button" role="tab" id="tab-security" data-s="security" aria-controls="sec-security" aria-selected="false" tabindex="-1">账号安全</button>
   </nav>
@@ -90,6 +91,64 @@ import "../../styles/settings.css";
           </form>
         </div>
       </div>
+    </section>
+
+    <!-- 天气位置 -->
+    <section class="st-sec" id="sec-weather" role="tabpanel" aria-labelledby="tab-weather" hidden>
+      <form class="wx-st-form" id="wx-form" autocomplete="off" novalidate>
+        <h1 class="st-h">天气位置</h1>
+        <p class="st-sub">控制台首页默认按当前访问 IP 自动识别所在省份和城市；如果代理网络导致识别偏差，也可以在这里手动固定省市或坐标。</p>
+
+        <div class="wx-modes" role="radiogroup" aria-label="天气定位方式">
+          <button type="button" class="wx-mode" id="wx-mode-ip" role="radio" aria-checked="true" data-mode="ip">
+            <span class="wx-mode-t">按访问 IP 自动定位</span>
+            <span class="wx-mode-s">根据每次打开控制台时的网络 IP 自动匹配省市与坐标</span>
+          </button>
+          <button type="button" class="wx-mode" id="wx-mode-manual" role="radio" aria-checked="false" data-mode="manual">
+            <span class="wx-mode-t">手动指定省市</span>
+            <span class="wx-mode-s">固定展示指定省份与城市的实时天气和三日预报</span>
+          </button>
+        </div>
+
+        <div class="wx-ip-box" id="wx-ip-box">
+          <div class="wx-ip-info">
+            <span class="wx-ip-k">当前 IP 识别结果</span>
+            <strong class="wx-ip-v" id="wx-detected">正在识别…</strong>
+          </div>
+          <button class="btn sm" type="button" id="wx-redetect">重新识别</button>
+        </div>
+
+        <div class="wx-manual-box" id="wx-manual-box" hidden>
+          <h2 class="st-h2">快速选择国内省市</h2>
+          <div class="wx-row2">
+            <label class="fld"><span>所在省份</span><select id="wx-prov-sel" aria-label="选择省份"></select></label>
+            <label class="fld"><span>所在城市 / 地区</span><select id="wx-city-sel" aria-label="选择城市或地区"></select></label>
+          </div>
+
+          <h2 class="st-h2">搜索城市（支持区县与海外城市）</h2>
+          <div class="wx-search-bar">
+            <input id="wx-search-q" maxlength="40" placeholder="输入城市名搜索，例如：昆山、榆林、Tokyo" aria-label="搜索城市">
+            <button class="btn" type="button" id="wx-search-btn">搜索</button>
+          </div>
+          <ul class="wx-slist" id="wx-search-list" hidden></ul>
+
+          <h2 class="st-h2">显示名称与坐标详情</h2>
+          <div class="wx-row2">
+            <label class="fld"><span>省份显示名（直辖市或海外可留空）</span><input id="wx-prov" maxlength="30" placeholder="如：陕西省"></label>
+            <label class="fld"><span>城市显示名</span><input id="wx-city" maxlength="40" placeholder="如：西安市" required></label>
+          </div>
+          <div class="wx-row3">
+            <label class="fld"><span>纬度 (-90 ~ 90)</span><input id="wx-lat" inputmode="decimal" maxlength="12" placeholder="34.26"></label>
+            <label class="fld"><span>经度 (-180 ~ 180)</span><input id="wx-lon" inputmode="decimal" maxlength="12" placeholder="108.95"></label>
+            <label class="fld"><span>时区</span><input id="wx-tz" maxlength="64" placeholder="Asia/Shanghai"></label>
+          </div>
+          <p class="st-hint" id="wx-preview-line"></p>
+        </div>
+
+        <div class="st-actions">
+          <button class="btn primary" type="submit" id="wx-save">保存天气设置</button>
+        </div>
+      </form>
     </section>
 
     <!-- 数据备份 -->

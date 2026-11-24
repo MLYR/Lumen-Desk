@@ -16,10 +16,14 @@ import "../styles/bookmarks.css";
 <main class="wrap">
   <section class="hero">
     <div>
-      <div class="coord">// SHANGHAI · 31.23°N 121.47°E</div>
+      <div class="coord" id="heroCoord">// LOCATING…</div>
       <div class="greet" id="greet">你好</div>
       <div class="clock" id="clock">--:--<span class="sec">--</span></div>
       <div class="date" id="date"></div>
+      <div class="weather" id="weather" aria-live="polite" hidden>
+        <div class="wx-now" id="wxNow"></div>
+        <ul class="wx-days" id="wxDays" aria-label="未来三天预报"></ul>
+      </div>
     </div>
     <form class="search" id="searchForm" role="search">
       <div class="coord" style="margin-bottom:0">// QUERY</div>
@@ -57,12 +61,25 @@ import "../styles/bookmarks.css";
         </div>
       </div>
     </article>
-    <article class="card span-5 last">
+    <article class="card span-5 last ai-card">
       <div class="card-head">
         <h2 class="card-title"><span class="dot"></span>AI 热点</h2>
-        <span class="card-meta"><span class="live">TOP 10</span> · 来源 <a href="https://aihot.news/hot" target="_blank" rel="noopener">AIHOT</a></span>
+        <span class="card-meta ai-meta">
+          <button class="daily-trigger" id="openDailyBtn" type="button">今日日报</button>
+          <span aria-hidden="true">·</span>
+          <span class="live">TOP 10</span>
+          <span aria-hidden="true">·</span>
+          <span>来源 <a href="https://aihot.news/hot" target="_blank" rel="noopener noreferrer">AIHOT</a></span>
+        </span>
       </div>
       <div class="ticker" id="ticker"><ul class="ticker-track" id="tickerTrack"></ul></div>
+      <div class="daily-bar" id="dailyBar">
+        <button class="daily-bar-btn" id="dailyBarBtn" type="button">
+          <span class="daily-tag" id="dailyTag">日报</span>
+          <span class="daily-lead" id="dailyLead">加载今日日报…</span>
+          <span class="daily-go" aria-hidden="true">阅读 →</span>
+        </button>
+      </div>
     </article>
   </section>
 

@@ -4,8 +4,10 @@ import { $, api, apiRaw, ApiError, explain, initialOf, jsonInit, safeAvatar } fr
 import { setProfileCache, type Fact, type Link, type Profile } from "./topbar";
 import { renderIntro } from "../intro-render";
 import { confirmDialog } from "../ui/dialog";
+import { enhanceSelect } from "../ui/select";
 import { toast } from "../ui/toast";
 import { openRebind } from "./rebind";
+import { formatProvinceCity } from "./weather";
 
 type Cat = { id: number; slug: string; name: string; description: string; sort: number; count: number; draftCount: number };
 type TagItem = { name: string; sort: number; count: number; draftCount: number };
@@ -37,7 +39,7 @@ const btn = (text: string, onClick: () => void, label?: string, cls = "btn sm") 
 };
 
 /* ---------- 分区切换（URL hash 记住） ---------- */
-const SECTIONS = ["profile", "taxonomy", "backup", "security"] as const;
+const SECTIONS = ["profile", "taxonomy", "weather", "backup", "security"] as const;
 type Sec = (typeof SECTIONS)[number];
 let current: Sec = "profile";
 function showSection(s: Sec, updateHash = true) {
@@ -52,6 +54,7 @@ function showSection(s: Sec, updateHash = true) {
   if (updateHash && location.hash !== "#" + s) history.replaceState(null, "", "#" + s);
   setMsg("");
   if (s === "taxonomy") void loadTaxonomy();
+  if (s === "weather") void loadWeatherSettings();
   if (s === "security") void loadSecurity();
 }
 const fromHash = (): Sec => { const h = location.hash.slice(1); return (SECTIONS as readonly string[]).includes(h) ? (h as Sec) : "profile"; };
@@ -405,7 +408,254 @@ $("codes-download").addEventListener("click", () => {
 
 $("rebind-btn").addEventListener("click", () => void openRebind(() => void loadSecurity()));
 
+/* ---------- 天气位置 ---------- */
+type WxMode = "ip" | "manual";
+type WxSettings = { mode: WxMode; province: string; city: string; lat: number; lon: number; timezone: string };
+type WxProvinceOpt = { name: string; cities: Array<{ name: string; lat: number; lon: number }> };
+type WxSettingsPayload = {
+  settings: WxSettings;
+  detected: { province: string; city: string; lat: number; lon: number; timezone: string };
+  provinces: WxProvinceOpt[];
+};
+type WxSearchItem = { province: string; city: string; country: string; lat: number; lon: number; timezone: string };
+
+const wxProvSel = $<HTMLSelectElement>("wx-prov-sel");
+const wxCitySel = $<HTMLSelectElement>("wx-city-sel");
+const wxProvIn = $<HTMLInputElement>("wx-prov");
+const wxCityIn = $<HTMLInputElement>("wx-city");
+const wxLatIn = $<HTMLInputElement>("wx-lat");
+const wxLonIn = $<HTMLInputElement>("wx-lon");
+const wxTzIn = $<HTMLInputElement>("wx-tz");
+const wxSearchQ = $<HTMLInputElement>("wx-search-q");
+const wxSearchList = $("wx-search-list");
+const wxModeIpBtn = $<HTMLButtonElement>("wx-mode-ip");
+const wxModeManualBtn = $<HTMLButtonElement>("wx-mode-manual");
+
+enhanceSelect(wxProvSel, { searchable: true, searchAt: 6, placeholder: "选择省份…" });
+enhanceSelect(wxCitySel, { searchable: true, searchAt: 6, placeholder: "选择城市或地区…" });
+
+let wxMode: WxMode = "ip";
+let wxProvinces: WxProvinceOpt[] = [];
+let wxLoaded = false;
+let wxDirty = false;
+
+function fmtCoordPair(lat: number, lon: number): string {
+  const ns = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"}`;
+  const ew = `${Math.abs(lon).toFixed(2)}°${lon >= 0 ? "E" : "W"}`;
+  return `${ns} ${ew}`;
+}
+
+function setWxMode(mode: WxMode, markDirty = false) {
+  wxMode = mode;
+  wxModeIpBtn.setAttribute("aria-checked", String(mode === "ip"));
+  wxModeManualBtn.setAttribute("aria-checked", String(mode === "manual"));
+  $("wx-manual-box").hidden = mode !== "manual";
+  if (markDirty) wxDirty = true;
+  updateWxPreview();
+}
+
+function updateWxPreview() {
+  const label = formatProvinceCity(wxProvIn.value, wxCityIn.value);
+  const lat = Number(wxLatIn.value.trim());
+  const lon = Number(wxLonIn.value.trim());
+  const coord = Number.isFinite(lat) && Number.isFinite(lon) ? ` · ${fmtCoordPair(lat, lon)}` : "";
+  $("wx-preview-line").textContent = label ? `控制台将显示：${label}${coord}` : "请填写城市名称与经纬度";
+}
+
+function syncProvinceDropdowns(provName: string, cityName: string) {
+  if (!wxProvinces.length) return;
+  wxProvSel.replaceChildren(
+    el("option", { value: "", textContent: "— 选择国内省份 —" }),
+    ...wxProvinces.map((p) => el("option", { value: p.name, textContent: p.name })),
+  );
+  const matchedProv = wxProvinces.find((p) => p.name === provName);
+  wxProvSel.value = matchedProv ? matchedProv.name : "";
+  populateCitiesForProvince(matchedProv?.name ?? "", cityName);
+}
+
+function populateCitiesForProvince(provName: string, preferredCity = "") {
+  const p = wxProvinces.find((x) => x.name === provName);
+  if (!p) {
+    wxCitySel.replaceChildren(el("option", { value: "", textContent: "请先选择省份" }));
+    wxCitySel.value = "";
+    wxCitySel.disabled = true;
+    return;
+  }
+  wxCitySel.disabled = false;
+  wxCitySel.replaceChildren(
+    ...p.cities.map((c) => {
+      const opt = el("option", { value: c.name, textContent: c.name });
+      opt.dataset.sub = fmtCoordPair(c.lat, c.lon);
+      return opt;
+    }),
+  );
+  const hit = p.cities.find((c) => c.name === preferredCity) ?? p.cities[0];
+  if (hit) wxCitySel.value = hit.name;
+}
+
+wxProvSel.addEventListener("change", () => {
+  const pName = wxProvSel.value;
+  const p = wxProvinces.find((x) => x.name === pName);
+  if (!p) return;
+  populateCitiesForProvince(pName);
+  const c = p.cities.find((x) => x.name === wxCitySel.value) ?? p.cities[0];
+  if (c) {
+    wxProvIn.value = p.name;
+    wxCityIn.value = c.name;
+    wxLatIn.value = String(c.lat);
+    wxLonIn.value = String(c.lon);
+    wxTzIn.value = "Asia/Shanghai";
+    wxDirty = true;
+    updateWxPreview();
+  }
+});
+
+wxCitySel.addEventListener("change", () => {
+  const p = wxProvinces.find((x) => x.name === wxProvSel.value);
+  const c = p?.cities.find((x) => x.name === wxCitySel.value);
+  if (!p || !c) return;
+  wxProvIn.value = p.name;
+  wxCityIn.value = c.name;
+  wxLatIn.value = String(c.lat);
+  wxLonIn.value = String(c.lon);
+  wxTzIn.value = "Asia/Shanghai";
+  wxDirty = true;
+  updateWxPreview();
+});
+
+for (const b of [wxModeIpBtn, wxModeManualBtn]) {
+  b.addEventListener("click", () => setWxMode(b.dataset.mode as WxMode, true));
+}
+
+for (const inp of [wxProvIn, wxCityIn, wxLatIn, wxLonIn, wxTzIn]) {
+  inp.addEventListener("input", () => { wxDirty = true; updateWxPreview(); });
+}
+
+async function loadWeatherSettings(refreshIp = false) {
+  if (wxLoaded && !refreshIp) return;
+  const redetectBtn = $<HTMLButtonElement>("wx-redetect");
+  if (refreshIp) {
+    redetectBtn.disabled = true;
+    $("wx-detected").textContent = "正在重新识别…";
+  }
+  try {
+    const url = refreshIp ? "/api/private/weather/settings?refreshIp=1" : "/api/private/weather/settings";
+    const data = await api<WxSettingsPayload>(url);
+    wxProvinces = Array.isArray(data.provinces) ? data.provinces : [];
+    const det = data.detected;
+    const detLabel = formatProvinceCity(det.province, det.city);
+    $("wx-detected").textContent = `${detLabel}（${fmtCoordPair(det.lat, det.lon)}）`;
+
+    if (!wxLoaded) {
+      const s = data.settings;
+      wxProvIn.value = s.province || "";
+      wxCityIn.value = s.city || "";
+      wxLatIn.value = String(s.lat);
+      wxLonIn.value = String(s.lon);
+      wxTzIn.value = s.timezone || "Asia/Shanghai";
+      syncProvinceDropdowns(s.province, s.city);
+      setWxMode(s.mode, false);
+      wxLoaded = true;
+      wxDirty = false;
+    } else if (refreshIp) {
+      setMsg(`已更新 IP 识别结果：${detLabel}`, "ok");
+    }
+  } catch (e) {
+    $("wx-detected").textContent = "识别失败";
+    fail("读取天气设置失败", e);
+  } finally {
+    redetectBtn.disabled = false;
+  }
+}
+
+$("wx-redetect").addEventListener("click", () => void loadWeatherSettings(true));
+
+async function runWeatherSearch() {
+  const q = wxSearchQ.value.trim();
+  if (!q) { wxSearchList.hidden = true; return; }
+  const searchBtn = $<HTMLButtonElement>("wx-search-btn");
+  searchBtn.disabled = true;
+  try {
+    const { results } = await api<{ results: WxSearchItem[] }>(`/api/private/weather/search?q=${encodeURIComponent(q)}`);
+    wxSearchList.replaceChildren();
+    wxSearchList.hidden = false;
+    if (!results.length) {
+      wxSearchList.append(el("li", { class: "wx-sempty", textContent: "未找到匹配城市，可直接手动填写下方名称与经纬度" }));
+      return;
+    }
+    for (const item of results) {
+      const label = formatProvinceCity(item.province, item.city);
+      const rowBtn = el(
+        "button",
+        { type: "button", class: "wx-sitem" },
+        el("span", { textContent: label }),
+        el("span", { class: "wx-sitem-c", textContent: `${fmtCoordPair(item.lat, item.lon)} · ${item.timezone}` }),
+      );
+      rowBtn.addEventListener("click", () => {
+        wxProvIn.value = item.province;
+        wxCityIn.value = item.city;
+        wxLatIn.value = String(item.lat);
+        wxLonIn.value = String(item.lon);
+        wxTzIn.value = item.timezone || "Asia/Shanghai";
+        syncProvinceDropdowns(item.province, item.city);
+        wxSearchList.hidden = true;
+        wxDirty = true;
+        updateWxPreview();
+      });
+      wxSearchList.append(el("li", {}, rowBtn));
+    }
+  } catch (e) {
+    fail("搜索城市失败", e);
+  } finally {
+    searchBtn.disabled = false;
+  }
+}
+
+$("wx-search-btn").addEventListener("click", () => void runWeatherSearch());
+wxSearchQ.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); void runWeatherSearch(); }
+});
+
+$("wx-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const saveBtn = $<HTMLButtonElement>("wx-save");
+  const body: Record<string, unknown> = { mode: wxMode };
+  if (wxMode === "manual") {
+    const city = wxCityIn.value.trim();
+    const lat = Number(wxLatIn.value.trim());
+    const lon = Number(wxLonIn.value.trim());
+    if (!city) { setMsg("请填写城市名称", "err"); wxCityIn.focus(); return; }
+    if (!wxLatIn.value.trim() || !Number.isFinite(lat) || lat < -90 || lat > 90) {
+      setMsg("纬度需在 -90 到 90 之间", "err"); wxLatIn.focus(); return;
+    }
+    if (!wxLonIn.value.trim() || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+      setMsg("经度需在 -180 到 180 之间", "err"); wxLonIn.focus(); return;
+    }
+    body.province = wxProvIn.value.trim();
+    body.city = city;
+    body.lat = lat;
+    body.lon = lon;
+    body.timezone = wxTzIn.value.trim() || "Asia/Shanghai";
+  }
+  saveBtn.disabled = true;
+  try {
+    const r = await api<{ settings: WxSettings }>("/api/private/weather/settings", jsonInit("PUT", body));
+    wxDirty = false;
+    const s = r.settings;
+    setMsg(
+      s.mode === "ip"
+        ? "已切换为按访问 IP 自动定位"
+        : `天气位置已保存为：${formatProvinceCity(s.province, s.city)}`,
+      "ok",
+    );
+  } catch (err) {
+    fail("保存天气设置失败", err);
+  } finally {
+    saveBtn.disabled = false;
+  }
+});
+
 /* ---------- 离开提醒、启动 ---------- */
-window.addEventListener("beforeunload", (e) => { if (pfDirty) { e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("beforeunload", (e) => { if (pfDirty || wxDirty) { e.preventDefault(); e.returnValue = ""; } });
 void loadProfile();
 showSection(fromHash(), false);

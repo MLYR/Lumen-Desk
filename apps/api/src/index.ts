@@ -9,7 +9,9 @@ import { migrateLegacyFile } from './bookmarks/store.js';
 import { seedBuiltinLabs } from './lab/seed.js';
 import { purgeExpiredSessions } from './auth/sessions.js';
 import { latestUsableBackup, runBackup } from './backups.js';
-import { purgeStaleAihot, refreshAihot } from './sources/aihot.js';
+import { purgeStaleAihot, purgeStaleAihotDaily, refreshAihot, refreshAihotDaily } from './sources/aihot.js';
+import { getCachedLocation, getWeatherSettings, inferProvince, refreshWeather } from './sources/weather.js';
+import { refreshGithub } from './sources/github.js';
 
 const config = loadConfig();
 const db = openDb(config.dataDir);
@@ -24,7 +26,7 @@ void rerenderPosts(db).then(
   (n) => { if (n) console.log(`[blog] re-rendered ${n} posts`); },
   (err: unknown) => console.error('[blog] re-render failed; will retry on next start:', err instanceof Error ? err.message : err),
 );
-const app = createApp({ config, db });
+const app = createApp({ config, db, weatherFetch: fetch });
 
 const refresh = async (): Promise<void> => {
   purgeStaleAihot(db);
@@ -32,6 +34,45 @@ const refresh = async (): Promise<void> => {
 };
 void refresh();
 const aihotJob = new Cron('*/10 * * * *', { protect: true }, refresh);
+
+const refreshDaily = async (): Promise<void> => {
+  purgeStaleAihotDaily(db);
+  await refreshAihotDaily(db, { siteUrl: config.siteUrl });
+};
+void refreshDaily();
+// AIHOT 日报带 ETag 304 校验，每小时检一次既轻又能在撤回/更新后及时同步。
+const dailyJob = new Cron('5 * * * *', { protect: true }, refreshDaily);
+
+const fallbackWeatherLoc = {
+  province: inferProvince(config.weatherCity),
+  city: config.weatherCity,
+  lat: config.weatherLat,
+  lon: config.weatherLon,
+  timezone: config.weatherTimezone,
+};
+const refreshWeatherNow = async (): Promise<void> => {
+  const settings = getWeatherSettings(db, fallbackWeatherLoc);
+  const target =
+    settings.mode === 'manual'
+      ? {
+          province: settings.province,
+          city: settings.city,
+          lat: settings.lat,
+          lon: settings.lon,
+          timezone: settings.timezone,
+        }
+      : getCachedLocation(db);
+  if (target) await refreshWeather(db, target, { siteUrl: config.siteUrl });
+};
+void refreshWeatherNow();
+const weatherJob = new Cron('*/30 * * * *', { protect: true }, refreshWeatherNow);
+
+const refreshGithubNow = async (): Promise<void> => {
+  await refreshGithub(db, { username: config.githubUsername, token: config.githubToken, siteUrl: config.siteUrl });
+};
+void refreshGithubNow();
+const githubJob = new Cron('20 */2 * * *', { protect: true }, refreshGithubNow);
+
 const cleanupJob = new Cron('17 * * * *', () => purgeExpiredSessions(db));
 
 // P1.5-7：每天北京时间 03:35 做一份全量备份，保留 BACKUP_KEEP 份。
@@ -59,6 +100,9 @@ const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
 
 const shutdown = () => {
   aihotJob.stop();
+  dailyJob.stop();
+  weatherJob.stop();
+  githubJob.stop();
   cleanupJob.stop();
   backupJob.stop();
   server.close(() => {

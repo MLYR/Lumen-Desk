@@ -6,6 +6,8 @@ import { bookmarkCmds, loadBookmarks } from "./bookmarks";
 import { startServerCard } from "./server";
 import { startResumeCard } from "./resume-card";
 import { startBlogCard } from "./blog-card";
+import { openDailyDialog, startDailyCard } from "./daily";
+import { startWeatherCard } from "./weather";
 import { parseLabs } from "../../lib/lab";
 
 type Hot = { rank: number; title: string; sourceCount: number; url: string };
@@ -61,6 +63,8 @@ loadBookmarks(() => buildCmds());
 
 /* 服务器状态（逻辑在 server.ts） */
 startServerCard();
+startWeatherCard();
+startDailyCard();
 void startResumeCard();
 void startBlogCard();
 
@@ -82,6 +86,8 @@ function buildCmds() {
   CMDS = [
     ...bookmarkCmds().filter((b) => safeUrl(b.url) !== "#").map((b) => ({ name: b.name, group: b.group, keys: b.url, run: () => window.open(safeUrl(b.url), "_blank", "noopener") })),
     ...Object.entries(MODE_NAMES).map(([k, v]) => ({ name: `主题：${v}`, group: "命令", keys: "theme zhuti " + k, run: () => setMode(k) })),
+    { name: "AIHOT 今日日报", group: "阅读", keys: "aihot daily ribao", run: () => openDailyDialog() },
+    { name: "天气位置设置", group: "设置", keys: "weather tianqi weizhi", run: () => { location.href = "/console/settings#weather"; } },
     { name: "公开主页", group: "页面", run: () => { location.href = "/"; } },
     { name: "管理试验场", group: "页面", run: () => { location.href = "/console/lab"; } },
   ];

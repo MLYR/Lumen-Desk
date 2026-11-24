@@ -1,0 +1,45 @@
+---
+import "../styles/github.css";
+---
+<section class="grid" id="github" hidden>
+  <article class="card first last">
+    <div class="card-head">
+      <h2 class="card-title"><span class="dot"></span>GitHub 贡献</h2>
+      <a class="card-meta more" id="ghProfileLink" href="https://github.com" target="_blank" rel="noopener noreferrer" hidden>GitHub →</a>
+    </div>
+    <dl class="gh-stats">
+      <div><dt>近一年贡献</dt><dd id="ghTotal">—</dd></div>
+      <div><dt>活跃天数</dt><dd id="ghActive">—</dd></div>
+      <div><dt>最长连续</dt><dd id="ghLongest">—</dd></div>
+      <div><dt>当前连续</dt><dd id="ghCurrent">—</dd></div>
+    </dl>
+    <div class="gh-scroll" id="ghScroll">
+      <div class="gh-board" role="region" aria-label="近一年 GitHub 贡献日历">
+        <div class="gh-months" id="ghMonths" aria-hidden="true"></div>
+        <div class="gh-weekdays" aria-hidden="true">
+          <span>一</span>
+          <span>三</span>
+          <span>五</span>
+        </div>
+        <div class="gh-cells" id="ghCells"></div>
+      </div>
+    </div>
+    <div class="gh-foot">
+      <span class="gh-readout" id="ghReadout" aria-live="polite"></span>
+      <span class="gh-legend" aria-label="活跃度图例：从少到多">
+        <span>少</span>
+        <i class="gh-sw lv-0" aria-hidden="true"></i>
+        <i class="gh-sw lv-1" aria-hidden="true"></i>
+        <i class="gh-sw lv-2" aria-hidden="true"></i>
+        <i class="gh-sw lv-3" aria-hidden="true"></i>
+        <i class="gh-sw lv-4" aria-hidden="true"></i>
+        <span>多</span>
+      </span>
+    </div>
+  </article>
+</section>
+
+<script>
+  import { startGithubHeatmap } from "../scripts/github-heatmap";
+  void startGithubHeatmap();
+</script>

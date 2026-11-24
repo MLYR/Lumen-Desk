@@ -75,26 +75,80 @@ function bullets(list: string[]) {
   const ul = h("ul", "rs-bl"); for (const x of list) ul.append(h("li", "", x)); return ul;
 }
 
-/** 主页精简版：最近两段工作经历 + 技能分组 */
+/** 从项目 desc 中拆出首行「时间 / 角色」元信息与正文概述（无换行或首行是完整句子时整段作概述）。 */
+function splitProjectDesc(desc: string): { meta: string; summary: string } {
+  const lines = (desc ?? "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (lines.length >= 2 && lines[0].length <= 48 && !/[。！？!?]/.test(lines[0])) {
+    return { meta: lines[0], summary: lines.slice(1).join(" ") };
+  }
+  return { meta: "", summary: lines.join(" ") };
+}
+
+/** 主页精简版：左栏技能分组，右栏最近工作经历 + 关键项目简述 */
 export function renderCompact(r: PResume, root: HTMLElement) {
   root.replaceChildren();
-  const left = h("div"), right = h("div");
-  left.append(h("h3", "", "// 经历"));
-  const tl = h("ul", "timeline");
-  for (const w of r.work.slice(0, 2)) {
-    const li = h("li"), when = h("span", "when", `${w.start} — ${w.end}`), box = h("div"), what = h("div", "what");
-    what.append(fieldEl(w.company)); if (w.role) what.append(document.createTextNode(" · " + w.role));
-    box.append(what); if (w.bullets[0]) box.append(h("div", "desc", w.bullets[0]));
-    li.append(when, box); tl.append(li);
+  const cols: HTMLElement[] = [];
+
+  if (r.skills.length) {
+    const left = h("div", "resume-col resume-skills");
+    left.append(h("h3", "", "// 技能"));
+    const dl = h("dl", "skills");
+    for (const s of r.skills.slice(0, 6)) {
+      const row = h("div"), dd = h("dd");
+      for (const t of s.text.split(/[、，,；;]\s*/).filter(Boolean).slice(0, 6)) dd.append(h("span", "chip", t));
+      row.append(h("dt", "", s.label), dd);
+      dl.append(row);
+    }
+    left.append(dl);
+    cols.push(left);
   }
-  left.append(tl);
-  right.append(h("h3", "", "// 技能"));
-  const dl = h("dl", "skills");
-  for (const s of r.skills.slice(0, 6)) {
-    const row = h("div"), dd = h("dd");
-    for (const t of s.text.split(/[、，,；;]\s*/).filter(Boolean).slice(0, 6)) dd.append(h("span", "chip", t));
-    row.append(h("dt", "", s.label), dd); dl.append(row);
+
+  const projects = Array.isArray(r.projects) ? r.projects : [];
+  if (r.work.length || projects.length) {
+    const right = h("div", "resume-col resume-exp");
+    if (r.work.length) {
+      const workSec = h("div", "resume-block");
+      workSec.append(h("h3", "", "// 经历"));
+      const tl = h("ul", "timeline");
+      for (const w of r.work.slice(0, projects.length ? 2 : 3)) {
+        const li = h("li"), when = h("span", "when", `${w.start} — ${w.end}`), box = h("div"), what = h("div", "what");
+        what.append(fieldEl(w.company));
+        if (w.role) what.append(document.createTextNode(" · " + w.role));
+        box.append(what);
+        if (w.bullets[0]) box.append(h("div", "desc", w.bullets[0]));
+        li.append(when, box);
+        tl.append(li);
+      }
+      workSec.append(tl);
+      right.append(workSec);
+    }
+
+    if (projects.length) {
+      const projSec = h("div", "resume-block");
+      projSec.append(h("h3", "", "// 项目"));
+      const list = h("ul", "proj-list");
+      for (const p of projects.slice(0, 4)) {
+        const li = h("li");
+        const head = h("div", "proj-head");
+        const name = h("div", "proj-name");
+        name.append(fieldEl(p.name));
+        if (p.client && nonEmpty(p.client)) {
+          name.append(h("span", "proj-sep", " · "), fieldEl(p.client, "proj-client"));
+        }
+        head.append(name);
+        const { meta, summary } = splitProjectDesc(p.desc);
+        if (meta) head.append(h("span", "proj-meta", meta));
+        li.append(head);
+        const brief = summary || p.bullets?.[0] || "";
+        if (brief) li.append(h("div", "desc", brief));
+        list.append(li);
+      }
+      projSec.append(list);
+      right.append(projSec);
+    }
+    cols.push(right);
   }
-  right.append(dl);
-  root.append(left, right);
+
+  root.classList.toggle("is-single", cols.length === 1);
+  root.append(...cols);
 }

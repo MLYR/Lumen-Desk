@@ -1,5 +1,5 @@
 ---
-// 主页简历卡片：精简版，运行时请求 /api/resume 渲染（最近两段经历 + 技能）。没有旧的占位数据。
+// 主页简历卡片：精简版，运行时请求 /api/resume 渲染（左技能、右经历与项目简述）。没有旧的占位数据。
 ---
 <section class="grid" id="resume">
   <article class="card first last">
@@ -21,8 +21,9 @@
       if (!res.ok) return empty();
       const r = (await res.json()) as PResume;
       if (!r || !Array.isArray(r.work) || !Array.isArray(r.skills)) return empty();
-      if (!r.work.length && !r.skills.length) return empty();
-      // 完整信息对外显示时，主页的精简版也会出现公司名：和 /resume/ 一样加 noindex，避免被搜索引擎缓存。
+      const projects = Array.isArray(r.projects) ? r.projects : [];
+      if (!r.work.length && !r.skills.length && !projects.length) return empty();
+      // 完整信息对外显示时，主页的精简版也会出现公司名与项目名：和 /resume/ 一样加 noindex，避免被搜索引擎缓存。
       if (r.reveal === true || r.revealPublic === true) {
         const m = document.createElement("meta"); m.name = "robots"; m.content = "noindex"; document.head.append(m);
       }
@@ -32,19 +33,35 @@
 </script>
 
 <style is:global>
-.resume { display: grid; gap: 28px; }
+.resume { display: grid; gap: 28px; align-items: start; }
 @media (min-width: 900px) { .resume { grid-template-columns: 1fr 1fr; gap: 48px; } }
+.resume.is-single { grid-template-columns: 1fr; }
+.resume-col { min-width: 0; }
+.resume-exp { display: grid; gap: 24px; align-content: start; }
+.resume-block { min-width: 0; }
 .resume h3 { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 12px; letter-spacing: .04em; }
 .resume-empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
 .timeline { list-style: none; }
 .timeline li { display: grid; grid-template-columns: 112px 1fr; gap: 16px; padding: 12px 0; border-top: 1px solid var(--soft-line); }
+.timeline li:last-child { padding-bottom: 0; }
 .timeline .when { font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 3px; }
 .timeline .what { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
-.timeline .desc { font-size: 14px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.timeline .desc, .proj-list .desc { font-size: 14px; color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.proj-list { list-style: none; }
+.proj-list li { padding: 12px 0; border-top: 1px solid var(--soft-line); }
+.proj-list li:last-child { padding-bottom: 0; }
+.proj-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; min-width: 0; }
+.proj-name { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.proj-sep, .proj-client { font-size: 13px; font-weight: 400; color: var(--muted); }
+.proj-meta { font-family: var(--mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .skills { display: grid; gap: 12px; }
-.skills div { display: grid; grid-template-columns: 72px 1fr; gap: 12px; align-items: baseline; padding-top: 12px; border-top: 1px solid var(--soft-line); }
+.skills div { display: grid; grid-template-columns: 98px 1fr; gap: 14px; align-items: baseline; padding-top: 12px; border-top: 1px solid var(--soft-line); }
 .skills dt { font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .skills dd { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
-@media (max-width: 480px) { .timeline li { grid-template-columns: 1fr; gap: 4px; } }
+.skills .chip { overflow-wrap: anywhere; max-width: 100%; }
+@media (max-width: 480px) {
+  .timeline li { grid-template-columns: 1fr; gap: 4px; }
+  .skills div { grid-template-columns: 1fr; gap: 6px; }
+}
 .rf-lock { display: inline-flex; vertical-align: -1px; margin-left: 4px; color: var(--muted); opacity: .8; }
 </style>

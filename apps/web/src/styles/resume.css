@@ -54,27 +54,215 @@
 @media (max-width: 520px) { .rs-skills div { grid-template-columns: 1fr; gap: 2px; } .rs-meta { grid-template-columns: 1fr; } }
 .rf-lock { display: inline-flex; vertical-align: -1px; margin-left: 4px; color: var(--muted); opacity: .8; }
 
-/* 打印：A4，白底黑字；隐藏顶栏、页脚、操作栏；每段经历不跨页 */
-@page { size: A4; margin: 14mm 14mm; }
+/* 打印：A4，白底黑字；单列流畅分页，隐藏顶栏、页脚、操作栏 */
+@page { size: A4; margin: 12mm 14mm; }
 @media print {
-  :root, [data-theme] { --bg: #fff; --fg: #000; --muted: #333; --line: #000; --soft-line: #999; --accent: #000; --card: #fff; --panel: #fff; --card-hover: #fff; }
-  html, body, [data-theme="blueprint"] body { background: #fff !important; color: #000 !important; font-size: 11pt; }
+  :root, [data-theme] {
+    --bg: #fff; --fg: #111; --muted: #444; --line: #111; --soft-line: #ccc;
+    --accent: #111; --card: #fff; --panel: #fff; --card-hover: #fff;
+    --display: var(--sans); --display-weight: 700;
+  }
+  html, body, [data-theme="blueprint"] body {
+    background: #fff !important;
+    color: #111 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    font-family: var(--sans);
+    font-size: 9.5pt;
+    line-height: 1.55;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   .top, footer, .rs-bar, .rd-fab, .ui-toasts { display: none !important; }
   .wrap { max-width: none; padding: 0; }
   .rs-main { padding: 0; }
   .rs, [data-theme="blueprint"] .rs { max-width: none; padding: 0; border: 0; background: #fff; }
   [data-theme="blueprint"] .rs::before, [data-theme="blueprint"] .rs::after { display: none; }
-  .rs-name { font-size: 26pt; }
-  .rs-title { color: #000; }
-  .rs-sec { margin-top: 14pt; }
-  .rs-h { font-size: 13pt; break-after: avoid; }
-  .rs-job, .rs-proj, .rs-skills > div, .rs-head { break-inside: avoid; page-break-inside: avoid; }
-  .rs-job::before { background: #fff; border-color: #000; }
-  .rs-bl li::before { background: #000; }
-  .rs-projects { grid-template-columns: 1fr 1fr; gap: 8pt; }
-  .rs-proj, [data-theme="paper"] .rs-proj { border: 1px solid #999; padding: 8pt; }
-  .rs-chips li { border-color: #999; color: #000; }
-  .rs-skills dt { color: #000; }
+
+  /* 页头与基本信息 */
+  .rs-head, [data-theme="blueprint"] .rs-head {
+    padding-bottom: 10pt;
+    border-bottom: 1.5pt solid #111;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .rs-name { font-size: 20pt; line-height: 1.15; letter-spacing: -.02em; color: #000; }
+  .rs-title, [data-theme="blueprint"] .rs-title {
+    margin-top: 3pt;
+    font-family: var(--sans);
+    font-size: 11pt;
+    font-weight: 600;
+    color: #222;
+  }
+  .rs-meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3pt 14pt;
+    margin-top: 8pt;
+    font-size: 9pt;
+    line-height: 1.45;
+  }
+  .rs-meta li { gap: 5pt; align-items: baseline; }
+  .rs-k { font-size: 8.5pt; padding-top: 0; color: #555; }
+  .rs-sum {
+    margin-top: 8pt;
+    font-size: 9.5pt;
+    line-height: 1.55;
+    color: #222;
+    max-width: none;
+  }
+
+  /* 区块与标题：防孤行标题，块级流式排布避免 Grid/Flex 断页异常 */
+  .rs-sec { margin-top: 12pt; }
+  .rs-h, [data-theme="blueprint"] .rs-h {
+    display: block;
+    font-family: var(--sans);
+    font-size: 11.5pt;
+    font-weight: 700;
+    letter-spacing: .02em;
+    color: #000;
+    padding-bottom: 3pt;
+    margin-bottom: 7pt;
+    border-bottom: 1pt solid #111;
+    break-after: avoid;
+    page-break-after: avoid;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .rs-h::after, [data-theme="blueprint"] .rs-h::before { display: none; }
+
+  /* 工作经历 */
+  .rs-tl { margin-left: 4pt; padding-left: 12pt; border-left: 0.75pt solid #888; }
+  .rs-job {
+    padding-bottom: 8pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .rs-job:last-child { padding-bottom: 0; }
+  .rs-job::before, [data-theme="paper"] .rs-job::before {
+    left: -15.5pt;
+    top: 4.5pt;
+    width: 6pt;
+    height: 6pt;
+    border-width: 1.25pt;
+    border-radius: 50%;
+    background: #fff;
+    border-color: #111;
+  }
+  .rs-jobtop { gap: 2pt 8pt; break-after: avoid; page-break-after: avoid; }
+  .rs-when { font-size: 8.5pt; color: #444; }
+  .rs-co { font-size: 10.5pt; color: #000; }
+  .rs-role { font-size: 9.5pt; color: #333; }
+
+  /* 要点列表：块级排布，单条不跨页截断 */
+  .rs-bl {
+    display: block;
+    margin-top: 4pt;
+    font-size: 9.2pt;
+    line-height: 1.55;
+    color: #111;
+  }
+  .rs-bl li {
+    padding-left: 10pt;
+    margin-top: 2.5pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    orphans: 3;
+    widows: 3;
+  }
+  .rs-bl li:first-child { margin-top: 0; }
+  .rs-bl li::before, [data-theme="paper"] .rs-bl li::before {
+    left: 1pt;
+    top: .62em;
+    width: 3.5pt;
+    height: 3.5pt;
+    border-radius: 50%;
+    background: #222;
+  }
+
+  /* 专业技能 */
+  .rs-skills { display: block; }
+  .rs-skills > div {
+    display: flex;
+    align-items: baseline;
+    gap: 10pt;
+    padding: 4.5pt 0;
+    border-top: 0.5pt solid #ccc;
+    font-size: 9.2pt;
+    line-height: 1.5;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .rs-skills > div:first-child { border-top: 0; padding-top: 0; }
+  .rs-skills dt {
+    flex: 0 0 92pt;
+    font-family: var(--sans);
+    font-size: 9pt;
+    font-weight: 700;
+    color: #000;
+    padding-top: 0;
+  }
+  .rs-skills dd { flex: 1; min-width: 0; color: #222; }
+
+  /* 项目经历：单列块级排布，允许长项目在要点间自然分页，避免整块推页产生空白页 */
+  .rs-projects { display: block; }
+  .rs-proj, [data-theme="paper"] .rs-proj {
+    display: block;
+    border: 0;
+    border-top: 0.75pt solid #bbb;
+    padding: 8pt 0 0;
+    margin-top: 9pt;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  .rs-proj:first-child, [data-theme="paper"] .rs-proj:first-child {
+    border-top: 0;
+    padding-top: 0;
+    margin-top: 0;
+  }
+  .rs-pname {
+    font-size: 10.5pt;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #000;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .rs-client {
+    margin-top: 2pt;
+    font-size: 8.5pt;
+    gap: 6pt;
+    align-items: baseline;
+    color: #444;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .rs-desc {
+    margin-top: 4pt;
+    font-size: 9.2pt;
+    line-height: 1.52;
+    color: #222;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .rs-chips {
+    gap: 3pt 4pt;
+    margin-top: 5pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .rs-chips li {
+    padding: 1pt 5pt;
+    border: 0.5pt solid #aaa;
+    font-size: 7.8pt;
+    line-height: 1.35;
+    color: #222;
+  }
+  .rs-proj .rs-bl { margin-top: 5pt; font-size: 9.2pt; line-height: 1.55; }
+
   .rf-lock { display: none; }
   a { color: #000; text-decoration: none; }
 }

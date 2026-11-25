@@ -30,13 +30,17 @@ export function renderResume(r: PResume, root: HTMLElement) {
   root.replaceChildren();
   const b = r.basics;
   const head = h("header", "rs-head");
+  const top = h("div", "rs-head-top");
+  const id = h("div", "rs-id");
   const name = h("h1", "rs-name"); name.append(fieldEl(b.name));
-  head.append(name);
-  if (b.title) head.append(h("p", "rs-title", b.title));
+  id.append(name);
+  if (b.title) id.append(h("p", "rs-title", b.title));
+  top.append(id);
   const meta = h("ul", "rs-meta");
   const items: [string, PField | undefined][] = [["电话", b.phone], ["邮箱", b.email], ["现居", b.location], ["籍贯", b.hometown], ["出生", b.birth], ["性别", b.gender], ["学历", b.degree], ["院校", b.school], ["工作年限", b.years]];
   for (const [k, f] of items) if (nonEmpty(f)) { const li = h("li"); li.append(h("span", "rs-k", k), fieldEl(f)); meta.append(li); }
-  head.append(meta);
+  if (meta.childElementCount) { top.append(meta); top.classList.add("has-meta"); }
+  head.append(top);
   if (b.summary) head.append(h("p", "rs-sum", b.summary));
   root.append(head);
 

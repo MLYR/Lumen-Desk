@@ -8,15 +8,25 @@
 [data-theme="blueprint"] .rs::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
 .rs-note { color: var(--muted); font-size: 15px; padding: 32px 0; text-align: center; }
 
-.rs-head { padding-bottom: 20px; border-bottom: 2px solid var(--line); }
+.rs-head { container-type: inline-size; padding-bottom: 20px; border-bottom: 2px solid var(--line); }
 [data-theme="blueprint"] .rs-head { border-bottom: 1px solid var(--line); }
+.rs-head-top { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.rs-id { min-width: 0; }
 .rs-name { font-family: var(--display); font-weight: var(--display-weight); font-size: clamp(32px, 6vw, 52px); line-height: 1.1; letter-spacing: -.03em; }
 .rs-title { margin-top: 6px; font-size: 18px; color: var(--accent); font-weight: 600; }
 [data-theme="blueprint"] .rs-title { font-family: var(--mono); font-size: 15px; font-weight: 500; }
-.rs-meta { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 20px; margin-top: 16px; font-size: 14px; }
-.rs-meta li { display: flex; gap: 8px; min-width: 0; }
-.rs-k { flex: none; font: 12px var(--mono); color: var(--muted); padding-top: 2px; }
-.rs-sum { margin-top: 14px; font-size: 15px; line-height: 1.8; color: var(--muted); max-width: 46em; }
+.rs-meta { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 20px; font-size: 14px; align-content: start; }
+.rs-meta li { display: flex; gap: 7px; min-width: 0; align-items: baseline; }
+.rs-k { flex: none; font: 12px var(--mono); color: var(--muted); }
+.rs-sum { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--soft-line); font-size: 15px; line-height: 1.8; color: var(--muted); max-width: none; }
+@container (min-width: 820px) {
+  .rs-head-top.has-meta { grid-template-columns: minmax(220px, auto) minmax(0, 1fr); gap: 16px 24px; align-items: center; }
+  .rs-id { max-width: 360px; }
+  .rs-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; padding-left: 24px; border-left: 1px solid var(--soft-line); }
+}
+@container (min-width: 960px) {
+  .rs-meta { grid-template-columns: repeat(3, auto); justify-content: space-between; gap: 8px 20px; }
+}
 
 .rs-sec { margin-top: 32px; }
 .rs-h { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: var(--display-weight); font-size: 22px; letter-spacing: -.01em; margin-bottom: 14px; }
@@ -81,11 +91,14 @@
 
   /* 页头与基本信息 */
   .rs-head, [data-theme="blueprint"] .rs-head {
+    container-type: normal;
     padding-bottom: 10pt;
     border-bottom: 1.5pt solid #111;
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  .rs-head-top, .rs-head-top.has-meta { display: block; }
+  .rs-id { max-width: none; }
   .rs-name { font-size: 20pt; line-height: 1.15; letter-spacing: -.02em; color: #000; }
   .rs-title, [data-theme="blueprint"] .rs-title {
     margin-top: 3pt;
@@ -98,6 +111,8 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 3pt 14pt;
     margin-top: 8pt;
+    padding-left: 0;
+    border-left: 0;
     font-size: 9pt;
     line-height: 1.45;
   }
@@ -105,6 +120,8 @@
   .rs-k { font-size: 8.5pt; padding-top: 0; color: #555; }
   .rs-sum {
     margin-top: 8pt;
+    padding-top: 6pt;
+    border-top: 0.5pt solid #ccc;
     font-size: 9.5pt;
     line-height: 1.55;
     color: #222;

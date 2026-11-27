@@ -60,7 +60,7 @@ Docker 卷（不在目录里）：`caddy_data`（证书）、`umami_db`（Umami 
 - 目录用 `~/lumen-desk/`（放在仓库外面，避免误提交 `.env` 和数据）。
 - `docker-compose.yml` 里的 `build.context` 改成仓库的绝对路径，删掉 443 端口映射。
 - 建目录：`mkdir -p ~/lumen-desk/{web/public,web/private,web/shell,data/uploads}`。
-- `.env` 里 `SITE_ADDRESS=:80`、`SITE_URL=http://localhost`、`COOKIE_SECURE=false`，并填好 `ADMIN_USER`、`ADMIN_PASSWORD_HASH`（见下面「生成后台登录密码」），再复制 `umami.env.example` 为 `umami.env` 并填好。这几项没填 `docker compose` 会直接报错。
+- `.env` 里 `SITE_ADDRESS=:80`、`SITE_URL=http://localhost`、`COOKIE_SECURE=true`（会话 Cookie 使用 `__Host-` 前缀，Chrome/Firefox 在 `http://localhost` 下允许 `Secure`），并填好 `ADMIN_USER`、`ADMIN_PASSWORD_HASH`（见下面「生成后台登录密码」），再复制 `umami.env.example` 为 `umami.env` 并填好。这几项没填 `docker compose` 会直接报错。
 - 本机只想跑主站时，可以只启动需要的服务：`docker compose up -d caddy api`。
 - `data/uploads` 要让 api 容器里的 node 用户（uid 1000）可写。Docker Desktop（macOS）一般不用处理；Linux 本机执行 `sudo chown 1000:1000 data/uploads`。
 - 打开 <http://localhost>。

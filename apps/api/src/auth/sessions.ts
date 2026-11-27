@@ -1,7 +1,7 @@
 import type { DB } from '../db.js';
 import { newSessionToken, sha256Hex } from './crypto.js';
 
-export const SESSION_COOKIE = 'ld_session';
+export const SESSION_COOKIE = '__Host-ld_session';
 export const SESSION_TTL_S = 30 * 24 * 3600;
 
 /** Creates a session and returns the raw token (only its hash is stored). */

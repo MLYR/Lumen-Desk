@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import * as OTPAuth from 'otpauth';
+import { SESSION_COOKIE } from '../src/auth/sessions.js';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { openDb } from '../src/db.js';
@@ -40,9 +41,9 @@ export function setup(start = Date.UTC(2026, 0, 1, 0, 0, 10), env: NodeJS.Proces
 }
 
 export function sessionCookie(res: Response): string {
-  const m = /ld_session=([^;]+)/.exec(res.headers.get('set-cookie') ?? '');
+  const m = new RegExp(`${SESSION_COOKIE}=([^;]+)`).exec(res.headers.get('set-cookie') ?? '');
   if (!m) throw new Error('no session cookie');
-  return `ld_session=${m[1]}`;
+  return `${SESSION_COOKIE}=${m[1]}`;
 }
 
 export const ORIGIN = 'https://blog.test';

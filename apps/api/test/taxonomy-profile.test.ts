@@ -453,7 +453,7 @@ describe('security', () => {
     const d = await login();
     const res = await post('/api/private/security/sessions/revoke-all', b);
     expect(res.status).toBe(204);
-    expect(res.headers.get('set-cookie')).toMatch(/ld_session=;.*Max-Age=0/);
+    expect(res.headers.get('set-cookie')).toMatch(/^__Host-ld_session=;.*Max-Age=0/);
     expect([await check(b), await check(d)]).toEqual([401, 401]);
     expect((await s.app.request('/api/private/security/sessions/revoke-others', { method: 'POST', headers: { cookie: b, origin: 'https://evil.test' } })).status).toBe(401);
   });

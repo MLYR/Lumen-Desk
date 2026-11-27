@@ -11,15 +11,20 @@ describe('auth', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     const sc = res.headers.get('set-cookie')!;
-    expect(sc).toMatch(/^ld_session=[A-Za-z0-9_-]{43};/);
+    expect(sc).toMatch(/^__Host-ld_session=[A-Za-z0-9_-]{43};/);
     expect(sc).toContain('HttpOnly');
     expect(sc).toContain('Secure');
     expect(sc).toContain('SameSite=Strict');
     expect(sc).toContain('Path=/');
+    expect(sc).not.toMatch(/;\s*Domain=/i);
     expect(sc).toContain('Max-Age=2592000');
 
     const check = await app.request('/api/auth/check', { headers: { cookie: sessionCookie(res) } });
     expect(check.status).toBe(204);
+    // Legacy unprefixed cookie name is ignored even with a valid token.
+    const token = sessionCookie(res).split('=')[1]!;
+    const legacy = await app.request('/api/auth/check', { headers: { cookie: `ld_session=${token}` } });
+    expect(legacy.status).toBe(401);
   });
 
   it('accepts codes from the previous step (window ±1) but not older', async () => {
@@ -144,7 +149,10 @@ describe('auth', () => {
 
     const out = await app.request('/api/auth/logout', { method: 'POST', headers: { cookie } });
     expect(out.status).toBe(204);
-    expect(out.headers.get('set-cookie')).toMatch(/ld_session=;.*Max-Age=0/);
+    const outCookie = out.headers.get('set-cookie')!;
+    expect(outCookie).toMatch(/^__Host-ld_session=;.*Max-Age=0/);
+    expect(outCookie).toContain('Path=/');
+    expect(outCookie).toContain('Secure');
     expect((await app.request('/api/auth/check', { headers: { cookie } })).status).toBe(401);
   });
 });
@@ -158,7 +166,7 @@ describe('private routes', () => {
     }
     expect((await app.request('/api/auth/check')).status).toBe(401);
     expect(
-      (await app.request('/api/private/bookmarks', { headers: { cookie: 'ld_session=forged' } })).status,
+      (await app.request('/api/private/bookmarks', { headers: { cookie: '__Host-ld_session=forged' } })).status,
     ).toBe(401);
   });
 

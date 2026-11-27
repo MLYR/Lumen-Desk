@@ -72,7 +72,7 @@ describe('定时备份：落盘、保留策略、坏包和恢复', () => {
     expect(res.status).toBe(200);
     expect(await res.text()).toContain('恢复文章');
     // 验证器和会话不在这份包里，恢复出来的实例仍要靠手机验证码登录
-    const auth = await target.app.request('/api/auth/check', { headers: { cookie: 'ld_session=stale' } });
+    const auth = await target.app.request('/api/auth/check', { headers: { cookie: '__Host-ld_session=stale' } });
     expect(auth.status).toBe(401);
   });
 });

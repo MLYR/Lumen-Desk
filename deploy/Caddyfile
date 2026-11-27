@@ -196,7 +196,7 @@
 # Umami 后台。备案前用 :8081（IP 访问），备案后改成 stats.域名。
 # 先过 basic_auth（账号和 bcrypt 哈希在 .env 的 ADMIN_USER、ADMIN_PASSWORD_HASH），再到 Umami 自己的登录页。
 # 不加 CSP：Umami 自己的后台页面需要内联脚本。
-# header_up -Cookie：不把主站的登录 Cookie（ld_session）转发给后台。
+# header_up -Cookie：不把主站的登录 Cookie（__Host-ld_session）转发给后台。
 {$STATS_ADDRESS::8081} {
 	encode zstd gzip
 	# Umami 网页登录后，调 /api/* 时浏览器脚本会自己带 Authorization: Bearer，盖掉缓存的 basic 凭据，

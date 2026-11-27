@@ -9,10 +9,10 @@
 
 | 阶段 | 目标 | 状态 | 前置条件 |
 | --- | --- | --- | --- |
-| P0 准备 | 备案、服务器、外部服务 | 进行中 | 无 |
-| P1 MVP | 公开主页、登录、控制台、部署流水线 | 代码完成，本机 Docker 已部署 | 无 |
-| P1.5 上线加固 | 部署到腾讯云，切 HTTPS，补齐安全项 | 进行中（7 / 10；剩 P1.5-3/4/9 等备案和域名） | 服务器初始化完成；切域名还要等 ICP 备案 |
-| P2 博客 | 文章存 SQLite、在线写、导入 .md、RSS、搜索 | 完成（差第一篇文章） | 无 |
+| P0 准备 | 备案、服务器、外部服务 | 基本完成（3 / 5；剩 P0-2 公安联网备案、P0-6 主页个人资料完善） | 无 |
+| P1 MVP | 公开主页、登录、控制台、部署流水线 | 完成（9 / 9） | 无 |
+| P1.5 上线加固 | 部署到腾讯云，切 HTTPS，补齐安全项 | 进行中（9 / 10；剩 P1.5-7 异地备份保留） | 无 |
+| P2 博客 | 文章存 SQLite、在线写、导入 .md、RSS、搜索 | 完成（11 / 11） | 无 |
 | P2.5 分类、标签、设置 | 分类和标签管理、个人资料、账号安全、控制台头像菜单 | 完成 | P2 |
 | P2.6 基础 UI 组件 | 自制下拉框、弹框、Toast、日历，替换控制台里的原生控件 | 完成 | P2.5 |
 | P2.7 博客阅读体验 | 左侧分类导航、右侧目录和阅读进度、标题锚点、上下篇、回到顶部/底部 | 完成 | P2.5 |
@@ -21,19 +21,19 @@
 | P2.10 简历 | `/resume/` 页面、控制台编辑、服务端打码与总开关、额外隐藏词 | 完成 | P2.5 |
 | P2.11 重新绑定验证器 | 登录后扫码换绑 Google Authenticator，密钥加密存数据库 | 完成 | P1 |
 | P2.12 整站数据备份 | 控制台导出/导入文章、分类标签、书签、简历、个人资料和上传图片；不包含验证器和会话 | 完成 | P2.5、P2.8、P2.10 |
-| P3 试验场 | `/lab` 列表和单个实验页 | 进行中（5 / 7；流场那一版已删，只剩后续实验按兴趣排期） | P2 的内容结构（可并行） |
+| P3 试验场 | `/lab` 列表和单个实验页 | 主架构完成（6 / 7，已升级 ZIP 动态化与 `/console/lab`；流场页已放弃，后续实验按兴趣排期） | P2 的内容结构（可并行） |
 | P4 增强 | 统计、状态页、日报、天气等 | 完成（7 / 7） | 无 |
 
 ## P0 准备（用户为主）
 
 | 编号 | 任务 | 说明 | 验收 |
 | --- | --- | --- | --- |
-| P0-1 👤 | 提交 ICP 备案 | 腾讯云控制台「ICP 备案」，主体选个人。网站名称不能带"导航""平台"，建议"拾光台 · zreo 的个人主页"。1～3 周 | 拿到备案号 |
-| P0-2 👤 | 公安联网备案 | 网站上线后 30 天内办理 | 拿到公安备案号，页脚放两个号 |
-| P0-3 ✅ 👤 | 服务器初始化 | Ubuntu 24.04；SSH 密钥登录，关密码和 root 登录，建部署用户；防火墙只开 22/80/443；2 GB swap；装 Docker 和 Compose 插件，配镜像加速 `mirror.ccs.tencentyun.com`；开自动安全更新和自动快照 | 能用密钥 SSH 登录，`docker run hello-world` 正常 |
-| P0-4 👤 | 告知域名 | 用于 Caddy 的 `SITE_ADDRESS`、`SITE_URL` | 写进服务器 `.env` |
+| P0-1 ✅ 👤 | 提交 ICP 备案 | 2026-11-19 已拿到备案号 `陕ICP备2026034153号-1` 并写入页脚 | 拿到备案号 |
+| P0-2 👤 | 公安联网备案 | 网站上线后 30 天内办理（页脚 `Footer.astro` 已预留位置） | 拿到公安备案号，页脚放两个号 |
+| P0-3 ✅ 👤 | 服务器初始化 | Ubuntu 22.04；SSH 密钥登录，建部署用户 `deploy`；防火墙放行 22/80/443；2 GB swap；装 Docker 和 Compose 插件，配镜像加速 `mirror.ccs.tencentyun.com` | 能用密钥 SSH 登录，`docker run hello-world` 正常 |
+| P0-4 ✅ 👤 | 告知域名 | 2026-11-19 已上线 `mlyryyds.icu` 与 `www.mlyryyds.icu` 并写入服务器 `.env` | 写进服务器 `.env` |
 | ~~P0-5~~ | ~~对象存储和 CDN~~ | 用户决定不用（2026-10-30）。图片放服务器本机，上传时压缩，见 P2-7 | — |
-| P0-6 👤 | 提供公开主页内容 | 一句话介绍、简历、头像、联系方式 | 替换 `Intro.astro`、`Resume.astro` 里的占位 |
+| P0-6 👤 | 提供公开主页内容 | 简历与头像已上线；一句话介绍、联系方式、坐标等资料可在 `/console/settings` 完善，并按需替换 `Intro.astro` 静态兜底文案 | 替换 `Intro.astro` 占位并完善线上个人资料 |
 
 ## P1 MVP（已完成，见 PROGRESS.md）
 
@@ -41,13 +41,13 @@
 | --- | --- | --- |
 | P1-1 | pnpm workspace，`apps/web`、`apps/api` | ✅ |
 | P1-2 | 主题系统迁到 Astro（白纸、蓝图、自动切换、防闪烁） | ✅ |
-| P1-3 | 公开主页拆成 Astro 组件 | ✅（内容还是占位，见 P0-6） |
+| P1-3 | 公开主页拆成 Astro 组件 | ✅（运行时读 `/api/profile`，见 P0-6） |
 | P1-4 | TOTP 登录、恢复码、会话、限流、`/api/auth/check` | ✅ |
 | P1-5 | AIHOT 热点定时拉取和缓存，`GET /api/hot` | ✅ |
 | P1-6 | `import-bookmarks`，`GET /api/private/bookmarks` | ✅ |
 | P1-7 | 控制台改为运行时取数，构建到私有目录 | ✅ |
-| P1-8 | Caddyfile、docker-compose.yml | ✅ 本机 Docker 验证 |
-| P1-9 | GitHub Actions：测试、构建、rsync 部署 | ✅ 构建通过；部署步骤待开启 |
+| P1-8 | Caddyfile、docker-compose.yml | ✅ 本机与生产 Docker 验证 |
+| P1-9 | GitHub Actions：测试、构建、rsync 部署 | ✅ 已开启自动部署 |
 
 ## P1.5 上线加固
 
@@ -57,13 +57,13 @@
 | --- | --- | --- | --- |
 | P1.5-1 ✅ | 服务器首次部署 | 2026-11-12 已在腾讯云 `43.143.244.97` 完成：五个容器 healthy，`/` 200，登录和恢复码可用 | 用 `http://服务器IP` 能打开主页，能登录控制台 |
 | P1.5-2 ✅ | 开启 CI 自动部署（用户已确认用 GitHub Actions） | 2026-11-17 配好：四条 secrets + 三个变量；静态文件和 api 源码由 CI 传，镜像在服务器上 `docker compose build api` 现场构建（传 88 MB 镜像要半小时，会超时） | push 到 main 后服务器自动更新 |
-| P1.5-3 | 切域名和 HTTPS | `.env` 里 `SITE_ADDRESS=域名`、`SITE_URL=https://域名`、`COOKIE_SECURE=true`；Caddy 自动签证书 | `https://域名` 证书有效，HTTP 自动跳 HTTPS，Cookie 带 `Secure` |
-| P1.5-4 | Cookie 改用 `__Host-` 前缀 | `sessions.ts` 改名为 `__Host-ld_session`，浏览器会拒绝不带 `Secure` 的写入，配错时能立刻发现。只能在 HTTPS 上线时一起改 | 测试更新；HTTPS 下能登录 |
+| P1.5-3 ✅ | 切域名和 HTTPS | 2026-11-19 已切换：`SITE_ADDRESS=mlyryyds.icu, www.mlyryyds.icu`、`SITE_URL=https://mlyryyds.icu`、`COOKIE_SECURE=true`，Let's Encrypt 自动签发双域名证书 | `https://mlyryyds.icu` 证书有效，HTTP 308 跳 HTTPS，Cookie 带 `Secure` |
+| P1.5-4 ✅ | Cookie 改用 `__Host-` 前缀 | 2026-11-27 完成：`sessions.ts` 改名为 `__Host-ld_session`（带 `Secure`、`Path=/`、无 `Domain`），浏览器会拒绝不带 `Secure` 的写入；测试、Caddyfile 注释和部署文档同步更新 | 测试更新；HTTPS 与本机 `http://localhost` 下能正常登录 |
 | P1.5-5 ✅ | 加 CSP 头 | Caddyfile 加 `Content-Security-Policy`：`default-src 'self'; script-src 'self' 'sha256-…'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`。Astro 的内联主题脚本要算 hash，或者改成外链脚本 | 三个页面在浏览器控制台没有 CSP 报错 |
 | P1.5-6 ✅ | Actions 固定到 commit SHA | `deploy.yml` 里 `actions/*`、`pnpm/action-setup` 改成完整 SHA，注释写版本号 | workflow 通过 |
-| P1.5-7 | 定时数据备份 | 本机部分已完成：api 每天 03:35 全量备份、保留 `BACKUP_KEEP` 份、坏包跳过、启动补做，`backup` CLI 可 run/list/restore。异地保留等服务器定目标（轻量自动快照，或 rsync 回本机） | 能从自动备份恢复出可登录的实例 |
+| P1.5-7 | 定时数据备份 | 本机与服务器部分已完成：api 每天北京时间 03:35 全量备份、保留 `BACKUP_KEEP` 份、坏包跳过、启动补做，`backup` CLI 可 run/list/restore。异地保留待定目标（轻量自动快照，或 rsync 回本机） | 能从自动备份恢复出可登录的实例 |
 | P1.5-8 ✅ | 日志轮转 | compose 里给两个服务加 `logging: max-size: 10m, max-file: 3` | `docker inspect` 能看到配置 |
-| P1.5-9 | 页脚备案号 | 拿到号后填到 `Footer.astro`，ICP 链接到 `beian.miit.gov.cn` | 页面显示正确 |
+| P1.5-9 ✅ | 页脚备案号 | 2026-11-19 已填真实 ICP 备案号 `陕ICP备2026034153号-1` 到 `Footer.astro`，链到 `beian.miit.gov.cn`（公安联网备案号归 P0-2 待补） | 页面显示正确 |
 | P1.5-10 ✅ | 服务器状态显示真实数据（见 P2.9） | Linux 上容器读到的负载、内存（已改用 MemAvailable）、开机时长就是宿主机的值，`/data` 挂在宿主磁盘上，磁盘也是真实的。部署到服务器后对照 `free -h`、`df -h` 核对。每月流量包用量要调腾讯云 API（需要只读子账号密钥），单独做 | 控制台数字和 `free`、`df` 一致 |
 
 ## P2 博客
@@ -104,7 +104,7 @@
 | P2-8 ✅ | RSS 和站点地图 | api 生成 `/rss.xml`、`/sitemap.xml`，排除 `/login`、`/console` | RSS 阅读器能订阅 |
 | P2-9 ✅ | 搜索 | 文章不多时用 SQLite FTS5 做 `/api/search`；中文用 `trigram` 分词 | 搜中文关键词能命中 |
 | P2-10 ✅ | 导出 | 一键把全部文章导出成 .md 压缩包，方便备份和迁移 | 导出再导入后内容一致 |
-| P2-11 👤 | 第一篇文章 | 建议写本站搭建记录 | 上线 |
+| P2-11 ✅ 👤 | 第一篇文章 | 已在线上发布多篇文章 | 上线 |
 
 评论：用户确认不要。
 
@@ -127,8 +127,8 @@
 
 | 编号 | 任务 | 做法 | 验收 |
 | --- | --- | --- | --- |
-| P3-1 ✅ | 内容模型 | `src/content/lab/*.md` 存元数据（名称、简介、技术、状态、封面、featured）；`/lab/` 卡片墙、首页模块和 sitemap 都由它驱动，sitemap 走构建产出的 `lab-index.json` | 新增实验只加一个 md 加一个页面，四处一起出现 |
-| P3-2 ✅ | 列表页 | `/lab` 卡片墙和主页入口都读 P3-1 的数据，主打卡片由 featured 决定，其余走三列小卡 | 主页和导航链接到真实页面 |
+| P3-1 ✅ | 内容模型 | 原先用 `src/content/lab/*.md`，2026-11-21 已升级为 SQLite `labs` 表 + `DATA_DIR/labs/<slug>/` 与 `/console/lab` 在线工作台，`/lab/`、首页模块与动态 `sitemap.xml` 统一由 API 驱动 | 后台上传 ZIP 或在线新建后四处同步生效 |
+| P3-2 ✅ | 列表页 | `/lab` 卡片墙和主页入口运行时读取 `/api/lab`，主打卡片由 featured 决定，其余走三列小卡 | 主页和导航链接到真实页面 |
 | P3-3 ❌ | 流场粒子 | 做过一版，用户看过觉得不好看，2026-11-11 删掉了；`flowfield.ts` 的控制器重写留着给控制台演示卡用 | 已放弃 |
 | P3-4 ✅ | 资源规则 | 不用 CDN，单个实验首屏 ≤ 2 MB（压缩后；2026-11-11 从 1 MB 调上来）、公开页首屏 ≤ 200 KB、列表页不加载实验脚本。已换成 `apps/web/scripts/check-size.mjs` 构建时量 gzip，超预算失败 | 超预算时构建失败，报告带每页实测值 |
 | P3-5 | 后续实验 | WebGPU 粒子。~~WASM 图片压缩~~ 已作为工具箱落地（P3-7） | 按兴趣排期 |

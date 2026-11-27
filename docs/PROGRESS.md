@@ -1,33 +1,38 @@
 # 项目进度
 
-更新日期：2026-11-25。任务编号对应 `ROADMAP.md`。完成或变更任务时更新本文。
+更新日期：2026-11-27。任务编号对应 `ROADMAP.md`。完成或变更任务时更新本文。
 
 ## 1. 当前状态
 
-- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场已从构建期静态页升级为 ZIP 动态化架构（SQLite `labs` 表 + `DATA_DIR/labs/<slug>/` + 沉浸全屏 `/lab/<slug>/` + `/console/lab` 语法高亮工作台，《时间的尽头》已迁入内置种子实验）；P4 增强全部完成（Umami、Uptime Kuma、书签管理、控制台脚本私有化、AIHOT 今日日报、Open-Meteo 天气小组件、GitHub 贡献热力图）；自动部署与域名 HTTPS 已上线；安全审查 11 项已处理。
+- **阶段**：P1 完成；P2 博客、分类标签、简历、收藏夹、整站备份完成；P3 试验场已从构建期静态页升级为 ZIP 动态化架构（SQLite `labs` 表 + `DATA_DIR/labs/<slug>/` + 沉浸全屏 `/lab/<slug>/` + `/console/lab` 语法高亮工作台，《时间的尽头》已迁入内置种子实验）；P4 增强全部完成（Umami、Uptime Kuma、书签管理、控制台脚本私有化、AIHOT 今日日报、Open-Meteo IP 定位天气小组件、GitHub 贡献热力图）；P1.5 域名 HTTPS、ICP 备案号、`__Host-` Session Cookie 与自动部署均已落地（仅剩异地备份保留策略待定）；安全审查 11 项已处理。
 - **仓库**：<https://github.com/MLYR/Lumen-Desk>（公开），分支 `main`。
-- **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、简历 3 个项目 9 条技能、2 篇文章、绑定 Google Authenticator。
-- **服务器**：腾讯云轻量（上海，2 核 2G / 50G 盘 / 3 Mbps，另加 2G swap）已部署在 `/opt/lumen-desk/`，<http://43.143.244.97> 对外 200（只开 80，443 等域名）。**已开 CI 自动部署**：push 到 `main` 后 GitHub Actions 跑测试、构建网页，rsync 静态文件和 api 源码上去（几百 KB），在服务器上 `docker compose build api` 现场打镜像，90 秒左右完成，最后做冒烟检查。源码目录 `/opt/lumen-desk/src` 不再需要手动解包，CI 每次覆盖构建需要的那几个文件；`update.sh` 保留作手动兜底。
-- **备案**：未提交。
+- **本机部署**：`~/lumen-desk/`（**只在里启动 compose**，数据在 `~/lumen-desk/data/lumen.db`，仓库 `deploy/` 只是模板），5 个容器（caddy、api、umami、umami-db、uptime-kuma）。主站 <http://localhost>，Umami <http://localhost:8081>，Uptime Kuma <http://localhost:8082>（两个后台先过 basic_auth 门口密码）。已导入 296 条书签、6 年版简历（3 段经历 / 7 个项目 / 5 组技能）、GitHub 热力图（`MLYR`）、绑定 Google Authenticator；`.env` 保持 `COOKIE_SECURE=true` 以配合 `__Host-ld_session`。
+- **服务器**：腾讯云轻量（上海，2 核 2G / 50G 盘 / 3 Mbps，另加 2G swap）已部署在 `/opt/lumen-desk/`，<https://mlyryyds.icu>（含 `www.mlyryyds.icu`）HTTPS 已上线（Let's Encrypt 自动签发证书，HTTP 308 跳 HTTPS，五容器 healthy；已同步 6 年版简历、GitHub 热力图、动态试验场与多篇博客文章）。**已开 CI 自动部署**：push 到 `main` 后 GitHub Actions 跑测试、构建网页，rsync 静态文件和 api 源码上去（几百 KB），在服务器上 `docker compose build api` 现场打镜像，90 秒左右完成，最后做冒烟检查。源码目录 `/opt/lumen-desk/src` 不再需要手动解包，CI 每次覆盖构建需要的那几个文件；`update.sh` 保留作手动兜底。
+- **备案**：ICP 备案已通过（`陕ICP备2026034153号-1`，已挂页脚并链到工信部备案查询页）；公安联网备案待下号后补到 `Footer.astro`。
 
 | 阶段 | 完成度 | 说明 |
 | --- | --- | --- |
-| P0 准备 | 2 / 5 | 服务器和域名已有，P0-3 服务器初始化完成（五个容器跑在 `43.143.244.97`，CI 可自动部署）；备案未提交；COS 已取消 |
+| P0 准备 | 3 / 5 | 服务器初始化、域名 `mlyryyds.icu`、ICP 备案已完成；COS 已取消；剩 P0-2 公安联网备案、P0-6 主页个人资料完善 |
 | P1 MVP | 9 / 9 | 全部完成 |
-| P1.5 上线加固 | 7 / 10 | 服务器首次部署、CI 自动部署、CSP、Actions 固定 SHA、日志轮转、定时备份（本机部分）、服务器状态卡已完成；P1.5-3/4/9 要等备案和域名 |
-| P2 博客 | 10 / 11 | 只差第一篇文章（P2-11，用户写） |
+| P1.5 上线加固 | 9 / 10 | 服务器首次部署、CI 自动部署、域名 HTTPS、`__Host-ld_session` Cookie、CSP、Actions 固定 SHA、定时备份（本机/服务器每日 03:35）、日志轮转、页脚 ICP 备案号、服务器状态卡均已完成；剩 P1.5-7 异地备份保留 |
+| P2 博客 | 11 / 11 | 全部完成，线上已发布多篇文章 |
 | P2.5 分类、标签、设置 | 8 / 8 | 完成，见 `docs/contracts/taxonomy-profile.md` |
 | P2.6 基础 UI 组件 | 完成 | 见 `docs/contracts/ui-components.md` |
 | P2.7 博客阅读体验 | 完成 | 见 `docs/contracts/blog-reader.md` |
 | P2.8 收藏夹管理 | 完成 | 见 `docs/contracts/bookmarks.md`；不做浏览器扩展 |
 | P2.9 服务器状态卡 | 完成 | `docs/contracts/server-status.md` |
-| P2.10 简历 | 完成 | `docs/contracts/resume.md`；简历内容只在服务器数据库 |
+| P2.10 简历 | 完成 | `docs/contracts/resume.md`；简历内容只在服务器数据库，已完成 6 年版替换、打印分页修复与主页/页头排版优化 |
 | P2.11 重新绑定验证器 | 完成 | `docs/contracts/totp-rebind.md`；新增 `SECRET_KEY` |
 | P2.12 整站数据备份 | 完成 | `docs/contracts/backup.md`；控制台导出/导入 ZIP，不含验证器和会话 |
 | P3 试验场 | 6 / 7（含工具箱与 ZIP 工作台） | P3-1/2/4/6/7 完成并升级为 ZIP 动态化试验场（`/console/lab` 上传/编辑/预览、《时间的尽头》迁入数据库与磁盘种子）；P3-3 流场页已删除；后续实验可直接在后台上传 ZIP 或在线新建 |
-| P4 增强 | 7 / 7 | 全部完成：Umami、Uptime Kuma、书签管理（P2.8）、控制台脚本私有化、AIHOT 今日日报（P4-3）、Open-Meteo 天气小组件（P4-4）、GitHub 贡献热力图（P4-5） |
+| P4 增强 | 7 / 7 | 全部完成：Umami、Uptime Kuma、书签管理（P2.8）、控制台脚本私有化、AIHOT 今日日报（P4-3）、Open-Meteo IP 定位天气小组件（P4-4）、GitHub 贡献热力图（P4-5） |
 
 ## 2. 已完成
+
+### P1.5-4 Session Cookie 升级为 `__Host-` 前缀与进度文档收尾（2026-11-27）
+
+- **Cookie 加固**（`apps/api/src/auth/sessions.ts`、`apps/api/test/{helpers,auth,backup-schedule,taxonomy-profile}.test.ts`）：`SESSION_COOKIE` 从 `ld_session` 升级为 `__Host-ld_session`，保持 `HttpOnly; Secure; SameSite=Strict; Path=/` 且不设置 `Domain`。浏览器强制拒绝不带 `Secure` 的写入，误配 `COOKIE_SECURE=false` 时会立即暴露；旧名 `ld_session` 不再被服务端读取（推送上线后需重新用验证码登录一次）。
+- **部署配置与文档对齐**（`deploy/Caddyfile`、`deploy/.env.example`、`apps/api/.env.example`、`deploy/README.md`、`docs/PROGRESS.md`、`docs/ROADMAP.md`）：`deploy/.env.example` 默认值改为 `COOKIE_SECURE=true`，更新本机部署说明（Chrome/Firefox 在 `http://localhost` 下允许 `__Host-` + `Secure`）；同步对齐 `PROGRESS.md` 与 `ROADMAP.md` 中滞后的域名 HTTPS、ICP 备案、P1.5、P2-11 与 P3 状态表。
 
 ### P4-3 / P4-4 / P4-5：AIHOT 今日日报、天气小组件、GitHub 贡献热力图（2026-11-23）
 
@@ -237,7 +242,7 @@
 | --- | --- | --- | --- |
 | 1 | 项目名 | **拾光台**。页面标题已改；左上角标识保留 `z` + zreo | 已改 `pages/*.astro` |
 | 2 | 控制台地址 | 同域名 `/console` | 现有配置不变 |
-| 3 | ICP 备案 | **还没提交** | P0-1，越早越好 |
+| 3 | ICP 备案 | 已获批 `陕ICP备2026034153号-1`（2026-11-19） | 已写入 `Footer.astro`；公安联网备案待补 |
 | 4 | 博客写作 | 既能导入 .md，也能在控制台在线写 | ROADMAP P2 改为文章存 SQLite + 在线编辑器 |
 | 5 | 评论 | 不要 | P2 去掉评论 |
 | 6 | 对象存储 / CDN | 不用 | P0-5 取消；图片上传时压缩，存服务器（P2-7） |
@@ -253,15 +258,16 @@
 
 ## 5. 下一步
 
-1. 你侧：提交 ICP 备案（P0-1）、给域名（P0-4）、主页内容（P0-6）、第一篇文章（P2-11）、在 8081 建 Umami 站点拿到 website id、在 8082 建 Uptime Kuma 管理员。
-2. 2026-11-11 这一批（体积守门、内容模型、流场页、控制台脚本私有化、定时备份）都已完成并上线本机 Docker；流场页做完被否，已删除，`ROADMAP.md` 里标成已放弃。
-3. P1.5 剩下的 6 条（P1.5-1/2/3/4/9 和 P1.5-7 的异地部分）等服务器和备案。
-4. P4-5 GitHub 贡献热力图代码已上线：在服务器 `.env` 填入 `GITHUB_USERNAME` 与只读 `GITHUB_TOKEN` 并重启 `api` 后公开主页即自动展示。
+1. **P0-2 公安联网备案**：下号后在 `apps/web/src/components/Footer.astro` 补上公安备案号与查询链接。
+2. **P0-6 主页个人资料完善**：在 `/console/settings` 补充联系方式、坐标与简介，按需清理 `apps/web/src/components/Intro.astro` 的静态兜底占位文案。
+3. **P1.5-7 异地备份保留**：确定方案（腾讯云轻量自动快照，或定时 `rsync` 拉回本机）。
+4. **P3-5 后续试验场实验**：按兴趣直接在 `/console/lab` 上传 ZIP 或在线编写。
 
 ## 6. 变更日志
 
 | 日期 | 内容 |
 | --- | --- |
+| 2026-11-27 | 完成 P1.5-4：Session Cookie 从 `ld_session` 升级为 `__Host-ld_session`（带 `Secure`、`Path=/`、无 `Domain`），更新认证/备份/设置测试、Caddyfile 注释与 `.env.example` / `deploy/README.md`；同步对齐 `PROGRESS.md` 与 `ROADMAP.md` 中域名 HTTPS、ICP 备案、P1.5、P2-11 与 P3 状态表 |
 | 2026-11-25 | 优化 `/resume/` 与 `/console/resume` 预览页头「基本介绍」布局（`resume-render.ts`、`resume.css`）：基于 `.rs-head` 容器查询在桌面宽屏（`>= 820px` / `>= 960px`）将姓名/求职方向与基本资料字段（自适应 2/3 列，消除右栏空洞与邮件换行）左右分栏对齐，移除自我介绍 `.rs-sum` 的 `46em` 宽度上限并使其全宽贯通页头；控制台窄栏预览、375px 移动端及 `@media print` A4 打印保持堆叠排版，`pnpm test` 17 文件 177 项与 `pnpm build` 通过，已同步至本机 Docker |
 | 2026-11-24 | 优化 P2.10 主页简历模块布局：桌面端调整为左栏「// 技能」、右栏「// 经历」+「// 项目」简述（展示最多 4 条关键项目的名称/客户、时间与角色元信息及两行概述，无项目数据时自动隐藏并展开至 3 条工作经历），严格沿用 `/api/resume` 服务端脱敏结果与锁图标；白纸/蓝图双主题与 1440/375 视口无横向溢出，首页 gzip 合计 13.3 KB（预算 200 KB） |
 | 2026-11-24 | 升级 P4-4 天气小组件：改为默认按访问 IP 自动定位所在省市（内置全国 34 省 487 地市/区坐标表，公网/内网/IPv6 多级归属地解析与 6 小时缓存），天气栏新增「省份 城市」定位标签并同步顶部坐标；`/console/settings` 新增「天气位置」分区（自动/手动切换、IP 重测、省市二级搜索下拉、全球城市搜索、坐标微调）。`pnpm test` 17 文件 177 项通过，`pnpm build` 通过，已同步至本机 Docker 并通过双主题 1440/375 视口核验 |
